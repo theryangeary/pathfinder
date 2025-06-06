@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Board from './components/Board';
 import AnswerSection from './components/AnswerSection';
+import HeatmapModal from './components/HeatmapModal';
 import { generateBoard } from './utils/boardGeneration';
 import { findBestPath, getWildcardConstraintsFromPath, getWildcardAmbiguity, findPathsForHighlighting } from './utils/pathfinding';
 import { calculateWordScore } from './utils/scoring';
@@ -14,6 +15,8 @@ function App() {
   const [wildcardConstraints, setWildcardConstraints] = useState({});
   const [highlightedPaths, setHighlightedPaths] = useState([]);
   const [currentInputIndex, setCurrentInputIndex] = useState(-1);
+  const [showHeatmapModal, setShowHeatmapModal] = useState(false);
+  const [validPaths, setValidPaths] = useState([]);
 
   useEffect(() => {
     const newBoard = generateBoard();
@@ -54,6 +57,7 @@ function App() {
     let tempConstraints = {};
     const newValidAnswers = [...validAnswers];
     const newScores = [...scores];
+    const newValidPaths = [...validPaths];
 
     // Validate all answers from the beginning, rebuilding constraints as we go
     const validPreviousAnswers = [];
@@ -67,6 +71,10 @@ function App() {
           tempConstraints = { ...tempConstraints, ...result.newConstraints };
           // Add this valid answer to the list of previous answers for future validation
           validPreviousAnswers.push(newAnswers[i].toLowerCase());
+          // Store the path for heatmap calculation
+          newValidPaths[i] = result.path;
+        } else {
+          newValidPaths[i] = null;
         }
 
         // Set highlighted paths only for the current input
@@ -79,6 +87,7 @@ function App() {
         // Clear validation state for empty answers
         newValidAnswers[i] = false;
         newScores[i] = 0;
+        newValidPaths[i] = null;
         
         // Clear highlighted paths if this is the current input
         if (i === index) {
@@ -91,11 +100,32 @@ function App() {
     setValidAnswers(newValidAnswers);
     setScores(newScores);
     setWildcardConstraints(tempConstraints);
+    setValidPaths(newValidPaths);
 
     if (!value) {
       setHighlightedPaths([]);
       setCurrentInputIndex(-1);
     }
+  };
+
+  const calculateTileUsage = () => {
+    // Initialize 4x4 grid with zeros
+    const usage = Array(4).fill().map(() => Array(4).fill(0));
+    
+    // Count usage from all valid paths
+    validPaths.forEach(path => {
+      if (path) {
+        path.forEach(position => {
+          usage[position.row][position.col]++;
+        });
+      }
+    });
+    
+    return usage;
+  };
+
+  const handleSubmit = () => {
+    setShowHeatmapModal(true);
   };
 
   return (
@@ -124,6 +154,15 @@ function App() {
         onAnswerChange={handleAnswerChange}
         validAnswers={validAnswers}
         scores={scores}
+        onSubmit={handleSubmit}
+      />
+      
+      <HeatmapModal
+        isOpen={showHeatmapModal}
+        onClose={() => setShowHeatmapModal(false)}
+        tileUsage={calculateTileUsage()}
+        board={board}
+        totalScore={scores.reduce((sum, score) => sum + score, 0)}
       />
     </div>
   );
