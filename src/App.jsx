@@ -45,30 +45,13 @@ function App() {
     newAnswers[index] = value;
     setAnswers(newAnswers);
 
-    let tempConstraints = { ...wildcardConstraints };
+    // Reset constraints and rebuild from scratch based on all valid answers
+    let tempConstraints = {};
     const newValidAnswers = [...validAnswers];
     const newScores = [...scores];
 
-    for (let i = 0; i <= index; i++) {
-      if (i < index) {
-        continue;
-      }
-      
-      const result = validateAnswer(newAnswers[i], i, tempConstraints);
-      newValidAnswers[i] = result.isValid;
-      newScores[i] = result.score;
-      
-      if (result.isValid && result.newConstraints) {
-        tempConstraints = { ...tempConstraints, ...result.newConstraints };
-      }
-
-      if (i === index && result.path) {
-        setHighlightedPath(result.path);
-        setCurrentInputIndex(index);
-      }
-    }
-
-    for (let i = index + 1; i < 5; i++) {
+    // Validate all answers from the beginning, rebuilding constraints as we go
+    for (let i = 0; i < 5; i++) {
       if (newAnswers[i]) {
         const result = validateAnswer(newAnswers[i], i, tempConstraints);
         newValidAnswers[i] = result.isValid;
@@ -76,6 +59,22 @@ function App() {
         
         if (result.isValid && result.newConstraints) {
           tempConstraints = { ...tempConstraints, ...result.newConstraints };
+        }
+
+        // Set highlighted path only for the current input
+        if (i === index) {
+          setHighlightedPath(result.path || []);
+          setCurrentInputIndex(index);
+        }
+      } else {
+        // Clear validation state for empty answers
+        newValidAnswers[i] = false;
+        newScores[i] = 0;
+        
+        // Clear highlighted path if this is the current input
+        if (i === index) {
+          setHighlightedPath([]);
+          setCurrentInputIndex(index);
         }
       }
     }

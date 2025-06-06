@@ -41,3 +41,7 @@ npm run dev
 ```
 
 This starts the Vite development server with hot reload enabled. The game will be available at `http://localhost:5173` by default.
+
+## Claude Code Instructions
+
+- Never run a webserver, I will run a webserver in another window. Just let me know what to run, and in the meantime you can run any commands other than the webserver to verify the code changes.

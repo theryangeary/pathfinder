@@ -116,7 +116,23 @@ export function findBestPath(board, word, wildcardConstraints = {}) {
   
   if (allPaths.length === 0) return null;
   
-  allPaths.sort((a, b) => {
+  // Separate paths by wildcard usage
+  const pathsWithoutWildcards = [];
+  const pathsWithWildcards = [];
+  
+  for (const path of allPaths) {
+    const score = scorePathByPreference(board, path);
+    if (score.wildcardCount === 0) {
+      pathsWithoutWildcards.push(path);
+    } else {
+      pathsWithWildcards.push(path);
+    }
+  }
+  
+  // If there are ANY paths without wildcards, only consider those
+  const pathsToConsider = pathsWithoutWildcards.length > 0 ? pathsWithoutWildcards : pathsWithWildcards;
+  
+  pathsToConsider.sort((a, b) => {
     const scoreA = scorePathByPreference(board, a);
     const scoreB = scorePathByPreference(board, b);
     
@@ -131,7 +147,7 @@ export function findBestPath(board, word, wildcardConstraints = {}) {
     return scoreB.lastDiagonalIndex - scoreA.lastDiagonalIndex;
   });
   
-  return allPaths[0];
+  return pathsToConsider[0];
 }
 
 export function getWildcardConstraintsFromPath(board, word, path) {
@@ -163,22 +179,26 @@ export function getWildcardAmbiguity(board, wildcardConstraints, answers, validA
   
   const ambiguity = {};
   
-  // For each wildcard, collect all possible letters it could represent
-  // We need to check ALL possible assignments, even if constraints exist
+  // For each wildcard, find what letters it could represent based on current valid answers
   for (const wildcard of wildcardPositions) {
     const possibleLetters = new Set();
     
-    // For each valid answer, find ALL possible paths WITHOUT applying current constraints
-    // This allows us to see if there are alternative assignments
+    // For each valid answer, check if multiple valid paths exist that use this wildcard differently
     for (let i = 0; i < answers.length; i++) {
       if (!validAnswers[i] || !answers[i]) continue;
       
       const word = answers[i];
-      // Get ALL possible paths with NO constraints to see all possibilities
+      
+      // Find all possible paths for this word (ignoring current constraints to see alternatives)
       const allPaths = findAllPaths(board, word, {});
       
-      // For each path, check what letters this wildcard could represent
-      for (const path of allPaths) {
+      // Filter to only paths that use this specific wildcard
+      const pathsUsingWildcard = allPaths.filter(path => 
+        path.some(pos => pos.row === wildcard.row && pos.col === wildcard.col)
+      );
+      
+      // For each path using this wildcard, see what letter it represents
+      for (const path of pathsUsingWildcard) {
         for (let j = 0; j < path.length; j++) {
           const pos = path[j];
           if (pos.row === wildcard.row && pos.col === wildcard.col) {
@@ -189,6 +209,7 @@ export function getWildcardAmbiguity(board, wildcardConstraints, answers, validA
       }
     }
     
+    // Only show ambiguity if there are multiple possible letters
     if (possibleLetters.size > 1) {
       ambiguity[wildcard.key] = Array.from(possibleLetters).sort();
     } else {
