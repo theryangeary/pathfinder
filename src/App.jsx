@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import Board from './components/Board';
 import AnswerSection from './components/AnswerSection';
 import { generateBoard } from './utils/boardGeneration';
-import { findBestPath, getWildcardConstraintsFromPath } from './utils/pathfinding';
+import { findBestPath, getWildcardConstraintsFromPath, getWildcardAmbiguity } from './utils/pathfinding';
 import { calculateWordScore } from './utils/scoring';
-import { isValidWord } from './data/wordList';
+import { isValidWord } from './data/wordList.js';
 
 function App() {
   const [board, setBoard] = useState([]);
@@ -103,6 +103,8 @@ function App() {
         board={board} 
         highlightedPath={highlightedPath}
         wildcardConstraints={wildcardConstraints}
+        answers={answers}
+        validAnswers={validAnswers}
       />
       
       <AnswerSection

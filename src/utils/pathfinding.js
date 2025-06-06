@@ -149,3 +149,52 @@ export function getWildcardConstraintsFromPath(board, word, path) {
   
   return constraints;
 }
+
+export function getWildcardAmbiguity(board, wildcardConstraints, answers, validAnswers) {
+  // Find wildcard positions
+  const wildcardPositions = [];
+  for (let row = 0; row < 4; row++) {
+    for (let col = 0; col < 4; col++) {
+      if (board[row][col]?.isWildcard) {
+        wildcardPositions.push({ row, col, key: `${row}-${col}` });
+      }
+    }
+  }
+  
+  const ambiguity = {};
+  
+  // For each wildcard, collect all possible letters it could represent
+  // We need to check ALL possible assignments, even if constraints exist
+  for (const wildcard of wildcardPositions) {
+    const possibleLetters = new Set();
+    
+    // For each valid answer, find ALL possible paths WITHOUT applying current constraints
+    // This allows us to see if there are alternative assignments
+    for (let i = 0; i < answers.length; i++) {
+      if (!validAnswers[i] || !answers[i]) continue;
+      
+      const word = answers[i];
+      // Get ALL possible paths with NO constraints to see all possibilities
+      const allPaths = findAllPaths(board, word, {});
+      
+      // For each path, check what letters this wildcard could represent
+      for (const path of allPaths) {
+        for (let j = 0; j < path.length; j++) {
+          const pos = path[j];
+          if (pos.row === wildcard.row && pos.col === wildcard.col) {
+            possibleLetters.add(word[j].toLowerCase());
+            break;
+          }
+        }
+      }
+    }
+    
+    if (possibleLetters.size > 1) {
+      ambiguity[wildcard.key] = Array.from(possibleLetters).sort();
+    } else {
+      ambiguity[wildcard.key] = null;
+    }
+  }
+  
+  return ambiguity;
+}

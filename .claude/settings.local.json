@@ -5,7 +5,11 @@
       "Bash(npm install:*)",
       "Bash(mkdir:*)",
       "WebFetch(domain:raw.githubusercontent.com)",
-      "Bash(cp:*)"
+      "Bash(cp:*)",
+      "Bash(node:*)",
+      "Bash(rg:*)",
+      "Bash(grep:*)",
+      "Bash(ls:*)"
     ],
     "deny": []
   }

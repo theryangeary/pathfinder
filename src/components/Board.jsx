@@ -1,15 +1,27 @@
 import React from 'react';
 import Tile from './Tile';
+import { getWildcardAmbiguity } from '../utils/pathfinding';
 
-function Board({ board, highlightedPath, wildcardConstraints }) {
+function Board({ board, highlightedPath, wildcardConstraints, answers, validAnswers }) {
   const getWildcardDisplay = (tile) => {
     if (!tile.isWildcard) return null;
     
     const constraintKey = `${tile.row}-${tile.col}`;
     const constraint = wildcardConstraints[constraintKey];
     
+    // Check for ambiguity first - if this wildcard could be multiple letters
+    if (board.length > 0 && answers && validAnswers) {
+      const ambiguity = getWildcardAmbiguity(board, wildcardConstraints, answers, validAnswers);
+      const possibleLetters = ambiguity[constraintKey];
+      
+      if (possibleLetters && possibleLetters.length > 1) {
+        return possibleLetters.map(letter => letter.toUpperCase()).join(' / ');
+      }
+    }
+    
+    // If no ambiguity but constrained, show the constraint
     if (constraint) {
-      return constraint.letter;
+      return constraint.toUpperCase();
     }
     
     return '*';
