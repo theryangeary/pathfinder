@@ -10,7 +10,21 @@ function AnswerSection({
 }) {
   return (
     <div style={{ marginTop: '20px' }}>
-      <h3>Answers:</h3>
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center',
+        marginBottom: '10px'
+      }}>
+        <h3 style={{ margin: 0 }}>Answers:</h3>
+        <div style={{ 
+          fontSize: '18px', 
+          fontWeight: 'bold', 
+          color: '#4CAF50' 
+        }}>
+          Total: {scores.reduce((sum, score) => sum + score, 0)}
+        </div>
+      </div>
       {answers.map((answer, index) => {
         const isEnabled = index === 0 || validAnswers[index - 1];
         const isValid = validAnswers[index];
@@ -29,29 +43,25 @@ function AnswerSection({
         );
       })}
       
-      <div style={{ marginTop: '20px', fontSize: '18px', fontWeight: 'bold' }}>
-        Total Score: {scores.reduce((sum, score) => sum + score, 0)}
-      </div>
-      
-      {validAnswers.every(valid => valid) && (
+      <div style={{ display: 'flex', justifyContent: 'center', marginTop: '20px' }}>
         <button
           onClick={onSubmit}
+          disabled={!validAnswers.every(valid => valid)}
           style={{
-            marginTop: '20px',
             padding: '12px 24px',
             fontSize: '16px',
             fontWeight: 'bold',
-            backgroundColor: '#4CAF50',
-            color: 'white',
+            backgroundColor: validAnswers.every(valid => valid) ? '#4CAF50' : '#cccccc',
+            color: validAnswers.every(valid => valid) ? 'white' : '#666666',
             border: 'none',
             borderRadius: '8px',
-            cursor: 'pointer',
+            cursor: validAnswers.every(valid => valid) ? 'pointer' : 'not-allowed',
             boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
           }}
         >
           Submit Answers
         </button>
-      )}
+      </div>
     </div>
   );
 }
