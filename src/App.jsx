@@ -20,10 +20,15 @@ function App() {
     setBoard(newBoard);
   }, []);
 
-  const validateAnswer = (word, answerIndex, currentConstraints) => {
+  const validateAnswer = (word, answerIndex, currentConstraints, previousAnswers = []) => {
     if (!word || word.length < 2) return { isValid: false, score: 0, path: null };
     
     if (!isValidWord(word)) return { isValid: false, score: 0, path: null };
+    
+    // Check if this word was already used in a previous answer slot
+    if (previousAnswers.includes(word.toLowerCase())) {
+      return { isValid: false, score: 0, path: null };
+    }
     
     const path = findBestPath(board, word, currentConstraints);
     if (!path) return { isValid: false, score: 0, path: null };
@@ -51,14 +56,17 @@ function App() {
     const newScores = [...scores];
 
     // Validate all answers from the beginning, rebuilding constraints as we go
+    const validPreviousAnswers = [];
     for (let i = 0; i < 5; i++) {
       if (newAnswers[i]) {
-        const result = validateAnswer(newAnswers[i], i, tempConstraints);
+        const result = validateAnswer(newAnswers[i], i, tempConstraints, validPreviousAnswers);
         newValidAnswers[i] = result.isValid;
         newScores[i] = result.score;
         
         if (result.isValid && result.newConstraints) {
           tempConstraints = { ...tempConstraints, ...result.newConstraints };
+          // Add this valid answer to the list of previous answers for future validation
+          validPreviousAnswers.push(newAnswers[i].toLowerCase());
         }
 
         // Set highlighted paths only for the current input
