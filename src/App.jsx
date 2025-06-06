@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Board from './components/Board';
 import AnswerSection from './components/AnswerSection';
 import { generateBoard } from './utils/boardGeneration';
-import { findBestPath, getWildcardConstraintsFromPath, getWildcardAmbiguity } from './utils/pathfinding';
+import { findBestPath, getWildcardConstraintsFromPath, getWildcardAmbiguity, findPathsForHighlighting } from './utils/pathfinding';
 import { calculateWordScore } from './utils/scoring';
 import { isValidWord } from './data/wordList.js';
 
@@ -12,7 +12,7 @@ function App() {
   const [validAnswers, setValidAnswers] = useState([false, false, false, false, false]);
   const [scores, setScores] = useState([0, 0, 0, 0, 0]);
   const [wildcardConstraints, setWildcardConstraints] = useState({});
-  const [highlightedPath, setHighlightedPath] = useState([]);
+  const [highlightedPaths, setHighlightedPaths] = useState([]);
   const [currentInputIndex, setCurrentInputIndex] = useState(-1);
 
   useEffect(() => {
@@ -61,9 +61,10 @@ function App() {
           tempConstraints = { ...tempConstraints, ...result.newConstraints };
         }
 
-        // Set highlighted path only for the current input
+        // Set highlighted paths only for the current input
         if (i === index) {
-          setHighlightedPath(result.path || []);
+          const paths = findPathsForHighlighting(board, newAnswers[i], tempConstraints);
+          setHighlightedPaths(paths);
           setCurrentInputIndex(index);
         }
       } else {
@@ -71,9 +72,9 @@ function App() {
         newValidAnswers[i] = false;
         newScores[i] = 0;
         
-        // Clear highlighted path if this is the current input
+        // Clear highlighted paths if this is the current input
         if (i === index) {
-          setHighlightedPath([]);
+          setHighlightedPaths([]);
           setCurrentInputIndex(index);
         }
       }
@@ -84,7 +85,7 @@ function App() {
     setWildcardConstraints(tempConstraints);
 
     if (!value) {
-      setHighlightedPath([]);
+      setHighlightedPaths([]);
       setCurrentInputIndex(-1);
     }
   };
@@ -100,10 +101,11 @@ function App() {
       
       <Board 
         board={board} 
-        highlightedPath={highlightedPath}
+        highlightedPaths={highlightedPaths}
         wildcardConstraints={wildcardConstraints}
         answers={answers}
         validAnswers={validAnswers}
+        currentWord={currentInputIndex >= 0 ? answers[currentInputIndex] : ''}
       />
       
       <AnswerSection

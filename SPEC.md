@@ -71,9 +71,23 @@ If there is more than one path to form a word on the board, ignore the rest afte
 
 the game will exist as a webpage. the webpage will display the board as a grid of 4x4 tiles. the tiles will have subtly rounded edges. below the board will be 5 text boxes for inputing answers to. each answer box except the first will be disabled, until the answer box above it has a valid answer. each answer box will display a red X emoji to the left while it does not have a valid answer. each answer box will display a green checkmark emoji to the left while it does have a valid answer. each answer box will display the score for the word to the right. if an answer is not valid it has a score of 0.
 
-as the user types in the answer box, the tiles that form a valid path will light up to demonstrate the path. use the first two steps of "resolving duplicate paths" section above to decide which paths not to show, and then show the rest. i.e. if the user has only typed the letter "h" so far, every "h" tile will light up. draw connections between the tiles indicating the paths taken to find each word.
+as the user types in the answer box, the tiles that form a valid path will light up to demonstrate the path. The path highlighting follows constraint minimization principles:
 
-if an answer requires a wildcard tile to have a particular value, display the value on the wildcard tile. If an answer requires either wildcard tile (but not one specific wildcard tile) to have some value, display it as "<letter> / *". If no answer requires a wildcard tile have a particular value, display "*".
+1. **If ANY paths use 0 wildcards**: Light up ALL valid paths (including those with wildcards)
+2. **If NO paths use 0 wildcards**: Light up only necessary wildcard paths that follow these rules:
+   - Rule 2a: Don't use wildcards if non-wildcard alternatives exist for the same letter
+   - Rule 2b: Consider both wildcards if both are accessible and can reach the next letter
+
+### Wildcard Notation System
+
+Wildcard tiles display different notations based on current constraints and typing context:
+
+- **Single letter** (e.g., "E"): Wildcard must be that specific letter
+- **Letter / \*** (e.g., "S / \*"): Wildcard could be that letter, but the other wildcard remains free for other uses  
+- **Letter1 / Letter2** (e.g., "E / L"): Wildcard must be one of two letters, with paired constraints between wildcards
+- **\***: No constraints on this wildcard tile
+
+This system ensures maximum flexibility for future answers while clearly communicating current constraint relationships.
 
 Be sure to be on the lookout for a later answer trying to overwrite the constraints imposed on a wildcard tile by a previous answer.
 

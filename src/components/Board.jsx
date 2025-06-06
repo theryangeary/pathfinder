@@ -1,30 +1,21 @@
 import React from 'react';
 import Tile from './Tile';
-import { getWildcardAmbiguity } from '../utils/pathfinding';
+import { getWildcardAmbiguity, getWildcardNotation } from '../utils/pathfinding';
 
-function Board({ board, highlightedPath, wildcardConstraints, answers, validAnswers }) {
+function Board({ board, highlightedPaths, wildcardConstraints, answers, validAnswers, currentWord }) {
   const getWildcardDisplay = (tile) => {
     if (!tile.isWildcard) return null;
     
     const constraintKey = `${tile.row}-${tile.col}`;
+    
+    // Use the new notation system that considers current typing context
+    if (board.length > 0) {
+      const notation = getWildcardNotation(board, wildcardConstraints, currentWord, highlightedPaths, answers, validAnswers);
+      return notation[constraintKey] || '*';
+    }
+    
     const constraint = wildcardConstraints[constraintKey];
-    
-    // Check for ambiguity first - if this wildcard could be multiple letters
-    if (board.length > 0 && answers && validAnswers) {
-      const ambiguity = getWildcardAmbiguity(board, wildcardConstraints, answers, validAnswers);
-      const possibleLetters = ambiguity[constraintKey];
-      
-      if (possibleLetters && possibleLetters.length > 1) {
-        return possibleLetters.map(letter => letter.toUpperCase()).join(' / ');
-      }
-    }
-    
-    // If no ambiguity but constrained, show the constraint
-    if (constraint) {
-      return constraint.toUpperCase();
-    }
-    
-    return '*';
+    return constraint ? constraint.toUpperCase() : '*';
   };
 
   return (
@@ -43,8 +34,8 @@ function Board({ board, highlightedPath, wildcardConstraints, answers, validAnsw
     >
       {board.map((row, rowIndex) =>
         row.map((tile, colIndex) => {
-          const isHighlighted = highlightedPath.some(
-            pos => pos.row === rowIndex && pos.col === colIndex
+          const isHighlighted = highlightedPaths.some(path =>
+            path.some(pos => pos.row === rowIndex && pos.col === colIndex)
           );
           
           return (
