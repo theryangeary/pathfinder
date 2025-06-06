@@ -95,7 +95,10 @@ function App() {
       fontFamily: 'Arial, sans-serif', 
       maxWidth: '800px', 
       margin: '0 auto', 
-      padding: '20px' 
+      padding: '20px',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center'
     }}>
       <h1 style={{ textAlign: 'center' }}>Word Game</h1>
       

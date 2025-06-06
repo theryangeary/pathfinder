@@ -375,82 +375,32 @@ function analyzeForcedConstraints(board, answers, validAnswers, wildcardPosition
   
   if (!answers || !validAnswers) return forcedConstraints;
   
-  // Collect all possible wildcard assignments for each valid answer
-  const answerConstraints = [];
+  // Build up constraints iteratively, respecting the order answers were entered
+  let currentConstraints = {};
   
   for (let i = 0; i < answers.length; i++) {
     if (!validAnswers[i] || !answers[i]) continue;
     
     const word = answers[i];
-    const allPaths = findAllPaths(board, word, {});
-    const possibleAssignments = [];
     
-    for (const path of allPaths) {
-      const pathConstraints = getWildcardConstraintsFromPath(board, word, path);
-      possibleAssignments.push(pathConstraints);
-    }
+    // Find all paths that are compatible with current constraints
+    const compatiblePaths = findAllPaths(board, word, currentConstraints);
     
-    answerConstraints.push({
-      word,
-      possibleAssignments
-    });
+    if (compatiblePaths.length === 0) continue;
+    
+    // Get the best path (this is what was actually used for this answer)
+    const bestPath = findBestPath(board, word, currentConstraints);
+    if (!bestPath) continue;
+    
+    // Extract constraints from the best path
+    const pathConstraints = getWildcardConstraintsFromPath(board, word, bestPath);
+    
+    // Merge into current constraints
+    currentConstraints = { ...currentConstraints, ...pathConstraints };
   }
   
-  // For each wildcard, check if all valid answers force it to be the same letter
-  for (const wildcard of wildcardPositions) {
-    const possibleLettersForThisWildcard = new Set();
-    
-    // Check each answer's possible assignments
-    for (const answerConstraint of answerConstraints) {
-      const lettersFromThisAnswer = new Set();
-      
-      for (const assignment of answerConstraint.possibleAssignments) {
-        if (assignment[wildcard.key]) {
-          lettersFromThisAnswer.add(assignment[wildcard.key]);
-        }
-      }
-      
-      // If this answer uses this wildcard, add all possible letters
-      if (lettersFromThisAnswer.size > 0) {
-        for (const letter of lettersFromThisAnswer) {
-          possibleLettersForThisWildcard.add(letter);
-        }
-      }
-    }
-    
-    // Check if any answer has ONLY one possible assignment for this wildcard
-    let hasOnlyOneOption = false;
-    let forcedLetter = null;
-    
-    for (const answerConstraint of answerConstraints) {
-      const lettersFromThisAnswer = new Set();
-      
-      for (const assignment of answerConstraint.possibleAssignments) {
-        if (assignment[wildcard.key]) {
-          lettersFromThisAnswer.add(assignment[wildcard.key]);
-        }
-      }
-      
-      // If this answer can only use this wildcard in one way
-      if (lettersFromThisAnswer.size === 1) {
-        const letter = Array.from(lettersFromThisAnswer)[0];
-        if (!forcedLetter) {
-          forcedLetter = letter;
-          hasOnlyOneOption = true;
-        } else if (forcedLetter !== letter) {
-          // Conflict - this shouldn't happen with valid answers
-          hasOnlyOneOption = false;
-          break;
-        }
-      }
-    }
-    
-    if (hasOnlyOneOption && forcedLetter) {
-      forcedConstraints[wildcard.key] = forcedLetter;
-    }
-  }
-  
-  return forcedConstraints;
+  // The current constraints represent what each wildcard is forced to be
+  return currentConstraints;
 }
 
 export function getWildcardAmbiguity(board, wildcardConstraints, answers, validAnswers) {
