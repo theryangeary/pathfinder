@@ -1,10 +1,27 @@
 import React from 'react';
 
-function HeatmapModal({ isOpen, onClose, tileUsage, board, totalScore }) {
+function HeatmapModal({ isOpen, onClose, tileUsage, board, totalScore, scores }) {
   if (!isOpen) return null;
 
   // Get the maximum usage count to normalize the heat scale
   const maxUsage = Math.max(...tileUsage.flat(), 1);
+  
+  // Calculate the best word score
+  const bestWordScore = Math.max(...scores);
+
+  const copyToClipboard = () => {
+    const heatmapText = board.map((row, rowIndex) => 
+      row.map((tile, colIndex) => getHeatEmoji(tileUsage[rowIndex][colIndex])).join('')
+    ).join('\n');
+    
+    const currentUrl = window.location.href;
+    
+    const textToCopy = `${heatmapText}\n\nTotal Score: ${totalScore}\nBest Word: ${bestWordScore}\n\n${currentUrl}`;
+    
+    navigator.clipboard.writeText(textToCopy).catch(err => {
+      console.error('Failed to copy to clipboard:', err);
+    });
+  };
 
   // Define emoji heat scale from black (0 uses) to red (max uses)
   const getHeatEmoji = (usageCount) => {
@@ -62,11 +79,20 @@ function HeatmapModal({ isOpen, onClose, tileUsage, board, totalScore }) {
 
         <div style={{ 
           marginBottom: '20px', 
-          fontSize: '18px', 
-          fontWeight: 'bold',
-          color: '#333'
+          fontSize: '16px', 
+          fontWeight: 'normal',
+          color: '#555'
         }}>
           Total Score: {totalScore}
+        </div>
+
+        <div style={{ 
+          marginBottom: '20px', 
+          fontSize: '16px', 
+          fontWeight: 'normal',
+          color: '#555'
+        }}>
+          Best Word: {bestWordScore}
         </div>
 
         <div style={{ 
@@ -88,6 +114,21 @@ function HeatmapModal({ isOpen, onClose, tileUsage, board, totalScore }) {
             }}
           >
             Share
+          </button>
+          
+          <button
+            onClick={copyToClipboard}
+            style={{
+              padding: '10px 20px',
+              fontSize: '14px',
+              backgroundColor: '#FF9800',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: 'pointer'
+            }}
+          >
+            Copy
           </button>
           
           <button

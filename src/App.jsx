@@ -163,6 +163,7 @@ function App() {
         tileUsage={calculateTileUsage()}
         board={board}
         totalScore={scores.reduce((sum, score) => sum + score, 0)}
+        scores={scores}
       />
     </div>
   );
