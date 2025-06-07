@@ -33,7 +33,6 @@ function App() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    console.log('useEffect triggered - userLoading:', userLoading, 'user:', user?.user_id);
     if (!userLoading) {
       loadDailyGame();
     }
@@ -79,15 +78,12 @@ function App() {
       
       // Try to load existing game entry if user is available
       if (user) {
-        console.log('Loading existing game entry for user:', user.user_id);
         try {
           const existingAnswers = await gameApi.getGameEntry(
             game.id, 
             user.user_id, 
             user.cookie_token
           );
-          
-          console.log('Existing answers:', existingAnswers);
           
           if (existingAnswers && existingAnswers.length > 0) {
             // Populate answers from existing game entry
