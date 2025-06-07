@@ -1,0 +1,141 @@
+syntax = "proto3";
+
+package wordgame;
+
+import "google/protobuf/timestamp.proto";
+
+// Core game models
+message Game {
+    string id = 1;
+    string date = 2;  // YYYY-MM-DD format
+    Board board = 3;
+    int32 threshold_score = 4;
+    google.protobuf.Timestamp created_at = 5;
+}
+
+message Board {
+    repeated Row rows = 1;
+}
+
+message Row {
+    repeated Tile tiles = 1;
+}
+
+message Tile {
+    string letter = 1;
+    int32 points = 2;
+    bool is_wildcard = 3;
+    int32 row = 4;
+    int32 col = 5;
+}
+
+message Position {
+    int32 row = 1;
+    int32 col = 2;
+}
+
+message User {
+    string id = 1;
+    string cookie_token = 2;
+    google.protobuf.Timestamp created_at = 3;
+    google.protobuf.Timestamp last_seen = 4;
+}
+
+message GameEntry {
+    string id = 1;
+    string user_id = 2;
+    string game_id = 3;
+    repeated Answer answers = 4;
+    int32 total_score = 5;
+    google.protobuf.Timestamp created_at = 6;
+    google.protobuf.Timestamp updated_at = 7;
+    bool completed = 8;
+}
+
+message Answer {
+    string word = 1;
+    int32 score = 2;
+    repeated Position path = 3;
+    map<string, string> wildcard_constraints = 4;  // wildcard_id -> letter
+}
+
+// Request/Response messages for gRPC service
+message GetDailyGameRequest {
+    string date = 1;  // Optional, defaults to today
+}
+
+message GetDailyGameResponse {
+    Game game = 1;
+}
+
+message GetHistoricalGameRequest {
+    oneof selector {
+        string game_id = 1;
+        string date = 2;  // YYYY-MM-DD
+        bool random = 3;  // Get random historical game
+    }
+}
+
+message GetHistoricalGameResponse {
+    Game game = 1;
+}
+
+message ValidateAnswerRequest {
+    string game_id = 1;
+    string word = 2;
+    repeated Answer previous_answers = 3;  // For wildcard constraint checking
+}
+
+message ValidateAnswerResponse {
+    bool is_valid = 1;
+    int32 score = 2;
+    repeated Position path = 3;
+    map<string, string> wildcard_constraints = 4;
+    string error_message = 5;
+}
+
+message SubmitGameEntryRequest {
+    string user_id = 1;
+    string game_id = 2;
+    repeated Answer answers = 3;
+}
+
+message SubmitGameEntryResponse {
+    GameEntry game_entry = 1;
+    GameStats stats = 2;
+}
+
+message GetGameStatsRequest {
+    string game_id = 1;
+    int32 user_score = 2;
+}
+
+message GetGameStatsResponse {
+    GameStats stats = 1;
+}
+
+message GameStats {
+    int32 total_players = 1;
+    int32 user_rank = 2;
+    float percentile = 3;  // 0.0 to 100.0
+    int32 average_score = 4;
+    int32 highest_score = 5;
+}
+
+message RegisterUserRequest {
+    // Empty - generates new user with cookie
+}
+
+message RegisterUserResponse {
+    User user = 1;
+}
+
+// gRPC Service definition
+service WordGameService {
+    rpc GetDailyGame(GetDailyGameRequest) returns (GetDailyGameResponse);
+    rpc GetHistoricalGame(GetHistoricalGameRequest) returns (GetHistoricalGameResponse);
+    rpc ValidateAnswer(ValidateAnswerRequest) returns (ValidateAnswerResponse);
+    rpc SubmitGameEntry(SubmitGameEntryRequest) returns (SubmitGameEntryResponse);
+    rpc GetGameStats(GetGameStatsRequest) returns (GetGameStatsResponse);
+    rpc RegisterUser(RegisterUserRequest) returns (RegisterUserResponse);
+}

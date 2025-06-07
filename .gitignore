@@ -84,5 +84,19 @@ jspm_packages/
 # Claude Code
 .claude/
 
+# Rust backend
+src/api/target/
+src/api/Cargo.lock
+src/api/*.db
+src/api/*.db-*
+src/api/*.log
+src/api/*.pid
+
+# Database files
+*.sqlite
+*.sqlite3
+*.db
+*.db-*
+
 # the rest
 todo

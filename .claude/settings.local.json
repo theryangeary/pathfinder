@@ -12,7 +12,13 @@
       "Bash(ls:*)",
       "Bash(npm run dev:*)",
       "Bash(mv:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(find:*)",
+      "Bash(cargo init:*)",
+      "Bash(cargo check:*)",
+      "Bash(cargo:*)",
+      "Bash(touch:*)",
+      "Bash(./target/debug/word-game-backend:*)"
     ],
     "deny": []
   }

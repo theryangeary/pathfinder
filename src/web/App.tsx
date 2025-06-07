@@ -7,6 +7,8 @@ import { findBestPath, getWildcardConstraintsFromPath, findPathsForHighlighting 
 import { calculateWordScore } from './utils/scoring';
 import { isValidWord } from './data/wordList';
 import { Position, Tile } from './utils/scoring';
+import { gameApi, convertApiBoardToBoard, ApiGame } from './api/gameApi';
+import { useUser } from './hooks/useUser';
 
 interface ValidationResult {
   isValid: boolean;
@@ -16,6 +18,7 @@ interface ValidationResult {
 }
 
 function App() {
+  const { user, isLoading: userLoading } = useUser();
   const [board, setBoard] = useState<Tile[][]>([]);
   const [answers, setAnswers] = useState<string[]>(['', '', '', '', '']);
   const [validAnswers, setValidAnswers] = useState<boolean[]>([false, false, false, false, false]);
@@ -25,11 +28,34 @@ function App() {
   const [currentInputIndex, setCurrentInputIndex] = useState<number>(-1);
   const [showHeatmapModal, setShowHeatmapModal] = useState<boolean>(false);
   const [validPaths, setValidPaths] = useState<(Position[] | null)[]>([]);
+  const [currentGame, setCurrentGame] = useState<ApiGame | null>(null);
+  const [isLoadingGame, setIsLoadingGame] = useState(true);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   useEffect(() => {
-    const newBoard = generateBoard();
-    setBoard(newBoard);
-  }, []);
+    if (!userLoading) {
+      loadDailyGame();
+    }
+  }, [userLoading]);
+
+  const loadDailyGame = async () => {
+    try {
+      setIsLoadingGame(true);
+      setApiError(null);
+      const game = await gameApi.getDailyGame();
+      setCurrentGame(game);
+      const newBoard = convertApiBoardToBoard(game.board);
+      setBoard(newBoard);
+    } catch (error) {
+      console.error('Failed to load daily game from API, falling back to local generation:', error);
+      setApiError('Failed to connect to server. Playing offline.');
+      // Fallback to local board generation
+      const newBoard = generateBoard();
+      setBoard(newBoard);
+    } finally {
+      setIsLoadingGame(false);
+    }
+  };
 
   const validateAnswer = (word: string, _answerIndex: number, currentConstraints: Record<string, string>, previousAnswers: string[] = []): ValidationResult => {
     if (!word || word.length < 2) return { isValid: false, score: 0, path: null };
@@ -144,6 +170,40 @@ function App() {
     setShowHeatmapModal(true);
   };
 
+  if (userLoading || isLoadingGame) {
+    return (
+      <div style={{ 
+        fontFamily: 'Arial, sans-serif', 
+        maxWidth: '800px', 
+        margin: '0 auto', 
+        padding: '20px',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '50vh'
+      }}>
+        <h2>Loading daily puzzle...</h2>
+        <div style={{ 
+          width: '40px', 
+          height: '40px', 
+          border: '4px solid #f3f3f3',
+          borderTop: '4px solid #3498db',
+          borderRadius: '50%',
+          animation: 'spin 1s linear infinite'
+        }} />
+        <style dangerouslySetInnerHTML={{
+          __html: `
+            @keyframes spin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+          `
+        }} />
+      </div>
+    );
+  }
+
   return (
     <div style={{ 
       fontFamily: 'Arial, sans-serif', 
@@ -155,6 +215,31 @@ function App() {
       alignItems: 'center'
     }}>
       <h1 style={{ textAlign: 'center' }}>Word Game</h1>
+      
+      {apiError && (
+        <div style={{
+          backgroundColor: '#fff3cd',
+          border: '1px solid #ffeaa7',
+          color: '#856404',
+          padding: '10px',
+          borderRadius: '4px',
+          marginBottom: '20px',
+          textAlign: 'center'
+        }}>
+          {apiError}
+        </div>
+      )}
+
+      {currentGame && (
+        <div style={{
+          textAlign: 'center',
+          marginBottom: '20px',
+          color: '#666'
+        }}>
+          <p>Daily Puzzle: {currentGame.date}</p>
+          <p>Game ID: {currentGame.id.slice(0, 8)}...</p>
+        </div>
+      )}
       
       <Board 
         board={board} 

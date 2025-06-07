@@ -48,22 +48,60 @@ This notation system communicates constraint relationships clearly while preserv
 Points calculated as: `floor(log2(freq_of_e / freq_of_letter)) + 1`
 Wildcard tiles always worth 0 points.
 
-## Development Notes
+## Project Structure
 
-The SPEC.md contains detailed game rules and UI requirements. The project currently has no implementation - tech stack is open but vanilla JavaScript components are preferred unless frameworks provide meaningful simplification.
+```
+src/
+├── web/                   # Frontend (React/TypeScript)
+│   ├── components/        # React components (Board, Tile, AnswerSection, etc.)
+│   ├── api/              # Backend API client (gameApi.ts)
+│   ├── hooks/            # React hooks (useUser.ts)
+│   ├── utils/            # Game logic utilities (pathfinding, scoring, board generation)
+│   └── data/             # Static data files (wordList.ts)
+└── api/                  # Backend (Rust)
+    ├── src/              # Rust source code
+    │   ├── db/           # Database layer (models, repository)
+    │   ├── game/         # Game logic (board, scoring, pathfinding)
+    │   └── http_api.rs   # HTTP API endpoints
+    ├── proto/            # gRPC protocol definitions
+    ├── migrations/       # Database migrations
+    └── wordlist          # Word validation data
+```
 
-Reference implementations in `../wordgame` (Python CLI) and `../word-game` (partial Rust web) exist but have limitations, particularly around wildcard handling.
+## Development Status
 
-## Development Server
+The project is fully implemented with:
+- ✅ Complete React frontend with TypeScript
+- ✅ Rust backend with HTTP API and gRPC services  
+- ✅ SQLite database with automated migrations
+- ✅ End-to-end integration working
+- ✅ User session management
+- ✅ Daily puzzle generation with quality checking
 
-To run the development server for testing changes:
+## Development Servers
 
+### Frontend Development
 ```bash
 npm run dev
 ```
+Starts Vite development server with hot reload at `http://localhost:5173`
 
-This starts the Vite development server with hot reload enabled. The game will be available at `http://localhost:5173` by default.
+### Backend Development  
+```bash
+cd src/api
+cargo run
+```
+Starts backend servers:
+- HTTP API: `http://localhost:3001`
+- gRPC: `http://localhost:50051`
+
+### Integration Testing
+```bash
+./test_integration.sh
+```
 
 ## Claude Code Instructions
 
 - Never run a webserver, I will run a webserver in another window. Just let me know what to run, and in the meantime you can run any commands other than the webserver to verify the code changes.
+- Frontend source is in `src/web/`, backend source is in `src/api/`
+- Use the HTTP API client in `src/web/api/gameApi.ts` for frontend-backend communication
