@@ -1,6 +1,7 @@
 import React from 'react';
+import { getLetterPoints } from '../utils/scoring';
 
-function Tile({ tile, isHighlighted, connections, wildcardValue }) {
+function Tile({ tile, isHighlighted, wildcardValue }) {
   const displayLetter = tile.isWildcard 
     ? (wildcardValue || '*')
     : tile.letter.toUpperCase();
@@ -8,14 +9,8 @@ function Tile({ tile, isHighlighted, connections, wildcardValue }) {
   // Calculate point value for non-wildcard tiles
   const getPointValue = () => {
     if (tile.isWildcard) return null;
-    const letterFrequencies = {
-      'a': 0.078, 'b': 0.02, 'c': 0.04, 'd': 0.038, 'e': 0.11, 'f': 0.014,
-      'g': 0.03, 'h': 0.023, 'i': 0.086, 'j': 0.0021, 'k': 0.0097, 'l': 0.053,
-      'm': 0.027, 'n': 0.072, 'o': 0.061, 'p': 0.028, 'q': 0.0019, 'r': 0.073,
-      's': 0.087, 't': 0.067, 'u': 0.033, 'v': 0.01, 'w': 0.0091, 'x': 0.0027,
-      'y': 0.016, 'z': 0.0044,
-    };
-    return Math.floor(Math.log2(letterFrequencies['e'] / letterFrequencies[tile.letter.toLowerCase()])) + 1;
+    const letterPoints = getLetterPoints();
+    return letterPoints[tile.letter.toLowerCase()];
   };
 
   const pointValue = getPointValue();
@@ -53,20 +48,6 @@ function Tile({ tile, isHighlighted, connections, wildcardValue }) {
           {pointValue}
         </div>
       )}
-      {connections && connections.map((connection, index) => (
-        <div
-          key={index}
-          className="connection-line"
-          style={{
-            position: 'absolute',
-            width: '2px',
-            backgroundColor: '#ff5722',
-            transformOrigin: 'bottom',
-            zIndex: 1,
-            ...connection.style
-          }}
-        />
-      ))}
     </div>
   );
 }
