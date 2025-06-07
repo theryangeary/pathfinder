@@ -48,7 +48,7 @@ impl GameGenerator {
 
     /// Generate a single game for a specific date
     pub async fn generate_game_for_date(&self, date: &str) -> Result<crate::db::models::DbGame> {
-        let mut threshold_score = 40;
+        let mut threshold_score = 35;
         let max_threshold_reductions = 1; // Only allow one 25% reduction (40 -> 30)
         
         for reduction_attempt in 0..=max_threshold_reductions {
