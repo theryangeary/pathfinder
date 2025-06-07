@@ -64,27 +64,33 @@ function HeatmapModal({ isOpen, onClose, tileUsage, board, totalScore, scores }:
 
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: 'rgba(0, 0, 0, 0.7)',
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      zIndex: 1000
-    }}>
-      <div style={{
-        backgroundColor: 'white',
-        padding: '30px',
-        borderRadius: '12px',
-        maxWidth: '500px',
-        width: '90%',
-        textAlign: 'center',
-        boxShadow: '0 4px 20px rgba(0,0,0,0.3)'
-      }}>
+    <div 
+      onClick={onClose}
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 1000
+      }}
+    >
+      <div 
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          backgroundColor: 'white',
+          padding: '30px',
+          borderRadius: '12px',
+          maxWidth: '500px',
+          width: '90%',
+          textAlign: 'center',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.3)'
+        }}
+      >
         <h2 style={{ marginBottom: '20px', color: '#333' }}>Nice Work!</h2>
         
         <div style={{
