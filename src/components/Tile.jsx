@@ -1,7 +1,7 @@
 import React from 'react';
 import { getLetterPoints } from '../utils/scoring';
 
-function Tile({ tile, isHighlighted, wildcardValue }) {
+function Tile({ tile, isHighlighted, isLastLetter, wildcardValue }) {
   const displayLetter = tile.isWildcard 
     ? (wildcardValue || '*')
     : tile.letter.toUpperCase();
@@ -28,7 +28,7 @@ function Tile({ tile, isHighlighted, wildcardValue }) {
         justifyContent: 'center',
         fontSize: '20px',
         fontWeight: 'bold',
-        backgroundColor: isHighlighted ? '#ffeb3b' : (tile.isWildcard ? '#e0e0e0' : '#fff'),
+        backgroundColor: isLastLetter ? '#ffeb3b' : (isHighlighted ? '#f7d452' : (tile.isWildcard ? '#e0e0e0' : '#fff')),
         cursor: 'default',
         position: 'relative'
       }}

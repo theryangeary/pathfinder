@@ -38,11 +38,19 @@ function Board({ board, highlightedPaths, wildcardConstraints, answers, validAns
             path.some(pos => pos.row === rowIndex && pos.col === colIndex)
           );
           
+          // Check if this tile is the last letter in any highlighted path
+          const isLastLetter = highlightedPaths.some(path => {
+            if (path.length === 0) return false;
+            const lastPos = path[path.length - 1];
+            return lastPos.row === rowIndex && lastPos.col === colIndex;
+          });
+          
           return (
             <Tile
               key={`${rowIndex}-${colIndex}`}
               tile={tile}
               isHighlighted={isHighlighted}
+              isLastLetter={isLastLetter}
               wildcardValue={getWildcardDisplay(tile)}
             />
           );
