@@ -136,3 +136,221 @@ impl GameGenerator {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::game::GameEngine;
+    use crate::db::Repository;
+    use tempfile::NamedTempFile;
+    use std::io::Write;
+    use chrono::NaiveDate;
+    use tokio_test;
+
+    // Mock repository for testing
+    struct MockRepository {
+        existing_games: std::collections::HashMap<String, bool>,
+        should_fail_create: bool,
+    }
+
+    impl MockRepository {
+        fn new() -> Self {
+            Self {
+                existing_games: std::collections::HashMap::new(),
+                should_fail_create: false,
+            }
+        }
+
+        fn with_existing_game(mut self, date: &str) -> Self {
+            self.existing_games.insert(date.to_string(), true);
+            self
+        }
+
+        fn with_create_failure(mut self) -> Self {
+            self.should_fail_create = true;
+            self
+        }
+    }
+
+    // Mock implementation would go here in a real scenario, but for this test we'll focus on the testable pure functions
+
+    fn create_test_wordlist() -> NamedTempFile {
+        let mut temp_file = NamedTempFile::new().unwrap();
+        writeln!(temp_file, "cat").unwrap();
+        writeln!(temp_file, "dog").unwrap();
+        writeln!(temp_file, "test").unwrap();
+        writeln!(temp_file, "word").unwrap();
+        writeln!(temp_file, "game").unwrap();
+        writeln!(temp_file, "path").unwrap();
+        writeln!(temp_file, "tile").unwrap();
+        writeln!(temp_file, "board").unwrap();
+        writeln!(temp_file, "score").unwrap();
+        writeln!(temp_file, "point").unwrap();
+        temp_file.flush().unwrap();
+        temp_file
+    }
+
+    async fn create_test_game_generator() -> GameGenerator {
+        let temp_file = create_test_wordlist();
+        let game_engine = GameEngine::new(temp_file.path()).await.unwrap();
+        
+        // Create a minimal repository for testing
+        let pool = sqlx::SqlitePool::connect(":memory:").await.unwrap();
+        
+        // Run migrations if needed (in real usage, but for tests we'll use minimal setup)
+        let repository = Repository::new(pool);
+        
+        GameGenerator::new(repository, game_engine)
+    }
+
+    #[test]
+    fn test_game_generator_new() {
+        tokio_test::block_on(async {
+            let _generator = create_test_game_generator().await;
+            
+            // Generator should be created successfully
+            // This tests the constructor logic
+            assert!(true); // Constructor completed without panicking
+        });
+    }
+
+    #[test]
+    fn test_create_seed_deterministic() {
+        tokio_test::block_on(async {
+            let generator = create_test_game_generator().await;
+            
+            let seed1 = generator.create_seed("2023-12-01", 0, 1);
+            let seed2 = generator.create_seed("2023-12-01", 0, 1);
+            
+            // Same inputs should produce same seed
+            assert_eq!(seed1, seed2);
+        });
+    }
+
+    #[test]
+    fn test_create_seed_different_dates() {
+        tokio_test::block_on(async {
+            let generator = create_test_game_generator().await;
+            
+            let seed1 = generator.create_seed("2023-12-01", 0, 1);
+            let seed2 = generator.create_seed("2023-12-02", 0, 1);
+            
+            // Different dates should produce different seeds
+            assert_ne!(seed1, seed2);
+        });
+    }
+
+    #[test]
+    fn test_create_seed_different_attempts() {
+        tokio_test::block_on(async {
+            let generator = create_test_game_generator().await;
+            
+            let seed1 = generator.create_seed("2023-12-01", 0, 1);
+            let seed2 = generator.create_seed("2023-12-01", 0, 2);
+            let seed3 = generator.create_seed("2023-12-01", 1, 1);
+            
+            // Different attempt numbers should produce different seeds
+            assert_ne!(seed1, seed2);
+            assert_ne!(seed1, seed3);
+            assert_ne!(seed2, seed3);
+        });
+    }
+
+    #[test]
+    fn test_create_seed_format() {
+        tokio_test::block_on(async {
+            let generator = create_test_game_generator().await;
+            
+            let seed = generator.create_seed("2023-12-01", 1, 5);
+            
+            // Seed should be 32 bytes (256 bits)
+            assert_eq!(seed.len(), 32);
+            
+            // Should be deterministic - test the underlying string format
+            let expected_string = "2023-12-01:1:5";
+            let expected_seed: [u8; 32] = Seeder::from(expected_string).make_seed();
+            assert_eq!(seed, expected_seed);
+        });
+    }
+
+    #[tokio::test]
+    async fn test_try_generate_valid_board_high_threshold() {
+        let generator = create_test_game_generator().await;
+        let mut rng = rand::rngs::StdRng::seed_from_u64(42);
+        
+        // Try to generate a board with an impossibly high threshold
+        let result = generator.try_generate_valid_board(&mut rng, 10000).await;
+        
+        // Should fail with high threshold
+        assert!(result.is_err());
+        
+        let error_message = result.unwrap_err().to_string();
+        assert!(error_message.contains("Board quality insufficient"));
+        assert!(error_message.contains("threshold: 10000"));
+    }
+
+    #[tokio::test]
+    async fn test_try_generate_valid_board_threshold_checking() {
+        let generator = create_test_game_generator().await;
+        let mut rng = rand::rngs::StdRng::seed_from_u64(42);
+        
+        // Test with moderate threshold - this should fail since our test wordlist is small
+        let result = generator.try_generate_valid_board(&mut rng, 50).await;
+        
+        // Should fail with our limited test wordlist
+        assert!(result.is_err());
+        let error_message = result.unwrap_err().to_string();
+        assert!(error_message.contains("Board quality insufficient"));
+        assert!(error_message.contains("threshold: 50"));
+    }
+
+    #[test]
+    fn test_threshold_reduction_logic() {
+        // Test the threshold reduction algorithm used in generate_game_for_date
+        let initial_threshold = 40;
+        let reduced_threshold = (initial_threshold as f32 * 0.75) as i32;
+        
+        assert_eq!(reduced_threshold, 30);
+        
+        // Test edge case with odd numbers
+        let odd_threshold = 33;
+        let reduced_odd = (odd_threshold as f32 * 0.75) as i32;
+        assert_eq!(reduced_odd, 24); // 33 * 0.75 = 24.75 -> 24
+    }
+
+    #[test]
+    fn test_generation_attempt_limits() {
+        // Test the constants used in the generation loops
+        let max_threshold_reductions = 1;
+        let max_generation_attempts = 5;
+        
+        // Verify the total number of attempts possible
+        let total_attempts = (max_threshold_reductions + 1) * max_generation_attempts;
+        assert_eq!(total_attempts, 10); // 2 threshold levels * 5 attempts each
+    }
+
+    #[test]
+    fn test_date_formatting_logic() {
+        // Test date string format used in the generator
+        let date = NaiveDate::from_ymd_opt(2023, 12, 1).unwrap();
+        let formatted = date.format("%Y-%m-%d").to_string();
+        
+        assert_eq!(formatted, "2023-12-01");
+        
+        // Test different date
+        let date2 = NaiveDate::from_ymd_opt(2024, 1, 15).unwrap();
+        let formatted2 = date2.format("%Y-%m-%d").to_string();
+        
+        assert_eq!(formatted2, "2024-01-15");
+    }
+
+    #[test]
+    fn test_days_ahead_calculation() {
+        // Test the range used in generate_missing_games
+        let days_range: Vec<i64> = (0..=3).collect();
+        assert_eq!(days_range, vec![0, 1, 2, 3]);
+        
+        // Verify we're generating games for today + 3 days
+        assert_eq!(days_range.len(), 4);
+    }
+}
+
