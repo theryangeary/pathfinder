@@ -52,6 +52,20 @@ impl Trie {
     pub fn search(&self, word: &str) -> bool {
         self.isearch(&mut word.chars())
     }
+
+    fn ihas_prefix(&self, prefix: &mut Chars) -> bool {
+        match prefix.next() {
+            Some(c) => match self.next.get(&c) {
+                Some(map) => map.ihas_prefix(prefix),
+                None => false,
+            },
+            None => true, // Empty prefix always exists
+        }
+    }
+
+    pub fn has_prefix(&self, prefix: &str) -> bool {
+        self.ihas_prefix(&mut prefix.chars())
+    }
 }
 
 impl From<Vec<&str>> for Trie {
@@ -110,5 +124,33 @@ mod tests {
     fn test_happy_in_wordlist() {
         let t = Trie::from(std::path::PathBuf::from("wordlist"));
         assert!(t.search("happy"), "The word 'happy' should be found in the wordlist");
+    }
+
+    #[test]
+    fn test_has_prefix() {
+        let t = Trie::from(vec!["apple", "app", "application", "applause", "happy"]);
+        
+        // Test valid prefixes
+        assert!(t.has_prefix(""));
+        assert!(t.has_prefix("a"));
+        assert!(t.has_prefix("ap"));
+        assert!(t.has_prefix("app"));
+        assert!(t.has_prefix("appl"));
+        assert!(t.has_prefix("appla"));
+        assert!(t.has_prefix("ha"));
+        assert!(t.has_prefix("hap"));
+        assert!(t.has_prefix("happ"));
+        
+        // Test invalid prefixes
+        assert!(!t.has_prefix("b"));
+        assert!(!t.has_prefix("z"));
+        assert!(!t.has_prefix("apple123"));
+        assert!(!t.has_prefix("happyy"));
+        assert!(!t.has_prefix("xyz"));
+        
+        // Test complete words (should also return true as they are valid prefixes)
+        assert!(t.has_prefix("apple"));
+        assert!(t.has_prefix("app"));
+        assert!(t.has_prefix("happy"));
     }
 }

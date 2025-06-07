@@ -239,8 +239,13 @@ impl GameEngine {
                 let mut new_word = current_word.clone();
                 new_word.push(letter);
                 
-                // If word is long enough, add it to found words
-                if new_word.len() >= 3 {
+                // Early termination: if this prefix can't lead to any valid words, skip
+                if !self.word_trie.has_prefix(&new_word) {
+                    continue;
+                }
+                
+                // If word is long enough and valid, add it to found words
+                if new_word.len() >= 3 && self.word_trie.search(&new_word) {
                     found_words.insert(new_word.clone());
                 }
                 
@@ -252,8 +257,14 @@ impl GameEngine {
             let mut new_word = current_word;
             new_word.push_str(&tile.letter);
             
-            // If word is long enough, add it to found words
-            if new_word.len() >= 3 {
+            // Early termination: if this prefix can't lead to any valid words, stop
+            if !self.word_trie.has_prefix(&new_word) {
+                visited.remove(&(row, col));
+                return;
+            }
+            
+            // If word is long enough and valid, add it to found words
+            if new_word.len() >= 3 && self.word_trie.search(&new_word) {
                 found_words.insert(new_word.clone());
             }
             
