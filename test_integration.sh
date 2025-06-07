@@ -5,13 +5,13 @@ echo
 
 # Test backend API endpoints
 echo "1. Testing daily game endpoint..."
-response=$(curl -s http://localhost:3001/api/daily-game)
+response=$(curl -s http://localhost:3001/api/game)
 if echo "$response" | grep -q '"id"'; then
-    echo "✓ Daily game API working"
+    echo "✓ Game API working"
     game_id=$(echo "$response" | grep -o '"id":"[^"]*"' | cut -d'"' -f4)
     echo "  Game ID: ${game_id:0:8}..."
 else
-    echo "✗ Daily game API failed"
+    echo "✗ Game API failed"
     echo "Response: $response"
 fi
 

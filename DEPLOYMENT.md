@@ -251,7 +251,7 @@ cd src/api
 sqlite3 game.db "SELECT * FROM games ORDER BY created_at DESC LIMIT 5;"
 
 # Test HTTP API endpoint
-curl http://localhost:3001/api/daily-game
+curl http://localhost:3001/api/game
 
 # Test gRPC endpoint
 grpcurl -plaintext localhost:50051 wordgame.WordGameService/GetDailyGame

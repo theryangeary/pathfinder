@@ -110,8 +110,8 @@ impl ApiState {
 
 pub fn create_router(state: ApiState) -> Router {
     Router::new()
-        .route("/api/daily-game", get(get_daily_game))
-        .route("/api/daily-game/:date", get(get_game_by_date))
+        .route("/api/game", get(get_daily_game))
+        .route("/api/game/:date", get(get_game_by_date))
         .route("/api/validate", post(validate_answer))
         .route("/api/submit", post(submit_answers))
         .route("/api/user", post(create_user))

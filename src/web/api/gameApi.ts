@@ -85,7 +85,7 @@ class GameApi {
   }
 
   async getDailyGame(date?: string): Promise<ApiGame> {
-    const endpoint = date ? `/daily-game/${date}` : '/daily-game';
+    const endpoint = date ? `/game/${date}` : '/game';
     return this.request<ApiGame>(endpoint);
   }
 
