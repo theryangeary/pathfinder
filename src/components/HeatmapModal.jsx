@@ -122,8 +122,8 @@ function HeatmapModal({ isOpen, onClose, tileUsage, board, totalScore, scores })
           justifyContent: 'center',
           flexWrap: 'wrap'
         }}>
-          <button
-            onClick={() => {/* Share functionality placeholder */}}
+          {/* <button
+            onClick={() => {}}
             onMouseDown={(e) => e.target.style.transform = 'scale(0.95)'}
             onMouseUp={(e) => e.target.style.transform = 'scale(1)'}
             onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
@@ -134,7 +134,7 @@ function HeatmapModal({ isOpen, onClose, tileUsage, board, totalScore, scores })
             }}
           >
             Share
-          </button>
+          </button> */}
           
           <button
             onClick={copyToClipboard}
