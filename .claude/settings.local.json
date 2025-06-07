@@ -24,7 +24,8 @@
       "Bash(sqlite3:*)",
       "Bash(./test_integration.sh:*)",
       "Bash(npm run generate-wordlist:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ],
     "deny": []
   }
