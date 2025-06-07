@@ -53,14 +53,43 @@ async fn main() -> Result<()> {
     info!("Initializing game engine");
     let game_engine = GameEngine::new("wordlist").await?;
 
-    // Setup game generator
-    let game_generator = GameGenerator::new(repository.clone(), game_engine.clone());
+    // Setup HTTP API
+    let api_state = http_api::ApiState::new(repository.clone(), game_engine.clone());
+    let http_router = http_api::create_router(api_state);
+    
+    // Setup gRPC service
+    let grpc_service = WordGameServiceImpl::new(repository.clone(), game_engine.clone());
+    let grpc_service = WordGameServiceServer::new(grpc_service);
 
-    // Generate missing games on startup
-    info!("Generating missing games on startup");
-    if let Err(e) = game_generator.generate_missing_games().await {
-        error!("Failed to generate missing games on startup: {}", e);
-    }
+    let grpc_addr = format!("{}:{}", server_host, grpc_port).parse::<std::net::SocketAddr>()?;
+    let http_addr = format!("{}:{}", server_host, http_port);
+    
+    info!("Starting HTTP API server on {}", http_addr);
+    info!("Starting gRPC server on {}", grpc_addr);
+    
+    // Start both servers
+    let http_server = axum::serve(
+        tokio::net::TcpListener::bind(&http_addr).await?,
+        http_router
+    );
+    
+    let grpc_server = Server::builder()
+        .add_service(grpc_service)
+        .serve(grpc_addr);
+
+    // Setup game generator and run background tasks
+    let game_generator = GameGenerator::new(repository.clone(), game_engine.clone());
+    
+    // Spawn background task for initial game generation
+    let initial_game_generator = game_generator.clone();
+    tokio::spawn(async move {
+        info!("Generating missing games in background");
+        if let Err(e) = initial_game_generator.generate_missing_games().await {
+            error!("Failed to generate missing games in background: {}", e);
+        } else {
+            info!("Background game generation completed successfully");
+        }
+    });
 
     // Setup cron scheduler for daily game generation
     info!("Setting up cron scheduler");
@@ -87,30 +116,7 @@ async fn main() -> Result<()> {
     sched.start().await?;
     info!("Cron scheduler started");
 
-    // Setup HTTP API
-    let api_state = http_api::ApiState::new(repository.clone(), game_engine.clone());
-    let http_router = http_api::create_router(api_state);
-    
-    // Setup gRPC service
-    let grpc_service = WordGameServiceImpl::new(repository, game_engine);
-    let grpc_service = WordGameServiceServer::new(grpc_service);
-
-    let grpc_addr = format!("{}:{}", server_host, grpc_port).parse::<std::net::SocketAddr>()?;
-    let http_addr = format!("{}:{}", server_host, http_port);
-    
-    info!("Starting HTTP API server on {}", http_addr);
-    info!("Starting gRPC server on {}", grpc_addr);
-    
     // Run both servers concurrently
-    let http_server = axum::serve(
-        tokio::net::TcpListener::bind(&http_addr).await?,
-        http_router
-    );
-    
-    let grpc_server = Server::builder()
-        .add_service(grpc_service)
-        .serve(grpc_addr);
-
     tokio::try_join!(
         async { http_server.await.map_err(|e| anyhow::anyhow!("HTTP server error: {}", e)) },
         async { grpc_server.await.map_err(|e| anyhow::anyhow!("gRPC server error: {}", e)) }
