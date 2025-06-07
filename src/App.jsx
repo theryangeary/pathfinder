@@ -48,6 +48,14 @@ function App() {
     return { isValid: true, score, path, newConstraints };
   };
 
+  const handleAnswerFocus = (index) => {
+    // Clear highlighting when focusing on a different input
+    if (currentInputIndex !== index) {
+      setHighlightedPaths([]);
+      setCurrentInputIndex(index);
+    }
+  };
+
   const handleAnswerChange = (index, value) => {
     const newAnswers = [...answers];
     newAnswers[index] = value;
@@ -155,6 +163,7 @@ function App() {
         validAnswers={validAnswers}
         scores={scores}
         onSubmit={handleSubmit}
+        onAnswerFocus={handleAnswerFocus}
       />
       
       <HeatmapModal

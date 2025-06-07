@@ -6,7 +6,8 @@ function AnswerSection({
   onAnswerChange, 
   validAnswers, 
   scores,
-  onSubmit
+  onSubmit,
+  onAnswerFocus
 }) {
   const inputRefs = useRef([]);
 
@@ -60,6 +61,7 @@ function AnswerSection({
             isEnabled={isEnabled}
             score={score}
             onEnterPress={handleEnterPress}
+            onFocus={onAnswerFocus}
           />
         );
       })}

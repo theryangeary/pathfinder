@@ -7,7 +7,8 @@ const AnswerInput = forwardRef(function AnswerInput({
   isValid, 
   isEnabled, 
   score,
-  onEnterPress
+  onEnterPress,
+  onFocus
 }, ref) {
   const inputRef = useRef(null);
   const statusIcon = isValid ? '✅' : '❌';
@@ -41,6 +42,7 @@ const AnswerInput = forwardRef(function AnswerInput({
         value={value}
         onChange={(e) => onChange(index, e.target.value)}
         onKeyDown={handleKeyDown}
+        onFocus={() => onFocus && onFocus(index)}
         disabled={!isEnabled}
         placeholder={`Answer ${index + 1}`}
         style={{
