@@ -1,29 +1,37 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import Board from './components/Board';
 import AnswerSection from './components/AnswerSection';
 import HeatmapModal from './components/HeatmapModal';
 import { generateBoard } from './utils/boardGeneration';
-import { findBestPath, getWildcardConstraintsFromPath, getWildcardAmbiguity, findPathsForHighlighting } from './utils/pathfinding';
+import { findBestPath, getWildcardConstraintsFromPath, findPathsForHighlighting } from './utils/pathfinding';
 import { calculateWordScore } from './utils/scoring';
-import { isValidWord } from './data/wordList.js';
+import { isValidWord } from './data/wordList';
+import { Position, Tile } from './utils/scoring';
+
+interface ValidationResult {
+  isValid: boolean;
+  score: number;
+  path: Position[] | null;
+  newConstraints?: Record<string, string>;
+}
 
 function App() {
-  const [board, setBoard] = useState([]);
-  const [answers, setAnswers] = useState(['', '', '', '', '']);
-  const [validAnswers, setValidAnswers] = useState([false, false, false, false, false]);
-  const [scores, setScores] = useState([0, 0, 0, 0, 0]);
-  const [wildcardConstraints, setWildcardConstraints] = useState({});
-  const [highlightedPaths, setHighlightedPaths] = useState([]);
-  const [currentInputIndex, setCurrentInputIndex] = useState(-1);
-  const [showHeatmapModal, setShowHeatmapModal] = useState(false);
-  const [validPaths, setValidPaths] = useState([]);
+  const [board, setBoard] = useState<Tile[][]>([]);
+  const [answers, setAnswers] = useState<string[]>(['', '', '', '', '']);
+  const [validAnswers, setValidAnswers] = useState<boolean[]>([false, false, false, false, false]);
+  const [scores, setScores] = useState<number[]>([0, 0, 0, 0, 0]);
+  const [wildcardConstraints, setWildcardConstraints] = useState<Record<string, string>>({});
+  const [highlightedPaths, setHighlightedPaths] = useState<Position[][]>([]);
+  const [currentInputIndex, setCurrentInputIndex] = useState<number>(-1);
+  const [showHeatmapModal, setShowHeatmapModal] = useState<boolean>(false);
+  const [validPaths, setValidPaths] = useState<(Position[] | null)[]>([]);
 
   useEffect(() => {
     const newBoard = generateBoard();
     setBoard(newBoard);
   }, []);
 
-  const validateAnswer = (word, answerIndex, currentConstraints, previousAnswers = []) => {
+  const validateAnswer = (word: string, _answerIndex: number, currentConstraints: Record<string, string>, previousAnswers: string[] = []): ValidationResult => {
     if (!word || word.length < 2) return { isValid: false, score: 0, path: null };
     
     if (!isValidWord(word)) return { isValid: false, score: 0, path: null };
@@ -48,7 +56,7 @@ function App() {
     return { isValid: true, score, path, newConstraints };
   };
 
-  const handleAnswerFocus = (index) => {
+  const handleAnswerFocus = (index: number): void => {
     // Clear highlighting when focusing on a different input
     if (currentInputIndex !== index) {
       setHighlightedPaths([]);
@@ -56,7 +64,7 @@ function App() {
     }
   };
 
-  const handleAnswerChange = (index, value) => {
+  const handleAnswerChange = (index: number, value: string): void => {
     const newAnswers = [...answers];
     newAnswers[index] = value;
     setAnswers(newAnswers);
@@ -116,9 +124,9 @@ function App() {
     }
   };
 
-  const calculateTileUsage = () => {
+  const calculateTileUsage = (): number[][] => {
     // Initialize 4x4 grid with zeros
-    const usage = Array(4).fill().map(() => Array(4).fill(0));
+    const usage = Array(4).fill(null).map(() => Array(4).fill(0));
     
     // Count usage from all valid paths
     validPaths.forEach(path => {
@@ -132,7 +140,7 @@ function App() {
     return usage;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = (): void => {
     setShowHeatmapModal(true);
   };
 

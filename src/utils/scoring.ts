@@ -1,4 +1,16 @@
-export const letterFrequencies = {
+export interface Position {
+  row: number;
+  col: number;
+}
+
+export interface Tile {
+  letter: string;
+  isWildcard: boolean;
+  row: number;
+  col: number;
+}
+
+export const letterFrequencies: Record<string, number> = {
   'a': 0.078,
   'b': 0.02,
   'c': 0.04,
@@ -27,20 +39,20 @@ export const letterFrequencies = {
   'z': 0.0044,
 };
 
-function pointsForLetter(letter) {
+function pointsForLetter(letter: string): number {
   if (letter === '*') return 0;
   return Math.floor(Math.log2(letterFrequencies['e'] / letterFrequencies[letter.toLowerCase()])) + 1;
 }
 
-export function getLetterPoints() {
-  const points = { '*': 0 };
+export function getLetterPoints(): Record<string, number> {
+  const points: Record<string, number> = { '*': 0 };
   for (const letter in letterFrequencies) {
     points[letter] = pointsForLetter(letter);
   }
   return points;
 }
 
-export function calculateWordScore(word, path, board) {
+export function calculateWordScore(_word: string, path: Position[], board: Tile[][]): number {
   let score = 0;
   for (let i = 0; i < path.length; i++) {
     const { row, col } = path[i];

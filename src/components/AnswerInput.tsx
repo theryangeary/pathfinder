@@ -1,6 +1,21 @@
-import React, { useRef, useImperativeHandle, forwardRef } from 'react';
+import { useRef, useImperativeHandle, forwardRef, KeyboardEvent } from 'react';
 
-const AnswerInput = forwardRef(function AnswerInput({ 
+interface AnswerInputProps {
+  index: number;
+  value: string;
+  onChange: (index: number, value: string) => void;
+  isValid: boolean;
+  isEnabled: boolean;
+  score: number;
+  onEnterPress?: (index: number) => void;
+  onFocus?: (index: number) => void;
+}
+
+interface AnswerInputHandle {
+  focus: () => void;
+}
+
+const AnswerInput = forwardRef<AnswerInputHandle, AnswerInputProps>(function AnswerInput({ 
   index, 
   value, 
   onChange, 
@@ -10,14 +25,14 @@ const AnswerInput = forwardRef(function AnswerInput({
   onEnterPress,
   onFocus
 }, ref) {
-  const inputRef = useRef(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const statusIcon = isValid ? '✅' : '❌';
 
   useImperativeHandle(ref, () => ({
     focus: () => inputRef.current?.focus()
   }));
 
-  const handleKeyDown = (e) => {
+  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>): void => {
     if (e.key === 'Enter' && isValid && onEnterPress) {
       onEnterPress(index);
     }
@@ -68,3 +83,4 @@ const AnswerInput = forwardRef(function AnswerInput({
 });
 
 export default AnswerInput;
+export type { AnswerInputHandle };

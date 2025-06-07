@@ -1,13 +1,19 @@
-import React from 'react';
-import { getLetterPoints } from '../utils/scoring';
+import { getLetterPoints, Tile as TileType } from '../utils/scoring';
 
-function Tile({ tile, isHighlighted, isLastLetter, wildcardValue }) {
+interface TileProps {
+  tile: TileType;
+  isHighlighted: boolean;
+  isLastLetter: boolean;
+  wildcardValue: string | null;
+}
+
+function Tile({ tile, isHighlighted, isLastLetter, wildcardValue }: TileProps) {
   const displayLetter = tile.isWildcard 
     ? (wildcardValue || '*')
     : tile.letter.toUpperCase();
 
   // Calculate point value for non-wildcard tiles
-  const getPointValue = () => {
+  const getPointValue = (): number | null => {
     if (tile.isWildcard) return null;
     const letterPoints = getLetterPoints();
     return letterPoints[tile.letter.toLowerCase()];

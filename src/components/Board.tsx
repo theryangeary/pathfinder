@@ -1,9 +1,18 @@
-import React from 'react';
 import Tile from './Tile';
-import { getWildcardAmbiguity, getWildcardNotation } from '../utils/pathfinding';
+import { getWildcardNotation } from '../utils/pathfinding';
+import { Position, Tile as TileType } from '../utils/scoring';
 
-function Board({ board, highlightedPaths, wildcardConstraints, answers, validAnswers, currentWord }) {
-  const getWildcardDisplay = (tile) => {
+interface BoardProps {
+  board: TileType[][];
+  highlightedPaths: Position[][];
+  wildcardConstraints: Record<string, string>;
+  answers: string[];
+  validAnswers: boolean[];
+  currentWord: string;
+}
+
+function Board({ board, highlightedPaths, wildcardConstraints, answers, validAnswers, currentWord }: BoardProps) {
+  const getWildcardDisplay = (tile: TileType): string | null => {
     if (!tile.isWildcard) return null;
     
     const constraintKey = `${tile.row}-${tile.col}`;

@@ -54606,6 +54606,6 @@ export const validWords = new Set([
   'zap'
 ]);
 
-export function isValidWord(word) {
+export function isValidWord(word: string): boolean {
   return validWords.has(word.toLowerCase());
 }

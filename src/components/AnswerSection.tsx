@@ -1,5 +1,14 @@
-import React, { useRef } from 'react';
-import AnswerInput from './AnswerInput';
+import { useRef } from 'react';
+import AnswerInput, { AnswerInputHandle } from './AnswerInput';
+
+interface AnswerSectionProps {
+  answers: string[];
+  onAnswerChange: (index: number, value: string) => void;
+  validAnswers: boolean[];
+  scores: number[];
+  onSubmit: () => void;
+  onAnswerFocus: (index: number) => void;
+}
 
 function AnswerSection({ 
   answers, 
@@ -8,10 +17,10 @@ function AnswerSection({
   scores,
   onSubmit,
   onAnswerFocus
-}) {
-  const inputRefs = useRef([]);
+}: AnswerSectionProps) {
+  const inputRefs = useRef<(AnswerInputHandle | null)[]>([]);
 
-  const handleEnterPress = (currentIndex) => {
+  const handleEnterPress = (currentIndex: number): void => {
     const nextIndex = currentIndex + 1;
     
     // If this is the last input and all answers are valid, submit
@@ -53,7 +62,7 @@ function AnswerSection({
         return (
           <AnswerInput
             key={index}
-            ref={(el) => (inputRefs.current[index] = el)}
+            ref={(el) => { inputRefs.current[index] = el; }}
             index={index}
             value={answer}
             onChange={onAnswerChange}
@@ -71,18 +80,21 @@ function AnswerSection({
           onClick={onSubmit}
           disabled={!validAnswers.every(valid => valid)}
           onMouseDown={(e) => {
-            if (!e.target.disabled) {
-              e.target.style.transform = 'scale(0.9)';
+            const target = e.target as HTMLButtonElement;
+            if (!target.disabled) {
+              target.style.transform = 'scale(0.9)';
             }
           }}
           onMouseUp={(e) => {
-            if (!e.target.disabled) {
-              e.target.style.transform = 'scale(1)';
+            const target = e.target as HTMLButtonElement;
+            if (!target.disabled) {
+              target.style.transform = 'scale(1)';
             }
           }}
           onMouseLeave={(e) => {
-            if (!e.target.disabled) {
-              e.target.style.transform = 'scale(1)';
+            const target = e.target as HTMLButtonElement;
+            if (!target.disabled) {
+              target.style.transform = 'scale(1)';
             }
           }}
           style={{

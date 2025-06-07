@@ -1,7 +1,17 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
+import { Tile } from '../utils/scoring';
 
-function HeatmapModal({ isOpen, onClose, tileUsage, board, totalScore, scores }) {
-  const [showCopyNotification, setShowCopyNotification] = useState(false);
+interface HeatmapModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  tileUsage: number[][];
+  board: Tile[][];
+  totalScore: number;
+  scores: number[];
+}
+
+function HeatmapModal({ isOpen, onClose, tileUsage, board, totalScore, scores }: HeatmapModalProps) {
+  const [showCopyNotification, setShowCopyNotification] = useState<boolean>(false);
   
   if (!isOpen) return null;
 
@@ -11,9 +21,9 @@ function HeatmapModal({ isOpen, onClose, tileUsage, board, totalScore, scores })
   // Calculate the best word score
   const bestWordScore = Math.max(...scores);
 
-  const copyToClipboard = () => {
+  const copyToClipboard = (): void => {
     const heatmapText = board.map((row, rowIndex) => 
-      row.map((tile, colIndex) => getHeatEmoji(tileUsage[rowIndex][colIndex])).join('')
+      row.map((_tile, colIndex) => getHeatEmoji(tileUsage[rowIndex][colIndex])).join('')
     ).join('\n');
     
     const currentUrl = window.location.href;
@@ -29,7 +39,7 @@ function HeatmapModal({ isOpen, onClose, tileUsage, board, totalScore, scores })
   };
 
   // Define emoji heat scale from black (0 uses) to red (max uses)
-  const getHeatEmoji = (usageCount) => {
+  const getHeatEmoji = (usageCount: number): string => {
     if (usageCount === 0) return '⬛'; // Black for no usage
     
     const intensity = usageCount / maxUsage;
@@ -52,10 +62,6 @@ function HeatmapModal({ isOpen, onClose, tileUsage, board, totalScore, scores })
     boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
   };
 
-  const buttonPressStyle = {
-    transform: 'scale(0.95)',
-    boxShadow: '0 1px 2px rgba(0,0,0,0.2)'
-  };
 
   return (
     <div style={{
@@ -91,7 +97,7 @@ function HeatmapModal({ isOpen, onClose, tileUsage, board, totalScore, scores })
         }}>
           {board.map((row, rowIndex) => (
             <div key={rowIndex}>
-              {row.map((tile, colIndex) => 
+              {row.map((_tile, colIndex) => 
                 getHeatEmoji(tileUsage[rowIndex][colIndex])
               ).join('')}
             </div>
@@ -124,9 +130,9 @@ function HeatmapModal({ isOpen, onClose, tileUsage, board, totalScore, scores })
         }}>
           {/* <button
             onClick={() => {}}
-            onMouseDown={(e) => e.target.style.transform = 'scale(0.95)'}
-            onMouseUp={(e) => e.target.style.transform = 'scale(1)'}
-            onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+            onMouseDown={(e) => (e.target as HTMLButtonElement).style.transform = 'scale(0.95)'}
+            onMouseUp={(e) => (e.target as HTMLButtonElement).style.transform = 'scale(1)'}
+            onMouseLeave={(e) => (e.target as HTMLButtonElement).style.transform = 'scale(1)'}
             style={{
               ...buttonStyle,
               backgroundColor: '#2196F3',
@@ -138,9 +144,9 @@ function HeatmapModal({ isOpen, onClose, tileUsage, board, totalScore, scores })
           
           <button
             onClick={copyToClipboard}
-            onMouseDown={(e) => e.target.style.transform = 'scale(0.95)'}
-            onMouseUp={(e) => e.target.style.transform = 'scale(1)'}
-            onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+            onMouseDown={(e) => (e.target as HTMLButtonElement).style.transform = 'scale(0.95)'}
+            onMouseUp={(e) => (e.target as HTMLButtonElement).style.transform = 'scale(1)'}
+            onMouseLeave={(e) => (e.target as HTMLButtonElement).style.transform = 'scale(1)'}
             style={{
               ...buttonStyle,
               backgroundColor: '#FF9800',
@@ -152,9 +158,9 @@ function HeatmapModal({ isOpen, onClose, tileUsage, board, totalScore, scores })
           
           <button
             onClick={onClose}
-            onMouseDown={(e) => e.target.style.transform = 'scale(0.95)'}
-            onMouseUp={(e) => e.target.style.transform = 'scale(1)'}
-            onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+            onMouseDown={(e) => (e.target as HTMLButtonElement).style.transform = 'scale(0.95)'}
+            onMouseUp={(e) => (e.target as HTMLButtonElement).style.transform = 'scale(1)'}
+            onMouseLeave={(e) => (e.target as HTMLButtonElement).style.transform = 'scale(1)'}
             style={{
               ...buttonStyle,
               backgroundColor: '#757575',

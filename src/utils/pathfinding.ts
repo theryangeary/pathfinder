@@ -1,19 +1,27 @@
-function isAdjacent(pos1, pos2) {
+import { Position, Tile } from './scoring';
+
+interface PathScore {
+  wildcardCount: number;
+  diagonalCount: number;
+  lastDiagonalIndex: number;
+}
+
+function isAdjacent(pos1: Position, pos2: Position): boolean {
   const rowDiff = Math.abs(pos1.row - pos2.row);
   const colDiff = Math.abs(pos1.col - pos2.col);
   return (rowDiff <= 1 && colDiff <= 1) && !(rowDiff === 0 && colDiff === 0);
 }
 
-function isDiagonalMove(pos1, pos2) {
+function isDiagonalMove(pos1: Position, pos2: Position): boolean {
   const rowDiff = Math.abs(pos1.row - pos2.row);
   const colDiff = Math.abs(pos1.col - pos2.col);
   return rowDiff === 1 && colDiff === 1;
 }
 
-function findAllPaths(board, word, wildcardConstraints = {}) {
-  const paths = [];
+function findAllPaths(board: Tile[][], word: string, wildcardConstraints: Record<string, string> = {}): Position[][] {
+  const paths: Position[][] = [];
   
-  function dfs(currentPath, remainingWord, usedPositions) {
+  function dfs(currentPath: Position[], remainingWord: string, usedPositions: Set<string>): void {
     if (remainingWord.length === 0) {
       paths.push([...currentPath]);
       return;
@@ -85,7 +93,7 @@ function findAllPaths(board, word, wildcardConstraints = {}) {
   return paths;
 }
 
-function scorePathByPreference(board, path) {
+function scorePathByPreference(board: Tile[][], path: Position[]): PathScore {
   let wildcardCount = 0;
   let diagonalCount = 0;
   let lastDiagonalIndex = -1;
@@ -111,14 +119,14 @@ function scorePathByPreference(board, path) {
   };
 }
 
-export function findBestPath(board, word, wildcardConstraints = {}) {
+export function findBestPath(board: Tile[][], word: string, wildcardConstraints: Record<string, string> = {}): Position[] | null {
   const allPaths = findAllPaths(board, word, wildcardConstraints);
   
   if (allPaths.length === 0) return null;
   
   // Separate paths by wildcard usage
-  const pathsWithoutWildcards = [];
-  const pathsWithWildcards = [];
+  const pathsWithoutWildcards: Position[][] = [];
+  const pathsWithWildcards: Position[][] = [];
   
   for (const path of allPaths) {
     const score = scorePathByPreference(board, path);
@@ -150,14 +158,14 @@ export function findBestPath(board, word, wildcardConstraints = {}) {
   return pathsToConsider[0];
 }
 
-export function findPathsForHighlighting(board, word, wildcardConstraints = {}) {
+export function findPathsForHighlighting(board: Tile[][], word: string, wildcardConstraints: Record<string, string> = {}): Position[][] {
   const allPaths = findAllPaths(board, word, wildcardConstraints);
   
   if (allPaths.length === 0) return [];
   
   // Separate paths by wildcard usage
-  const pathsWithoutWildcards = [];
-  const pathsWithWildcards = [];
+  const pathsWithoutWildcards: Position[][] = [];
+  const pathsWithWildcards: Position[][] = [];
   
   for (const path of allPaths) {
     const score = scorePathByPreference(board, path);
@@ -177,11 +185,18 @@ export function findPathsForHighlighting(board, word, wildcardConstraints = {}) 
   return getMinimalConstraintPaths(board, word, pathsWithWildcards);
 }
 
-function getMinimalConstraintPaths(board, word, wildcardPaths) {
+interface PathAnalysis {
+  path: Position[];
+  wildcardAssignments: Record<string, string>;
+  wildcardPositions: string[];
+  wildcardCount: number;
+}
+
+function getMinimalConstraintPaths(board: Tile[][], word: string, wildcardPaths: Position[][]): Position[][] {
   if (wildcardPaths.length === 0) return [];
   
   // Analyze each path to understand wildcard usage patterns
-  const pathAnalysis = wildcardPaths.map(path => {
+  const pathAnalysis: PathAnalysis[] = wildcardPaths.map(path => {
     const wildcardAssignments = getWildcardConstraintsFromPath(board, word, path);
     const wildcardPositions = Object.keys(wildcardAssignments);
     
@@ -194,7 +209,7 @@ function getMinimalConstraintPaths(board, word, wildcardPaths) {
   });
   
   // Group paths by wildcard count - prefer fewer wildcards
-  const pathsByWildcardCount = {};
+  const pathsByWildcardCount: Record<number, PathAnalysis[]> = {};
   pathAnalysis.forEach(analysis => {
     const count = analysis.wildcardCount;
     if (!pathsByWildcardCount[count]) {
@@ -208,7 +223,7 @@ function getMinimalConstraintPaths(board, word, wildcardPaths) {
   const minimalPaths = pathsByWildcardCount[minWildcardCount];
   
   // Apply Rule 2a: Check if wildcards are necessary
-  const necessaryPaths = [];
+  const necessaryPaths: PathAnalysis[] = [];
   
   for (const pathAnalysis of minimalPaths) {
     const { path, wildcardAssignments } = pathAnalysis;
@@ -244,9 +259,9 @@ function getMinimalConstraintPaths(board, word, wildcardPaths) {
   return finalPaths.map(analysis => analysis.path);
 }
 
-function checkForNonWildcardAlternative(board, letter, prevPos, nextPos, currentPath, wildcardIndex) {
+function checkForNonWildcardAlternative(board: Tile[][], letter: string, prevPos: Position | null, nextPos: Position | null, currentPath: Position[], _wildcardIndex: number): boolean {
   // Find all non-wildcard tiles with the target letter
-  const alternatives = [];
+  const alternatives: Position[] = [];
   for (let row = 0; row < 4; row++) {
     for (let col = 0; col < 4; col++) {
       const tile = board[row][col];
@@ -274,8 +289,8 @@ function checkForNonWildcardAlternative(board, letter, prevPos, nextPos, current
   return false;
 }
 
-export function getWildcardConstraintsFromPath(board, word, path) {
-  const constraints = {};
+export function getWildcardConstraintsFromPath(board: Tile[][], word: string, path: Position[]): Record<string, string> {
+  const constraints: Record<string, string> = {};
   
   for (let i = 0; i < path.length; i++) {
     const { row, col } = path[i];
@@ -290,9 +305,9 @@ export function getWildcardConstraintsFromPath(board, word, path) {
   return constraints;
 }
 
-export function getWildcardNotation(board, wildcardConstraints, currentWord, highlightedPaths, answers, validAnswers) {
+export function getWildcardNotation(board: Tile[][], wildcardConstraints: Record<string, string>, currentWord: string, highlightedPaths: Position[][], answers: string[], validAnswers: boolean[]): Record<string, string> {
   // Find wildcard positions
-  const wildcardPositions = [];
+  const wildcardPositions: Array<{row: number, col: number, key: string}> = [];
   for (let row = 0; row < 4; row++) {
     for (let col = 0; col < 4; col++) {
       if (board[row][col]?.isWildcard) {
@@ -301,7 +316,7 @@ export function getWildcardNotation(board, wildcardConstraints, currentWord, hig
     }
   }
   
-  const notation = {};
+  const notation: Record<string, string> = {};
   
   // First, analyze all valid answers to find forced constraints
   const forcedConstraints = analyzeForcedConstraints(board, answers, validAnswers, wildcardPositions);
@@ -323,7 +338,7 @@ export function getWildcardNotation(board, wildcardConstraints, currentWord, hig
     }
     
     // Analyze current typing context
-    const possibleAssignments = new Set();
+    const possibleAssignments = new Set<string>();
     
     // Check what letters this wildcard could represent in the highlighted paths
     for (const path of highlightedPaths) {
@@ -370,13 +385,13 @@ export function getWildcardNotation(board, wildcardConstraints, currentWord, hig
   return notation;
 }
 
-function analyzeForcedConstraints(board, answers, validAnswers, wildcardPositions) {
-  const forcedConstraints = {};
+function analyzeForcedConstraints(board: Tile[][], answers: string[], validAnswers: boolean[], _wildcardPositions: Array<{row: number, col: number, key: string}>): Record<string, string> {
+  const forcedConstraints: Record<string, string> = {};
   
   if (!answers || !validAnswers) return forcedConstraints;
   
   // Build up constraints iteratively, respecting the order answers were entered
-  let currentConstraints = {};
+  let currentConstraints: Record<string, string> = {};
   
   for (let i = 0; i < answers.length; i++) {
     if (!validAnswers[i] || !answers[i]) continue;
@@ -403,9 +418,9 @@ function analyzeForcedConstraints(board, answers, validAnswers, wildcardPosition
   return currentConstraints;
 }
 
-export function getWildcardAmbiguity(board, wildcardConstraints, answers, validAnswers) {
+export function getWildcardAmbiguity(board: Tile[][], _wildcardConstraints: Record<string, string>, answers: string[], validAnswers: boolean[]): Record<string, string[] | null> {
   // Find wildcard positions
-  const wildcardPositions = [];
+  const wildcardPositions: Array<{row: number, col: number, key: string}> = [];
   for (let row = 0; row < 4; row++) {
     for (let col = 0; col < 4; col++) {
       if (board[row][col]?.isWildcard) {
@@ -414,11 +429,11 @@ export function getWildcardAmbiguity(board, wildcardConstraints, answers, validA
     }
   }
   
-  const ambiguity = {};
+  const ambiguity: Record<string, string[] | null> = {};
   
   // For each wildcard, find what letters it could represent based on current valid answers
   for (const wildcard of wildcardPositions) {
-    const possibleLetters = new Set();
+    const possibleLetters = new Set<string>();
     
     // For each valid answer, check if multiple valid paths exist that use this wildcard differently
     for (let i = 0; i < answers.length; i++) {

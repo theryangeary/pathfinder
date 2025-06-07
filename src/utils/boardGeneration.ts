@@ -1,11 +1,11 @@
-import { letterFrequencies } from './scoring.js';
+import { letterFrequencies, Tile } from './scoring';
 
 const letters = 'abcdefghijklmnopqrstuvwxyz';
 
 // Interpolation constant: 0 = pure random, 1 = pure frequency-based
 const FREQUENCY_INTERPOLATION = 0.5;
 
-function getRandomLetter() {
+function getRandomLetter(): string {
   // Interpolate between uniform (1/26) and actual frequencies
   const uniformFreq = 1 / 26;
   const cumulativeFreqs = [];
@@ -29,7 +29,7 @@ function getRandomLetter() {
   return 'e'; // fallback to most common letter
 }
 
-function findWildcardPositions() {
+function findWildcardPositions(): Array<{ row: number; col: number }> {
   // Only two non-adjacent positions exist in the 2x2 interior: diagonally opposite corners
   const nonAdjacentPairs = [
     [{ row: 1, col: 1 }, { row: 2, col: 2 }], // top-left and bottom-right
@@ -40,7 +40,7 @@ function findWildcardPositions() {
   return nonAdjacentPairs[randomPair];
 }
 
-export function generateBoard() {
+export function generateBoard(): Tile[][] {
   const board = Array(4).fill(null).map(() => Array(4).fill(null));
   const wildcardPositions = findWildcardPositions();
   
