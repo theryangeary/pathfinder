@@ -168,7 +168,7 @@ export function findPathsForHighlighting(board, word, wildcardConstraints = {}) 
     }
   }
   
-  // Rule 1: If ANY paths use 0 wildcards, highlight ALL paths (including those with wildcards)
+  // Rule 1: If ANY paths use 0 wildcards, highlight only non-wildcard paths
   if (pathsWithoutWildcards.length > 0) {
     return pathsWithoutWildcards;
   }
