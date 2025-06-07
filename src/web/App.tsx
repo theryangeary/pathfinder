@@ -17,7 +17,7 @@ interface ValidationResult {
 }
 
 function App() {
-  const { user, isLoading: userLoading } = useUser();
+  const { user, isLoading: userLoading, clearUser } = useUser();
   const [board, setBoard] = useState<Tile[][]>([]);
   const [answers, setAnswers] = useState<string[]>(['', '', '', '', '']);
   const [validAnswers, setValidAnswers] = useState<boolean[]>([false, false, false, false, false]);
@@ -33,31 +33,13 @@ function App() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
+    console.log('useEffect triggered - userLoading:', userLoading, 'user:', user?.user_id);
     if (!userLoading) {
       loadDailyGame();
     }
-  }, [userLoading]);
+  }, [userLoading, user]);
 
-  const loadDailyGame = async () => {
-    try {
-      setIsLoadingGame(true);
-      setApiError(null);
-      const game = await gameApi.getDailyGame();
-      setCurrentGame(game);
-      const newBoard = convertApiBoardToBoard(game.board);
-      setBoard(newBoard);
-    } catch (error) {
-      console.error('Failed to load daily game from API, falling back to local generation:', error);
-      setApiError('Failed to connect to server. Playing offline.');
-      // Fallback to local board generation
-      const newBoard = generateBoard();
-      setBoard(newBoard);
-    } finally {
-      setIsLoadingGame(false);
-    }
-  };
-
-  const validateAnswer = (word: string, _answerIndex: number, currentConstraints: Record<string, string>, previousAnswers: string[] = []): ValidationResult => {
+  const validateAnswerWithBoard = (boardToUse: Tile[][], word: string, _answerIndex: number, currentConstraints: Record<string, string>, previousAnswers: string[] = []): ValidationResult => {
     if (!word || word.length < 2) return { isValid: false, score: 0, path: null };
     
     if (!isValidWord(word)) return { isValid: false, score: 0, path: null };
@@ -67,10 +49,10 @@ function App() {
       return { isValid: false, score: 0, path: null };
     }
     
-    const path = findBestPath(board, word, currentConstraints);
+    const path = findBestPath(boardToUse, word, currentConstraints);
     if (!path) return { isValid: false, score: 0, path: null };
     
-    const newConstraints = getWildcardConstraintsFromPath(board, word, path);
+    const newConstraints = getWildcardConstraintsFromPath(boardToUse, word, path);
     
     for (const [key, value] of Object.entries(newConstraints)) {
       if (currentConstraints[key] && currentConstraints[key] !== value) {
@@ -78,8 +60,96 @@ function App() {
       }
     }
     
-    const score = calculateWordScore(word, path, board);
+    const score = calculateWordScore(word, path, boardToUse);
     return { isValid: true, score, path, newConstraints };
+  };
+
+  const validateAnswer = (word: string, answerIndex: number, currentConstraints: Record<string, string>, previousAnswers: string[] = []): ValidationResult => {
+    return validateAnswerWithBoard(board, word, answerIndex, currentConstraints, previousAnswers);
+  };
+
+  const loadDailyGame = async () => {
+    try {
+      setIsLoadingGame(true);
+      setApiError(null);
+      const game = await gameApi.getDailyGame();
+      setCurrentGame(game);
+      const newBoard = convertApiBoardToBoard(game.board);
+      setBoard(newBoard);
+      
+      // Try to load existing game entry if user is available
+      if (user) {
+        console.log('Loading existing game entry for user:', user.user_id);
+        try {
+          const existingAnswers = await gameApi.getGameEntry(
+            game.id, 
+            user.user_id, 
+            user.cookie_token
+          );
+          
+          console.log('Existing answers:', existingAnswers);
+          
+          if (existingAnswers && existingAnswers.length > 0) {
+            // Populate answers from existing game entry
+            const loadedAnswers = ['', '', '', '', ''];
+            const loadedConstraints: Record<string, string> = {};
+            
+            // Merge wildcard constraints from all answers
+            existingAnswers.forEach((answer, index) => {
+              if (index < 5) {
+                loadedAnswers[index] = answer.word;
+                Object.assign(loadedConstraints, answer.wildcard_constraints);
+              }
+            });
+            
+            setAnswers(loadedAnswers);
+            setWildcardConstraints(loadedConstraints);
+            
+            // Re-validate all answers to set validation state
+            let tempConstraints = {};
+            const newValidAnswers = [false, false, false, false, false];
+            const newScores = [0, 0, 0, 0, 0];
+            const newValidPaths = [null, null, null, null, null];
+            const validPreviousAnswers: string[] = [];
+            
+            for (let i = 0; i < 5; i++) {
+              if (loadedAnswers[i]) {
+                // Validate against the new board (not the current state)
+                const result = validateAnswerWithBoard(newBoard, loadedAnswers[i], i, tempConstraints, validPreviousAnswers);
+                newValidAnswers[i] = result.isValid;
+                newScores[i] = result.score;
+                
+                if (result.isValid && result.newConstraints) {
+                  tempConstraints = { ...tempConstraints, ...result.newConstraints };
+                  validPreviousAnswers.push(loadedAnswers[i].toLowerCase());
+                  newValidPaths[i] = result.path;
+                }
+              }
+            }
+            
+            setValidAnswers(newValidAnswers);
+            setScores(newScores);
+            setValidPaths(newValidPaths);
+          }
+        } catch (error) {
+          console.warn('Failed to load existing game entry:', error);
+          // If this is a 401 error, the user is invalid, clear localStorage
+          if (error instanceof Error && error.message.includes('401')) {
+            console.log('User appears to be invalid, clearing localStorage and creating new user');
+            clearUser();
+            return; // Exit early to avoid setting empty answers
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load daily game from API, falling back to local generation:', error);
+      setApiError('Failed to connect to server. Playing offline.');
+      // Fallback to local board generation
+      const newBoard = generateBoard();
+      setBoard(newBoard);
+    } finally {
+      setIsLoadingGame(false);
+    }
   };
 
   const handleAnswerFocus = (index: number): void => {

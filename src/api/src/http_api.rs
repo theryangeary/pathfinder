@@ -115,6 +115,7 @@ pub fn create_router(state: ApiState) -> Router {
         .route("/api/validate", post(validate_answer))
         .route("/api/submit", post(submit_answers))
         .route("/api/user", post(create_user))
+        .route("/api/game-entry/:game_id", get(get_game_entry))
         .layer(
             CorsLayer::new()
                 .allow_origin(tower_http::cors::Any)
@@ -300,6 +301,92 @@ async fn create_user(State(state): State<ApiState>) -> Result<Json<serde_json::V
         "user_id": user.id,
         "cookie_token": user.cookie_token
     })))
+}
+
+async fn get_game_entry(
+    Path(game_id): Path<String>,
+    Query(params): Query<HashMap<String, String>>,
+    State(state): State<ApiState>,
+) -> Result<Json<Option<Vec<ApiAnswer>>>, StatusCode> {
+    println!("get_game_entry called - game_id: {}, params: {:?}", game_id, params);
+    
+    // Get user identification from query parameters
+    let user = match (params.get("user_id"), params.get("cookie_token")) {
+        (Some(user_id), Some(cookie_token)) => {
+            println!("Validating user by ID: {} and cookie: {}", user_id, cookie_token);
+            // Validate existing user by both ID and cookie token
+            match state.repository.get_user_by_id(user_id).await {
+                Ok(Some(existing_user)) => {
+                    println!("Found user: {}, stored cookie: {}", existing_user.id, existing_user.cookie_token);
+                    if existing_user.cookie_token == *cookie_token {
+                        println!("Cookie tokens match!");
+                        existing_user
+                    } else {
+                        println!("Cookie tokens don't match! Provided: {}, Stored: {}", cookie_token, existing_user.cookie_token);
+                        return Ok(Json(None)) // Invalid user credentials
+                    }
+                },
+                Ok(None) => {
+                    println!("No user found with ID: {}", user_id);
+                    return Err(StatusCode::UNAUTHORIZED) // Invalid user credentials
+                }
+                Err(e) => {
+                    println!("Database error getting user by ID: {}", e);
+                    return Ok(Json(None)) // Invalid user credentials
+                }
+            }
+        },
+        (None, Some(cookie_token)) => {
+            println!("Validating user by cookie token only: {}", cookie_token);
+            // Try to find user by cookie token only
+            match state.repository.get_user_by_cookie(cookie_token).await {
+                Ok(Some(existing_user)) => {
+                    println!("Found user by cookie: {}", existing_user.id);
+                    existing_user
+                },
+                Ok(None) => {
+                    println!("No user found with cookie: {}", cookie_token);
+                    return Err(StatusCode::UNAUTHORIZED) // Invalid cookie_token
+                }
+                Err(e) => {
+                    println!("Database error getting user by cookie: {}", e);
+                    return Ok(Json(None)) // Invalid cookie_token
+                }
+            }
+        },
+        _ => {
+            println!("No user identification provided");
+            return Ok(Json(None)) // No user identification provided
+        }
+    };
+
+    println!("User found: {}", user.id);
+
+    // Get the game entry for this user and game
+    match state.repository.get_game_entry(&user.id, &game_id).await {
+        Ok(Some(entry)) => {
+            println!("Found game entry: {:?}", entry.answers_data);
+            // Parse the answers from JSON
+            match serde_json::from_str::<Vec<ApiAnswer>>(&entry.answers_data) {
+                Ok(answers) => {
+                    println!("Parsed answers: {:?}", answers);
+                    Ok(Json(Some(answers)))
+                },
+                Err(e) => {
+                    println!("Failed to parse answers JSON: {}", e);
+                    Err(StatusCode::INTERNAL_SERVER_ERROR)
+                }
+            }
+        },
+        Ok(None) => {
+            println!("No game entry found for user {} and game {}", user.id, game_id);
+            Ok(Json(None)) // No entry found
+        },
+        Err(e) => {
+            println!("Error getting game entry: {}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
 }
 
 async fn create_new_user(state: &ApiState) -> Result<crate::db::models::DbUser, StatusCode> {

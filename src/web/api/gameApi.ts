@@ -108,6 +108,15 @@ class GameApi {
       method: 'POST',
     });
   }
+
+  async getGameEntry(gameId: string, userId?: string, cookieToken?: string): Promise<ApiAnswer[] | null> {
+    const params = new URLSearchParams();
+    if (userId) params.append('user_id', userId);
+    if (cookieToken) params.append('cookie_token', cookieToken);
+    
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return this.request<ApiAnswer[] | null>(`/game-entry/${gameId}${query}`);
+  }
 }
 
 export const gameApi = new GameApi();
