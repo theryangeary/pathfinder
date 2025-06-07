@@ -97,7 +97,7 @@ check ../wordgame and ../word-game for a python cli version of the game and a pa
 
 # database
 
-There is a database to store relevent application data. Models used across multiple areas (i.e. frontend, backend, database) should be defined using protocol buffers. RPC calls between the frontend and backend should be defined using protocol buffers Services.
+There is a database to store relevant application data. Any model that will go from frontend to backend or from backend to database should use protocol buffers. RPC calls between the frontend and backend should be defined using protocol buffers Services.
 
 ## database models
 
@@ -111,31 +111,55 @@ This table represents one user entry in a specific game. It must have a foreign 
 
 ### User table
 
-This table represents a user. It will have a user id and a way to connect a cookie stored in the browser to the user.
+This table represents a user. It will have a user id and a way to connect a cookie stored in the browser to the user. When a user first loads the game, a cookie should be set to identify the browser the next time the same browser loads the game. There will not be an "account" in the typical sense where a user registers or has a username or password. We will simply do a best effort "this is the same browser, we assume this is the same user". Because no sensitive information about the user is ever stored, this approach is sufficient for our needs.
 
 # backend
 
-There is a backend application for the frontend to interface with the database. The frontend code will call it to retrieve the daily puzzle, retrieve a specific historical puzzle or a random historical puzzle (by historical I mean a daily puzzle from a past day), store the user's GameEntry for the current puzzle, and store a user's cookie for identifying the same user coming back on a future day. It will Also expose endpoints for the frontend to acquire some aggregate data about a GameEntry's rank against all GameEntrys for a given puzzle (i.e. this score is in the top 10% of scores for this Game).
+There is a backend application for the frontend to interface with the database. The frontend code will call it to retrieve the daily puzzle, retrieve a specific historical puzzle or a random historical puzzle (by historical I mean a daily puzzle from a past day), store the user's GameEntry for the current puzzle, and store a user's cookie for identifying the same user coming back on a future day. Any single historical game should be able to be retrieved based on either ID, date, or random selection. It will also expose endpoints for the frontend to acquire some aggregate data about a GameEntry's rank against all GameEntrys for a given puzzle (i.e. this score is in the top 10% of scores for this Game). The ranking calculation will be performed on demand for now.
 
 ## game generation
 
-game generation should not be an RPC call, but instead run in a cron-like fashion, once per day, to generate games for any day between the current day and 3 days in the future that do not already exist in the database.
+game generation should not be an RPC call, but instead run in a cron-like fashion, at backend startup as well as at midnight UTC each day, to generate games for any day between the current day and 3 days in the future that do not already exist in the database.
 
 ### generated game reproducibility
 
-game generation should not be truly random, but instead be seeded by the date the game is to be the daily puzzle for, so that the generation can be reproduced if needed.
+game generation should not be truly random, but instead be seeded by the date the game is to be the daily puzzle for combined with the attempt number, so that the generation can be reproduced if needed.
 
 ### generated game quality
 
-the process of genenrating a game looks like this:
-1. randomly (psuedorandomly with game date as seed) generate a board
-2.a. check that there are valid words in the word list that can sufficiently score above a threshold score. the threshold score should be configurable but for the time being set it to 40.
+the process of generating a game looks like this:
+1. randomly (pseudorandomly with game date and attempt number as seed) generate a board
+2.a. check that the sum of the 5 highest-scoring valid words that can be formed on the board meets or exceeds a threshold score. the threshold score should be configurable but for the time being set it to 40.
 2.b. if the game does not pass the threshold score, repeat 1 and 2.a. up to 5 times until 2.a. is met.
-2.c. if 2.a. is still not met after 2.b., decrease the threshold score by 25%. again retry up to 5 times until 2.a. is met with this new lower threshold score.
+2.c. if 2.a. is still not met after 2.b., decrease the threshold score by 25% (from 40 to 30). again retry up to 5 times until 2.a. is met with this new lower threshold score.
 2.d. if 2.a. is still not met, cause an alert and log an error
 
 # tech stack
 
-Propose suggestions for the backend tech stack such that the technologies used are well defined before you start implementing. I recommend using Rust for the backend application, as you can heavily reuse code from ../word-game where many parts of the game are already implemented in rust. I wrote this code and you can reuse it freely.
+## Backend Application
+The backend will be implemented in **Rust** to leverage existing code from ../word-game and provide excellent performance for game logic operations. Key libraries:
+- **Axum** for HTTP server and routing
+- **Tonic** for gRPC and protocol buffer support
+- **SQLx** for database operations (chosen for async-first design and database migration flexibility)
+- **Tokio** for async runtime
+- **Tokio-cron-scheduler** for scheduled game generation
 
-For the database I recommend starting with sqlite but having a plan to migrate to a more robust database if the game achieves mass success that sqlite cannot scale to. This migration plan should be documented before we even start building with sqlite.
+## Database Migration Plan
+**Phase 1: SQLite** (0-10,000 daily users)
+- File-based database for simple deployment
+- Sufficient for initial launch and development
+
+**Phase 2: PostgreSQL** (10,000+ daily users)
+- Better concurrency and performance
+- JSON support for complex data types
+- Full-text search capabilities
+- Horizontal scaling options
+
+**Migration Strategy:**
+- Design schema to be PostgreSQL-compatible from the start
+- Use SQLx for database-agnostic queries
+- Test with both SQLite and PostgreSQL during development
+- Plan migration scripts and data export/import procedures
+
+## Protocol Buffers
+All data models transferred between frontend/backend and backend/database will use protocol buffers for type safety and efficient serialization.
