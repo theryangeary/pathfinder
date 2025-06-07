@@ -78,6 +78,26 @@ The project is fully implemented with:
 - ✅ User session management
 - ✅ Daily puzzle generation with quality checking
 
+## Word List Management
+
+The project uses a **single source of truth** for word validation:
+
+### Source Location
+- **Canonical wordlist**: `src/api/wordlist` (plain text, one word per line)
+
+### Build Process
+- **Frontend generation**: `npm run generate-wordlist` creates `src/web/data/wordList.ts`
+- **Automatic generation**: Wordlist is regenerated during `npm run dev` and `npm run build`
+
+### Dual Validation Strategy
+- **Frontend**: Instant validation using generated TypeScript wordlist for responsive UI
+- **Backend**: Final validation on submit using word trie to prevent cheating
+
+### Updating Words
+1. Edit `src/api/wordlist` (the single source)
+2. Run `npm run generate-wordlist` to update frontend
+3. Restart backend to reload word trie
+
 ## Development Servers
 
 ### Frontend Development
@@ -85,6 +105,7 @@ The project is fully implemented with:
 npm run dev
 ```
 Starts Vite development server with hot reload at `http://localhost:5173`
+(Automatically generates wordlist first)
 
 ### Backend Development  
 ```bash

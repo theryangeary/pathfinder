@@ -180,18 +180,20 @@ async fn validate_answer(
     State(state): State<ApiState>,
     Json(request): Json<ValidateRequest>,
 ) -> Result<Json<ValidateResponse>, StatusCode> {
-    // For now, return a simple validation
-    // TODO: Implement full validation logic using game engine
+    // Use the game engine to validate the word
+    let is_valid = state.game_engine.validate_word(&request.word);
     
     let response = ValidateResponse {
-        is_valid: request.word.len() >= 3,
-        score: if request.word.len() >= 3 { request.word.len() as i32 * 2 } else { 0 },
+        is_valid,
+        score: if is_valid { request.word.len() as i32 * 2 } else { 0 },
         path: vec![], // TODO: Calculate actual path
         wildcard_constraints: HashMap::new(),
-        error_message: if request.word.len() < 3 { 
-            "Word must be at least 3 letters".to_string() 
-        } else { 
-            String::new() 
+        error_message: if request.word.len() < 3 {
+            "Word must be at least 3 letters".to_string()
+        } else if !is_valid {
+            format!("'{}' is not a valid word", request.word)
+        } else {
+            String::new()
         },
     };
 

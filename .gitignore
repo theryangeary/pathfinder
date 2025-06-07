@@ -98,5 +98,8 @@ src/api/*.pid
 *.db
 *.db-*
 
+# Auto-generated files
+src/web/data/wordList.ts
+
 # the rest
 todo
