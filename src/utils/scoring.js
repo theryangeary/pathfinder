@@ -1,4 +1,4 @@
-const letterFrequencies = {
+export const letterFrequencies = {
   'a': 0.078,
   'b': 0.02,
   'c': 0.04,

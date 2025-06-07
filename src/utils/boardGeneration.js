@@ -1,7 +1,32 @@
+import { letterFrequencies } from './scoring.js';
+
 const letters = 'abcdefghijklmnopqrstuvwxyz';
 
+// Interpolation constant: 0 = pure random, 1 = pure frequency-based
+const FREQUENCY_INTERPOLATION = 0.5;
+
 function getRandomLetter() {
-  return letters[Math.floor(Math.random() * letters.length)];
+  // Interpolate between uniform (1/26) and actual frequencies
+  const uniformFreq = 1 / 26;
+  const cumulativeFreqs = [];
+  let total = 0;
+  
+  for (const letter of letters) {
+    const actualFreq = letterFrequencies[letter];
+    const interpolatedFreq = uniformFreq * (1 - FREQUENCY_INTERPOLATION) + actualFreq * FREQUENCY_INTERPOLATION;
+    total += interpolatedFreq;
+    cumulativeFreqs.push({ letter, cumulative: total });
+  }
+  
+  const random = Math.random() * total;
+  
+  for (const entry of cumulativeFreqs) {
+    if (random <= entry.cumulative) {
+      return entry.letter;
+    }
+  }
+  
+  return 'e'; // fallback to most common letter
 }
 
 function findWildcardPositions() {
