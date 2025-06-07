@@ -170,7 +170,7 @@ export function findPathsForHighlighting(board, word, wildcardConstraints = {}) 
   
   // Rule 1: If ANY paths use 0 wildcards, highlight ALL paths (including those with wildcards)
   if (pathsWithoutWildcards.length > 0) {
-    return allPaths;
+    return pathsWithoutWildcards;
   }
   
   // Rule 2: Only wildcard paths exist, apply constraint minimization
