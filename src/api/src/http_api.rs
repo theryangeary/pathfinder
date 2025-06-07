@@ -9,11 +9,9 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tower_http::cors::CorsLayer;
 
-use crate::db::Repository;
+use crate::db::{Repository, conversions::AnswerStorage};
 use crate::game::GameEngine;
 use crate::game_generator::GameGenerator;
-use crate::service::WordGameServiceImpl;
-use crate::serialization::{SerializableAnswer, SerializablePosition};
 
 // HTTP API types (simpler than protobuf for frontend)
 #[derive(Serialize, Deserialize, Debug)]
@@ -38,7 +36,7 @@ pub struct ApiTile {
     pub col: i32,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ApiAnswer {
     pub word: String,
     pub score: i32,
@@ -46,7 +44,7 @@ pub struct ApiAnswer {
     pub wildcard_constraints: HashMap<String, String>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ApiPosition {
     pub row: i32,
     pub col: i32,
@@ -250,8 +248,8 @@ async fn submit_answers(
         Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
     };
 
-    // Serialize answers to JSON
-    let answers_json = match serde_json::to_string(&request.answers) {
+    // Serialize answers to JSON using stable database format
+    let answers_json = match AnswerStorage::serialize_api_answers(&request.answers) {
         Ok(json) => json,
         Err(_) => return Err(StatusCode::BAD_REQUEST),
     };
@@ -368,8 +366,8 @@ async fn get_game_entry(
     match state.repository.get_game_entry(&user.id, &game_id).await {
         Ok(Some(entry)) => {
             println!("Found game entry: {:?}", entry.answers_data);
-            // Parse the answers from JSON
-            match serde_json::from_str::<Vec<ApiAnswer>>(&entry.answers_data) {
+            // Parse the answers from JSON using stable database format
+            match AnswerStorage::deserialize_to_api_answers(&entry.answers_data) {
                 Ok(answers) => {
                     println!("Parsed answers: {:?}", answers);
                     Ok(Json(Some(answers)))

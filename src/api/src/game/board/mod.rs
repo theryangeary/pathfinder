@@ -8,12 +8,25 @@ pub mod path;
 
 use path::GameTile;
 
-// Re-export protobuf generated types
-pub mod proto {
-    include!(concat!(env!("OUT_DIR"), "/wordgame.rs"));
+// Native Rust types (replacing protobuf)
+#[derive(Debug, Clone, PartialEq)]
+pub struct Board {
+    pub rows: Vec<Row>,
 }
 
-pub use proto::*;
+#[derive(Debug, Clone, PartialEq)]
+pub struct Row {
+    pub tiles: Vec<Tile>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Tile {
+    pub letter: String,
+    pub points: i32,
+    pub is_wildcard: bool,
+    pub row: i32,
+    pub col: i32,
+}
 
 impl fmt::Display for Board {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

@@ -6,7 +6,7 @@ This document provides instructions for running the word game application in loc
 
 The application consists of:
 - **Frontend**: React/TypeScript application with Vite
-- **Backend**: Rust gRPC server with SQLite database
+- **Backend**: Rust HTTP API server with SQLite database
 - **Database**: SQLite (development) → PostgreSQL (production)
 
 ## Local Development
@@ -46,9 +46,7 @@ cp .env.example .env
 cargo run
 ```
 
-The backend will start:
-- HTTP API server on `http://localhost:3001`
-- gRPC server on `http://localhost:50051`
+The backend will start the HTTP API server on `http://localhost:3001`
 
 ### Database Setup
 
@@ -186,9 +184,9 @@ journalctl -u word-game-backend -f
 
 ### Health Checks
 
-The backend exposes these endpoints for monitoring:
-- gRPC health check via `grpc_health_probe`
+The backend provides monitoring through:
 - Database connectivity check in startup logs
+- HTTP API endpoint availability
 
 ### Performance Monitoring
 
@@ -233,8 +231,8 @@ Key metrics to monitor:
    - Verify database file permissions
    - Ensure SQLite file exists
 
-2. **gRPC connection issues**:
-   - Verify port 50051 is open
+2. **HTTP API connection issues**:
+   - Verify port 3001 is open
    - Check CORS configuration
    - Validate frontend/backend versions match
 
@@ -252,9 +250,6 @@ sqlite3 game.db "SELECT * FROM games ORDER BY created_at DESC LIMIT 5;"
 
 # Test HTTP API endpoint
 curl http://localhost:3001/api/game
-
-# Test gRPC endpoint
-grpcurl -plaintext localhost:50051 wordgame.WordGameService/GetDailyGame
 
 # Monitor logs
 tail -f src/api/backend.log

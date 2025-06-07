@@ -1,4 +1,4 @@
-use crate::game::board::{Board as ProtoBoard, Row, Tile};
+use crate::game::board::{Board, Row, Tile};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -20,8 +20,8 @@ pub struct SerializableTile {
     pub col: i32,
 }
 
-impl From<&ProtoBoard> for SerializableBoard {
-    fn from(board: &ProtoBoard) -> Self {
+impl From<&Board> for SerializableBoard {
+    fn from(board: &Board) -> Self {
         Self {
             rows: board.rows.iter().map(|row| SerializableRow {
                 tiles: row.tiles.iter().map(|tile| SerializableTile {
@@ -36,7 +36,7 @@ impl From<&ProtoBoard> for SerializableBoard {
     }
 }
 
-impl From<SerializableBoard> for ProtoBoard {
+impl From<SerializableBoard> for Board {
     fn from(board: SerializableBoard) -> Self {
         Self {
             rows: board.rows.into_iter().map(|row| Row {

@@ -1,5 +1,7 @@
 pub mod models;
 pub mod repository_simple;
+pub mod storage_types;
+pub mod conversions;
 
 pub use repository_simple::Repository;
 

@@ -112,9 +112,7 @@ Starts Vite development server with hot reload at `http://localhost:5173`
 cd src/api
 cargo run
 ```
-Starts backend servers:
-- HTTP API: `http://localhost:3001`
-- gRPC: `http://localhost:50051`
+Starts backend HTTP API server on `http://localhost:3001`
 
 ### Integration Testing
 ```bash

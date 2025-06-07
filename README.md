@@ -14,7 +14,6 @@ src/
 │   └── data/             # Static data files
 └── api/                  # Backend (Rust)
     ├── src/              # Rust source code
-    ├── proto/            # gRPC protocol definitions
     ├── migrations/       # Database migrations
     └── wordlist          # Word validation data
 ```
@@ -38,9 +37,7 @@ src/
    cd src/api
    cargo run
    ```
-   This starts:
-   - HTTP API server on `http://localhost:3001`
-   - gRPC server on `http://localhost:50051`
+   This starts the HTTP API server on `http://localhost:3001`
 
 3. **Start the frontend development server:**
    ```bash
@@ -73,9 +70,9 @@ cargo test
 ## Architecture
 
 - **Frontend**: React with TypeScript, Vite build system
-- **Backend**: Rust with Axum (HTTP) and Tonic (gRPC)
+- **Backend**: Rust with Axum HTTP framework
 - **Database**: SQLite with SQLx for async operations
-- **API**: RESTful HTTP endpoints with Protocol Buffer gRPC service
+- **API**: RESTful HTTP/JSON endpoints
 - **Scheduling**: Automated daily puzzle generation
 
 For detailed implementation status, see [BACKEND_STATUS.md](BACKEND_STATUS.md).

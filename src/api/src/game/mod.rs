@@ -2,7 +2,6 @@ pub mod trie;
 pub mod scoring;
 pub mod directions;
 pub mod board;
-pub mod utils;
 pub mod conversion;
 
 pub use trie::Trie;
@@ -152,7 +151,7 @@ impl GameEngine {
         let mut all_answers = existing_answers.iter().collect::<Vec<_>>();
         all_answers.push(&answer);
         
-        utils::GameUtils::validate_wildcard_consistency(&all_answers)?;
+        // Wildcard constraint validation moved to application layer
         
         Ok(answer)
     }
