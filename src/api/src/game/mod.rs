@@ -232,19 +232,48 @@ impl GameEngine {
         
         // Get current tile
         let tile = board.get_tile(row, col);
-        let mut new_word = current_word;
         
-        // Add letter to word (skip wildcards for now in this simple implementation)
-        if !tile.is_wildcard {
+        if tile.is_wildcard {
+            // For wildcards, try all possible letters
+            for letter in 'a'..='z' {
+                let mut new_word = current_word.clone();
+                new_word.push(letter);
+                
+                // If word is long enough, add it to found words
+                if new_word.len() >= 3 {
+                    found_words.insert(new_word.clone());
+                }
+                
+                // Explore adjacent positions with this wildcard letter choice
+                self.explore_adjacent_positions(board, row, col, new_word, visited, found_words);
+            }
+        } else {
+            // For regular tiles, add the letter
+            let mut new_word = current_word;
             new_word.push_str(&tile.letter);
             
             // If word is long enough, add it to found words
             if new_word.len() >= 3 {
                 found_words.insert(new_word.clone());
             }
+            
+            // Explore adjacent positions
+            self.explore_adjacent_positions(board, row, col, new_word, visited, found_words);
         }
         
-        // Explore adjacent positions
+        // Unmark position for other paths
+        visited.remove(&(row, col));
+    }
+
+    fn explore_adjacent_positions(
+        &self,
+        board: &Board,
+        row: usize,
+        col: usize,
+        current_word: String,
+        visited: &mut std::collections::HashSet<(usize, usize)>,
+        found_words: &mut std::collections::HashSet<String>,
+    ) {
         let directions = [
             (-1, -1), (-1, 0), (-1, 1),
             (0, -1),           (0, 1),
@@ -260,12 +289,9 @@ impl GameEngine {
                 let new_col = new_col as usize;
                 
                 if !visited.contains(&(new_row, new_col)) {
-                    self.find_words_from_position(board, new_row, new_col, new_word.clone(), visited, found_words);
+                    self.find_words_from_position(board, new_row, new_col, current_word.clone(), visited, found_words);
                 }
             }
         }
-        
-        // Unmark position for other paths
-        visited.remove(&(row, col));
     }
 }

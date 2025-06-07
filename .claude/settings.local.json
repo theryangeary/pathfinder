@@ -21,7 +21,8 @@
       "Bash(./target/debug/word-game-backend:*)",
       "Bash(npm run build:*)",
       "Bash(cat:*)",
-      "Bash(sqlite3:*)"
+      "Bash(sqlite3:*)",
+      "Bash(./test_integration.sh:*)"
     ],
     "deny": []
   }
