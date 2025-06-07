@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 function HeatmapModal({ isOpen, onClose, tileUsage, board, totalScore, scores }) {
+  const [showCopyNotification, setShowCopyNotification] = useState(false);
+  
   if (!isOpen) return null;
 
   // Get the maximum usage count to normalize the heat scale
@@ -18,7 +20,10 @@ function HeatmapModal({ isOpen, onClose, tileUsage, board, totalScore, scores })
     
     const textToCopy = `${heatmapText}\n\nTotal Score: ${totalScore}\nBest Word: ${bestWordScore}\n\n${currentUrl}`;
     
-    navigator.clipboard.writeText(textToCopy).catch(err => {
+    navigator.clipboard.writeText(textToCopy).then(() => {
+      setShowCopyNotification(true);
+      setTimeout(() => setShowCopyNotification(false), 1000);
+    }).catch(err => {
       console.error('Failed to copy to clipboard:', err);
     });
   };
@@ -34,6 +39,22 @@ function HeatmapModal({ isOpen, onClose, tileUsage, board, totalScore, scores })
     if (intensity <= 0.6) return '🟩'; // Green for medium usage
     if (intensity <= 0.8) return '🟨'; // Yellow for high usage
     return '🟥'; // Red for maximum usage
+  };
+
+  const buttonStyle = {
+    padding: '10px 20px',
+    fontSize: '14px',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    transition: 'all 0.1s ease',
+    transform: 'scale(1)',
+    boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+  };
+
+  const buttonPressStyle = {
+    transform: 'scale(0.95)',
+    boxShadow: '0 1px 2px rgba(0,0,0,0.2)'
   };
 
   return (
@@ -103,14 +124,13 @@ function HeatmapModal({ isOpen, onClose, tileUsage, board, totalScore, scores })
         }}>
           <button
             onClick={() => {/* Share functionality placeholder */}}
+            onMouseDown={(e) => e.target.style.transform = 'scale(0.95)'}
+            onMouseUp={(e) => e.target.style.transform = 'scale(1)'}
+            onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
             style={{
-              padding: '10px 20px',
-              fontSize: '14px',
+              ...buttonStyle,
               backgroundColor: '#2196F3',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: 'pointer'
+              color: 'white'
             }}
           >
             Share
@@ -118,14 +138,13 @@ function HeatmapModal({ isOpen, onClose, tileUsage, board, totalScore, scores })
           
           <button
             onClick={copyToClipboard}
+            onMouseDown={(e) => e.target.style.transform = 'scale(0.95)'}
+            onMouseUp={(e) => e.target.style.transform = 'scale(1)'}
+            onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
             style={{
-              padding: '10px 20px',
-              fontSize: '14px',
+              ...buttonStyle,
               backgroundColor: '#FF9800',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: 'pointer'
+              color: 'white'
             }}
           >
             Copy
@@ -133,19 +152,38 @@ function HeatmapModal({ isOpen, onClose, tileUsage, board, totalScore, scores })
           
           <button
             onClick={onClose}
+            onMouseDown={(e) => e.target.style.transform = 'scale(0.95)'}
+            onMouseUp={(e) => e.target.style.transform = 'scale(1)'}
+            onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
             style={{
-              padding: '10px 20px',
-              fontSize: '14px',
+              ...buttonStyle,
               backgroundColor: '#757575',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: 'pointer'
+              color: 'white'
             }}
           >
             Close
           </button>
         </div>
+        
+        {showCopyNotification && (
+          <div style={{
+            position: 'fixed',
+            bottom: '20px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            backgroundColor: '#4CAF50',
+            color: 'white',
+            padding: '8px 16px',
+            borderRadius: '4px',
+            fontSize: '14px',
+            fontWeight: 'bold',
+            zIndex: 1001,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+            animation: 'fadeInOut 1s ease-in-out'
+          }}>
+            Copied to clipboard!
+          </div>
+        )}
       </div>
     </div>
   );

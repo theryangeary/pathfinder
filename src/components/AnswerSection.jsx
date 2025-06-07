@@ -68,6 +68,21 @@ function AnswerSection({
         <button
           onClick={onSubmit}
           disabled={!validAnswers.every(valid => valid)}
+          onMouseDown={(e) => {
+            if (!e.target.disabled) {
+              e.target.style.transform = 'scale(0.9)';
+            }
+          }}
+          onMouseUp={(e) => {
+            if (!e.target.disabled) {
+              e.target.style.transform = 'scale(1)';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!e.target.disabled) {
+              e.target.style.transform = 'scale(1)';
+            }
+          }}
           style={{
             padding: '12px 24px',
             fontSize: '16px',
@@ -77,7 +92,9 @@ function AnswerSection({
             border: 'none',
             borderRadius: '8px',
             cursor: validAnswers.every(valid => valid) ? 'pointer' : 'not-allowed',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+            boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+            transition: 'all 0.1s ease',
+            transform: 'scale(1)'
           }}
         >
           Submit Answers
