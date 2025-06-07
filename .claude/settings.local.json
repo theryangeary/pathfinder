@@ -22,7 +22,9 @@
       "Bash(npm run build:*)",
       "Bash(cat:*)",
       "Bash(sqlite3:*)",
-      "Bash(./test_integration.sh:*)"
+      "Bash(./test_integration.sh:*)",
+      "Bash(npm run generate-wordlist:*)",
+      "Bash(git add:*)"
     ],
     "deny": []
   }
