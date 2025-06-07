@@ -95,6 +95,47 @@ Be sure to be on the lookout for a later answer trying to overwrite the constrai
 
 check ../wordgame and ../word-game for a python cli version of the game and a partially implemented rust web implementation of the game. Feel free to ignore the rust version as it isn't going anywhere and wasm is hard and introduces some weird workarounds. with the python version keep in mind that it is a very minimal build that does not meet all the requirements here. of particular note is the fact that it requires the user to specify the values for the wildcard spots before giving answers, rather than intuiting them as the user gives answers.
 
+# database
+
+There is a database to store relevent application data. Models used across multiple areas (i.e. frontend, backend, database) should be defined using protocol buffers. RPC calls between the frontend and backend should be defined using protocol buffers Services.
+
+## database models
+
+### Game table
+
+A "game" table will store game boards. Each board is a "daily puzzle" similar to how there is a specific puzzle of the day in the NYT crossword and similar. The boards will be generated randomly, checked for some quality measures (more on this in "backend") and then stored for future retreival. the primary key should be an id, but this table should also be indexable by the date of that puzzle.
+
+### GameEntry table
+
+This table represents one user entry in a specific game. It must have a foreign key for the user, and a foreign key for the game. It will store each answer given, and that answer's score. It will also store the total score.
+
+### User table
+
+This table represents a user. It will have a user id and a way to connect a cookie stored in the browser to the user.
+
+# backend
+
+There is a backend application for the frontend to interface with the database. The frontend code will call it to retrieve the daily puzzle, retrieve a specific historical puzzle or a random historical puzzle (by historical I mean a daily puzzle from a past day), store the user's GameEntry for the current puzzle, and store a user's cookie for identifying the same user coming back on a future day. It will Also expose endpoints for the frontend to acquire some aggregate data about a GameEntry's rank against all GameEntrys for a given puzzle (i.e. this score is in the top 10% of scores for this Game).
+
+## game generation
+
+game generation should not be an RPC call, but instead run in a cron-like fashion, once per day, to generate games for any day between the current day and 3 days in the future that do not already exist in the database.
+
+### generated game reproducibility
+
+game generation should not be truly random, but instead be seeded by the date the game is to be the daily puzzle for, so that the generation can be reproduced if needed.
+
+### generated game quality
+
+the process of genenrating a game looks like this:
+1. randomly (psuedorandomly with game date as seed) generate a board
+2.a. check that there are valid words in the word list that can sufficiently score above a threshold score. the threshold score should be configurable but for the time being set it to 40.
+2.b. if the game does not pass the threshold score, repeat 1 and 2.a. up to 5 times until 2.a. is met.
+2.c. if 2.a. is still not met after 2.b., decrease the threshold score by 25%. again retry up to 5 times until 2.a. is met with this new lower threshold score.
+2.d. if 2.a. is still not met, cause an alert and log an error
+
 # tech stack
 
-this is up in the air. I'm open to vanilla javascript components and have a bit of a soft spot for them, however if there is a meaningful simplification to be had from the added overhead of some javascript frameworks, I'm open to it. please evaluate the options and present what you think is best
+Propose suggestions for the backend tech stack such that the technologies used are well defined before you start implementing. I recommend using Rust for the backend application, as you can heavily reuse code from ../word-game where many parts of the game are already implemented in rust. I wrote this code and you can reuse it freely.
+
+For the database I recommend starting with sqlite but having a plan to migrate to a more robust database if the game achieves mass success that sqlite cannot scale to. This migration plan should be documented before we even start building with sqlite.
