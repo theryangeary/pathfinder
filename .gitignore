@@ -83,3 +83,6 @@ jspm_packages/
 
 # Claude Code
 .claude/
+
+# the rest
+todo
