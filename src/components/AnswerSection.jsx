@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import AnswerInput from './AnswerInput';
 
 function AnswerSection({ 
@@ -8,6 +8,25 @@ function AnswerSection({
   scores,
   onSubmit
 }) {
+  const inputRefs = useRef([]);
+
+  const handleEnterPress = (currentIndex) => {
+    const nextIndex = currentIndex + 1;
+    
+    // If this is the last input and all answers are valid, submit
+    if (nextIndex >= answers.length) {
+      if (validAnswers.every(valid => valid)) {
+        onSubmit();
+      }
+      return;
+    }
+    
+    // Focus on the next enabled input
+    const nextInputEnabled = nextIndex === 0 || validAnswers[nextIndex - 1];
+    if (nextInputEnabled && inputRefs.current[nextIndex]) {
+      inputRefs.current[nextIndex].focus();
+    }
+  };
   return (
     <div style={{ marginTop: '20px' }}>
       <div style={{ 
@@ -33,12 +52,14 @@ function AnswerSection({
         return (
           <AnswerInput
             key={index}
+            ref={(el) => (inputRefs.current[index] = el)}
             index={index}
             value={answer}
             onChange={onAnswerChange}
             isValid={isValid}
             isEnabled={isEnabled}
             score={score}
+            onEnterPress={handleEnterPress}
           />
         );
       })}

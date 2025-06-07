@@ -1,14 +1,26 @@
-import React from 'react';
+import React, { useRef, useImperativeHandle, forwardRef } from 'react';
 
-function AnswerInput({ 
+const AnswerInput = forwardRef(function AnswerInput({ 
   index, 
   value, 
   onChange, 
   isValid, 
   isEnabled, 
-  score 
-}) {
+  score,
+  onEnterPress
+}, ref) {
+  const inputRef = useRef(null);
   const statusIcon = isValid ? '✅' : '❌';
+
+  useImperativeHandle(ref, () => ({
+    focus: () => inputRef.current?.focus()
+  }));
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && isValid && onEnterPress) {
+      onEnterPress(index);
+    }
+  };
   
   return (
     <div 
@@ -24,9 +36,11 @@ function AnswerInput({
         {statusIcon}
       </span>
       <input
+        ref={inputRef}
         type="text"
         value={value}
         onChange={(e) => onChange(index, e.target.value)}
+        onKeyDown={handleKeyDown}
         disabled={!isEnabled}
         placeholder={`Answer ${index + 1}`}
         style={{
@@ -49,6 +63,6 @@ function AnswerInput({
       </span>
     </div>
   );
-}
+});
 
 export default AnswerInput;
