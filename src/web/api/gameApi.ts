@@ -48,6 +48,7 @@ export interface ValidateResponse {
 
 export interface SubmitRequest {
   user_id?: string;
+  cookie_token?: string;
   answers: ApiAnswer[];
 }
 

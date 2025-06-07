@@ -70,6 +70,7 @@ pub struct ValidateResponse {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SubmitRequest {
     pub user_id: Option<String>,
+    pub cookie_token: Option<String>,
     pub answers: Vec<ApiAnswer>,
 }
 
@@ -200,13 +201,40 @@ async fn submit_answers(
     State(state): State<ApiState>,
     Json(request): Json<SubmitRequest>,
 ) -> Result<Json<SubmitResponse>, StatusCode> {
-    // Create or get user
-    let user = if let Some(user_id) = request.user_id {
-        // Try to find existing user
-        // For now, create a new one since we don't have user lookup by ID
-        create_new_user(&state).await?
-    } else {
-        create_new_user(&state).await?
+    // Validate and get existing user or create new one
+    let user = match (request.user_id.as_ref(), request.cookie_token.as_ref()) {
+        (Some(user_id), Some(cookie_token)) => {
+            // Validate existing user by both ID and cookie token
+            match state.repository.get_user_by_id(user_id).await {
+                Ok(Some(existing_user)) if existing_user.cookie_token == *cookie_token => {
+                    // Valid user - update last seen
+                    let _ = state.repository.update_user_last_seen(&existing_user.id).await;
+                    existing_user
+                },
+                _ => {
+                    // Invalid user_id or cookie_token mismatch - create new user
+                    create_new_user(&state).await?
+                }
+            }
+        },
+        (None, Some(cookie_token)) => {
+            // Try to find user by cookie token only
+            match state.repository.get_user_by_cookie(cookie_token).await {
+                Ok(Some(existing_user)) => {
+                    // Valid user - update last seen
+                    let _ = state.repository.update_user_last_seen(&existing_user.id).await;
+                    existing_user
+                },
+                _ => {
+                    // Invalid cookie_token - create new user
+                    create_new_user(&state).await?
+                }
+            }
+        },
+        _ => {
+            // No user identification provided - create new user
+            create_new_user(&state).await?
+        }
     };
 
     let total_score: i32 = request.answers.iter().map(|a| a.score).sum();

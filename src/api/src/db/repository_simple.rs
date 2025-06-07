@@ -48,6 +48,24 @@ impl Repository {
         }
     }
 
+    pub async fn get_user_by_id(&self, user_id: &str) -> Result<Option<DbUser>> {
+        let row = sqlx::query("SELECT id, cookie_token, created_at, last_seen FROM users WHERE id = ?")
+            .bind(user_id)
+            .fetch_optional(&self.pool)
+            .await?;
+
+        if let Some(row) = row {
+            Ok(Some(DbUser {
+                id: row.get("id"),
+                cookie_token: row.get("cookie_token"),
+                created_at: row.get("created_at"),
+                last_seen: row.get("last_seen"),
+            }))
+        } else {
+            Ok(None)
+        }
+    }
+
     pub async fn update_user_last_seen(&self, user_id: &str) -> Result<()> {
         let now = Utc::now();
         sqlx::query("UPDATE users SET last_seen = ? WHERE id = ?")

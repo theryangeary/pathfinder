@@ -193,7 +193,8 @@ function App() {
 
       // Submit to backend
       const response = await gameApi.submitAnswers({
-        user_id: user?.id,
+        user_id: user?.user_id,
+        cookie_token: user?.cookie_token,
         answers: apiAnswers
       });
 
