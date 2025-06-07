@@ -305,3 +305,343 @@ impl GameEngine {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rand::SeedableRng;
+    use std::io::Write;
+    use tempfile::NamedTempFile;
+
+    fn create_test_wordlist() -> NamedTempFile {
+        let mut temp_file = NamedTempFile::new().unwrap();
+        writeln!(temp_file, "cat").unwrap();
+        writeln!(temp_file, "dog").unwrap();
+        writeln!(temp_file, "test").unwrap();
+        writeln!(temp_file, "word").unwrap();
+        writeln!(temp_file, "game").unwrap();
+        writeln!(temp_file, "path").unwrap();
+        writeln!(temp_file, "tile").unwrap();
+        writeln!(temp_file, "board").unwrap();
+        temp_file.flush().unwrap();
+        temp_file
+    }
+
+    fn create_test_board() -> Board {
+        let mut board = Board::new();
+        
+        // Create a simple board for testing
+        // c a t e
+        // o m p l
+        // * s e *  (wildcards at 2,0 and 2,3)
+        // r n d g
+        
+        board.set_tile(0, 0, 'c', 2, false);
+        board.set_tile(0, 1, 'a', 1, false);
+        board.set_tile(0, 2, 't', 1, false);
+        board.set_tile(0, 3, 'e', 1, false);
+        
+        board.set_tile(1, 0, 'o', 1, false);
+        board.set_tile(1, 1, 'm', 2, false);
+        board.set_tile(1, 2, 'p', 2, false);
+        board.set_tile(1, 3, 'l', 1, false);
+        
+        board.set_tile(2, 0, '*', 0, true);  // wildcard
+        board.set_tile(2, 1, 's', 1, false);
+        board.set_tile(2, 2, 'e', 1, false);
+        board.set_tile(2, 3, '*', 0, true);  // wildcard
+        
+        board.set_tile(3, 0, 'r', 1, false);
+        board.set_tile(3, 1, 'n', 1, false);
+        board.set_tile(3, 2, 'd', 1, false);
+        board.set_tile(3, 3, 'g', 2, false);
+        
+        board
+    }
+
+    #[test]
+    fn test_board_generator_new() {
+        let generator = BoardGenerator::new();
+        
+        // Check that all expected letters are in the frequency map
+        assert_eq!(generator.letter_frequencies.len(), 26);
+        assert!(generator.letter_frequencies.contains_key(&'a'));
+        assert!(generator.letter_frequencies.contains_key(&'z'));
+        
+        // Check specific frequency values
+        assert_eq!(generator.letter_frequencies[&'e'], 0.11);
+        assert_eq!(generator.letter_frequencies[&'q'], 0.0019);
+    }
+
+    #[test]
+    fn test_board_generator_generate_board() {
+        let generator = BoardGenerator::new();
+        let mut rng = rand::rngs::StdRng::seed_from_u64(42);
+        
+        let board = generator.generate_board(&mut rng);
+        
+        // Check that wildcards are placed correctly
+        assert!(board.get_tile(1, 1).is_wildcard);
+        assert!(board.get_tile(2, 2).is_wildcard);
+        assert_eq!(board.get_tile(1, 1).letter, "*");
+        assert_eq!(board.get_tile(2, 2).letter, "*");
+        assert_eq!(board.get_tile(1, 1).points, 0);
+        assert_eq!(board.get_tile(2, 2).points, 0);
+        
+        // Check that other tiles are not wildcards
+        assert!(!board.get_tile(0, 0).is_wildcard);
+        assert!(!board.get_tile(3, 3).is_wildcard);
+        
+        // Check that regular tiles have valid letters and points
+        for row in 0..4 {
+            for col in 0..4 {
+                let tile = board.get_tile(row, col);
+                if !tile.is_wildcard {
+                    assert!(tile.letter.chars().next().unwrap().is_ascii_lowercase());
+                    assert!(tile.points > 0);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_board_generator_weighted_choice() {
+        let generator = BoardGenerator::new();
+        let letters = vec!['a', 'e', 'z'];
+        let weights = vec![0.078, 0.11, 0.0044]; // e is most frequent
+        let mut rng = rand::rngs::StdRng::seed_from_u64(42);
+        
+        // Run multiple times to check distribution
+        let mut e_count = 0;
+        let total = 1000;
+        
+        for _ in 0..total {
+            let choice = generator.weighted_choice(&letters, &weights, &mut rng);
+            if choice == 'e' {
+                e_count += 1;
+            }
+        }
+        
+        // E should be chosen more often than other letters (roughly proportional to weight)
+        // This is probabilistic, so we use a reasonable range
+        assert!(e_count > total / 10); // Should be much more than 1/3
+    }
+
+    #[tokio::test]
+    async fn test_game_engine_new() {
+        let temp_file = create_test_wordlist();
+        let engine = GameEngine::new(temp_file.path()).await;
+        
+        assert!(engine.is_ok());
+        let engine = engine.unwrap();
+        
+        // Test that the engine was initialized properly
+        assert!(engine.validate_word("cat"));
+        assert!(engine.validate_word("dog"));
+        assert!(!engine.validate_word("nonexistent"));
+    }
+
+    #[tokio::test]
+    async fn test_game_engine_validate_word() {
+        let temp_file = create_test_wordlist();
+        let engine = GameEngine::new(temp_file.path()).await.unwrap();
+        
+        // Test valid words
+        assert!(engine.validate_word("cat"));
+        assert!(engine.validate_word("dog"));
+        assert!(engine.validate_word("test"));
+        
+        // Test invalid words
+        assert!(!engine.validate_word("xyz"));
+        assert!(!engine.validate_word(""));
+        assert!(!engine.validate_word("notinlist"));
+    }
+
+    #[tokio::test]
+    async fn test_game_engine_score_word() {
+        let temp_file = create_test_wordlist();
+        let engine = GameEngine::new(temp_file.path()).await.unwrap();
+        
+        let cat_score = engine.score_word("cat");
+        let dog_score = engine.score_word("dog");
+        
+        // Both should be positive scores
+        assert!(cat_score > 0);
+        assert!(dog_score > 0);
+        
+        // Empty string should score 0
+        assert_eq!(engine.score_word(""), 0);
+    }
+
+    #[tokio::test]
+    async fn test_game_engine_find_word_paths() {
+        let temp_file = create_test_wordlist();
+        let engine = GameEngine::new(temp_file.path()).await.unwrap();
+        let board = create_test_board();
+        
+        // Test finding paths for "cat" (should exist: c-a-t at positions (0,0)-(0,1)-(0,2))
+        let answer = engine.find_word_paths(&board, "cat");
+        assert!(!answer.paths.is_empty());
+        assert_eq!(answer.word, "cat");
+        
+        // Test finding paths for non-existent word formation
+        let answer = engine.find_word_paths(&board, "xyz");
+        assert!(answer.paths.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_game_engine_validate_answer_valid() {
+        let temp_file = create_test_wordlist();
+        let engine = GameEngine::new(temp_file.path()).await.unwrap();
+        let board = create_test_board();
+        
+        // Test valid answer
+        let result = engine.validate_answer(&board, "cat");
+        assert!(result.is_ok());
+        
+        let answer = result.unwrap();
+        assert_eq!(answer.word, "cat");
+        assert!(!answer.paths.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_game_engine_validate_answer_invalid_word() {
+        let temp_file = create_test_wordlist();
+        let engine = GameEngine::new(temp_file.path()).await.unwrap();
+        let board = create_test_board();
+        
+        // Test invalid word (not in dictionary)
+        let result = engine.validate_answer(&board, "xyz");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("not found in dictionary"));
+    }
+
+    #[tokio::test]
+    async fn test_game_engine_validate_answer_no_path() {
+        let temp_file = create_test_wordlist();
+        let engine = GameEngine::new(temp_file.path()).await.unwrap();
+        let board = create_test_board();
+        
+        // Test word that exists in dictionary but can't be formed on board
+        let result = engine.validate_answer(&board, "game");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("cannot be formed on this board"));
+    }
+
+    #[tokio::test]
+    async fn test_game_engine_validate_answer_with_constraints() {
+        let temp_file = create_test_wordlist();
+        let engine = GameEngine::new(temp_file.path()).await.unwrap();
+        let board = create_test_board();
+        
+        // Test with empty constraints
+        let existing_answers = vec![];
+        let result = engine.validate_answer_with_constraints(&board, "cat", &existing_answers);
+        assert!(result.is_ok());
+        
+        let answer = result.unwrap();
+        assert_eq!(answer.word, "cat");
+    }
+
+    #[tokio::test]
+    async fn test_game_engine_validate_word_with_constraints_valid() {
+        let temp_file = create_test_wordlist();
+        let engine = GameEngine::new(temp_file.path()).await.unwrap();
+        let board = create_test_board();
+        
+        // Test with empty constraints
+        let constraints = HashMap::new();
+        let result = engine.validate_word_with_constraints(&board, "cat", &constraints).await;
+        assert!(result.is_ok());
+        
+        let answer = result.unwrap();
+        assert!(answer.is_some());
+        assert_eq!(answer.unwrap().word, "cat");
+    }
+
+    #[tokio::test]
+    async fn test_game_engine_validate_word_with_constraints_invalid_word() {
+        let temp_file = create_test_wordlist();
+        let engine = GameEngine::new(temp_file.path()).await.unwrap();
+        let board = create_test_board();
+        
+        // Test invalid word
+        let constraints = HashMap::new();
+        let result = engine.validate_word_with_constraints(&board, "xyz", &constraints).await;
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn test_game_engine_validate_word_with_constraints_no_path() {
+        let temp_file = create_test_wordlist();
+        let engine = GameEngine::new(temp_file.path()).await.unwrap();
+        let board = create_test_board();
+        
+        // Test word that can't be formed on board
+        let constraints = HashMap::new();
+        let result = engine.validate_word_with_constraints(&board, "game", &constraints).await;
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn test_find_all_valid_words() {
+        let temp_file = create_test_wordlist();
+        let engine = GameEngine::new(temp_file.path()).await.unwrap();
+        let board = create_test_board();
+        
+        let result = engine.find_all_valid_words(&board).await;
+        assert!(result.is_ok());
+        
+        let valid_answers = result.unwrap();
+        
+        // Should find at least "cat" since we know it exists on the board
+        let cat_found = valid_answers.iter().any(|answer| answer.word == "cat");
+        assert!(cat_found);
+        
+        // All found words should be at least 3 characters long
+        for answer in &valid_answers {
+            assert!(answer.word.len() >= 3);
+            assert!(!answer.paths.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_find_words_from_position_length_limit() {
+        // This is harder to test without access to private methods, so we'll test behavior indirectly
+        // through find_all_valid_words ensuring it doesn't hang with very long word generation
+        
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(async {
+            let temp_file = create_test_wordlist();
+            let engine = GameEngine::new(temp_file.path()).await.unwrap();
+            let board = create_test_board();
+            
+            // This should complete quickly without hanging
+            let start = std::time::Instant::now();
+            let result = engine.find_all_valid_words(&board).await;
+            let duration = start.elapsed();
+            
+            assert!(result.is_ok());
+            // Should complete in reasonable time (much less than 1 second for this simple board)
+            assert!(duration < std::time::Duration::from_secs(1));
+        });
+    }
+
+    #[test]
+    fn test_explore_adjacent_positions_bounds() {
+        // Test that adjacent position exploration respects board bounds
+        // This is tested indirectly through the find_all_valid_words functionality
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(async {
+            let temp_file = create_test_wordlist();
+            let engine = GameEngine::new(temp_file.path()).await.unwrap();
+            let board = create_test_board();
+            
+            // Should complete without panicking (testing bounds checking)
+            let result = engine.find_all_valid_words(&board).await;
+            assert!(result.is_ok());
+        });
+    }
+}
