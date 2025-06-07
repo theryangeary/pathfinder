@@ -1,14 +1,13 @@
-import { useState, useEffect } from 'react';
-import Board from './components/Board';
+import { useEffect, useState } from 'react';
+import { ApiAnswer, ApiGame, convertApiBoardToBoard, gameApi } from './api/gameApi';
 import AnswerSection from './components/AnswerSection';
+import Board from './components/Board';
 import HeatmapModal from './components/HeatmapModal';
-import { generateBoard } from './utils/boardGeneration';
-import { findBestPath, getWildcardConstraintsFromPath, findPathsForHighlighting } from './utils/pathfinding';
-import { calculateWordScore } from './utils/scoring';
 import { isValidWord } from './data/wordList';
-import { Position, Tile } from './utils/scoring';
-import { gameApi, convertApiBoardToBoard, ApiGame } from './api/gameApi';
 import { useUser } from './hooks/useUser';
+import { generateBoard } from './utils/boardGeneration';
+import { findBestPath, findPathsForHighlighting, getWildcardConstraintsFromPath } from './utils/pathfinding';
+import { calculateWordScore, Position, Tile } from './utils/scoring';
 
 interface ValidationResult {
   isValid: boolean;
@@ -31,6 +30,7 @@ function App() {
   const [currentGame, setCurrentGame] = useState<ApiGame | null>(null);
   const [isLoadingGame, setIsLoadingGame] = useState(true);
   const [apiError, setApiError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (!userLoading) {
@@ -166,8 +166,44 @@ function App() {
     return usage;
   };
 
-  const handleSubmit = (): void => {
-    setShowHeatmapModal(true);
+  const handleSubmit = async (): Promise<void> => {
+    if (!currentGame || isSubmitting) return;
+
+    setIsSubmitting(true);
+    try {
+      // Convert frontend answers to API format
+      const apiAnswers: ApiAnswer[] = answers
+        .map((word, index) => {
+          if (!validAnswers[index] || !validPaths[index]) return null;
+          
+          return {
+            word,
+            score: scores[index],
+            path: validPaths[index]!.map(pos => ({ row: pos.row, col: pos.col })),
+            wildcard_constraints: wildcardConstraints
+          };
+        })
+        .filter((answer): answer is ApiAnswer => answer !== null);
+
+      if (apiAnswers.length === 0) {
+        console.error('No valid answers to submit');
+        setApiError('No valid answers to submit');
+        return;
+      }
+
+      // Submit to backend
+      const response = await gameApi.submitAnswers({
+        user_id: user?.id,
+        answers: apiAnswers
+      });
+
+      setShowHeatmapModal(true);
+    } catch (error) {
+      console.error('Failed to submit answers:', error);
+      setApiError('Failed to submit answers. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (userLoading || isLoadingGame) {
@@ -257,6 +293,7 @@ function App() {
         scores={scores}
         onSubmit={handleSubmit}
         onAnswerFocus={handleAnswerFocus}
+        isSubmitting={isSubmitting}
       />
       
       <HeatmapModal

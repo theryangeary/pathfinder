@@ -8,6 +8,7 @@ interface AnswerSectionProps {
   scores: number[];
   onSubmit: () => void;
   onAnswerFocus: (index: number) => void;
+  isSubmitting?: boolean;
 }
 
 function AnswerSection({ 
@@ -16,7 +17,8 @@ function AnswerSection({
   validAnswers, 
   scores,
   onSubmit,
-  onAnswerFocus
+  onAnswerFocus,
+  isSubmitting = false
 }: AnswerSectionProps) {
   const inputRefs = useRef<(AnswerInputHandle | null)[]>([]);
 
@@ -78,7 +80,7 @@ function AnswerSection({
       <div style={{ display: 'flex', justifyContent: 'center', marginTop: '20px' }}>
         <button
           onClick={onSubmit}
-          disabled={!validAnswers.every(valid => valid)}
+          disabled={!validAnswers.every(valid => valid) || isSubmitting}
           onMouseDown={(e) => {
             const target = e.target as HTMLButtonElement;
             if (!target.disabled) {
@@ -101,17 +103,17 @@ function AnswerSection({
             padding: '12px 24px',
             fontSize: '16px',
             fontWeight: 'bold',
-            backgroundColor: validAnswers.every(valid => valid) ? '#4CAF50' : '#cccccc',
-            color: validAnswers.every(valid => valid) ? 'white' : '#666666',
+            backgroundColor: (validAnswers.every(valid => valid) && !isSubmitting) ? '#4CAF50' : '#cccccc',
+            color: (validAnswers.every(valid => valid) && !isSubmitting) ? 'white' : '#666666',
             border: 'none',
             borderRadius: '8px',
-            cursor: validAnswers.every(valid => valid) ? 'pointer' : 'not-allowed',
+            cursor: (validAnswers.every(valid => valid) && !isSubmitting) ? 'pointer' : 'not-allowed',
             boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
             transition: 'all 0.1s ease',
             transform: 'scale(1)'
           }}
         >
-          Submit Answers
+          {isSubmitting ? 'Submitting...' : 'Submit Answers'}
         </button>
       </div>
     </div>

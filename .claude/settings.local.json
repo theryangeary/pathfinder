@@ -18,7 +18,10 @@
       "Bash(cargo check:*)",
       "Bash(cargo:*)",
       "Bash(touch:*)",
-      "Bash(./target/debug/word-game-backend:*)"
+      "Bash(./target/debug/word-game-backend:*)",
+      "Bash(npm run build:*)",
+      "Bash(cat:*)",
+      "Bash(sqlite3:*)"
     ],
     "deny": []
   }

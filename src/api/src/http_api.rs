@@ -203,7 +203,7 @@ async fn submit_answers(
     // Create or get user
     let user = if let Some(user_id) = request.user_id {
         // Try to find existing user
-        // For now, create a new one
+        // For now, create a new one since we don't have user lookup by ID
         create_new_user(&state).await?
     } else {
         create_new_user(&state).await?
@@ -211,13 +211,50 @@ async fn submit_answers(
 
     let total_score: i32 = request.answers.iter().map(|a| a.score).sum();
 
-    // Mock stats for now
+    // Get today's game to store the entry against
+    let today = chrono::Utc::now().date_naive().format("%Y-%m-%d").to_string();
+    let game = match state.repository.get_game_by_date(&today).await {
+        Ok(Some(game)) => game,
+        Ok(None) => return Err(StatusCode::NOT_FOUND), // Game should exist by now
+        Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
+    };
+
+    // Serialize answers to JSON
+    let answers_json = match serde_json::to_string(&request.answers) {
+        Ok(json) => json,
+        Err(_) => return Err(StatusCode::BAD_REQUEST),
+    };
+
+    // Create or update game entry
+    let new_entry = crate::db::models::NewGameEntry {
+        user_id: user.id.clone(),
+        game_id: game.id.clone(),
+        answers_data: answers_json,
+        total_score,
+        completed: true, // Assume completed when submitting all answers
+    };
+
+    let _game_entry = match state.repository.create_or_update_game_entry(new_entry).await {
+        Ok(entry) => entry,
+        Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
+    };
+
+    // Get real stats
+    let (total_players, user_rank, percentile, average_score, highest_score) = 
+        match state.repository.get_game_stats(&game.id, total_score).await {
+            Ok(stats) => stats,
+            Err(_) => {
+                // Fallback stats if query fails
+                (1, 1, 100.0, total_score, total_score)
+            }
+        };
+
     let stats = ApiGameStats {
-        total_players: 1,
-        user_rank: 1,
-        percentile: 100.0,
-        average_score: total_score,
-        highest_score: total_score,
+        total_players,
+        user_rank,
+        percentile: percentile as f32,
+        average_score,
+        highest_score,
     };
 
     let response = SubmitResponse {
