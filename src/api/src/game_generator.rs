@@ -27,7 +27,7 @@ impl GameGenerator {
         
         // Generate games for the past 7 days, in case this is the first launch or the app has had downtime.
         for days_back in 1..=7 {
-            let target_date = today - Duration::days(days_back);
+            let target_date = today - Duration::days(8) + Duration::days(days_back);
             let date_str = target_date.format("%Y-%m-%d").to_string();
             
             if !self.repository.game_exists_for_date(&date_str).await? {
