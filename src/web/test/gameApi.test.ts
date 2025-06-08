@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, Mock } from 'vitest'
+import { beforeEach, describe, expect, it, Mock, vi } from 'vitest'
 import { gameApi } from '../api/gameApi'
 
 const mockFetch = global.fetch as Mock
@@ -133,7 +133,7 @@ describe('GameApi', () => {
       const result = await gameApi.getDailyGame()
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:3001/api/game',
+        'http://localhost:3001/api/game/date/2025-06-08',
         {
           headers: {
             'Content-Type': 'application/json',

@@ -110,7 +110,6 @@ impl ApiState {
 
 pub fn create_router(state: ApiState) -> Router {
     Router::new()
-        .route("/api/game", get(get_daily_game))
         .route("/api/game/date/:date", get(get_game_by_date))
         .route("/api/game/sequence/:sequence_number", get(get_game_by_sequence))
         // TODO consider if this can be removed from api, as it should really be done as part of /submit
@@ -128,10 +127,6 @@ pub fn create_router(state: ApiState) -> Router {
 }
 
 // Route handlers
-async fn get_daily_game(State(state): State<ApiState>) -> Result<Json<ApiGame>, StatusCode> {
-    let today = chrono::Utc::now().date_naive().format("%Y-%m-%d").to_string();
-    get_game_by_date(Path(today), State(state)).await
-}
 
 async fn get_game_by_date(
     Path(date): Path<String>,

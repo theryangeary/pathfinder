@@ -87,8 +87,8 @@ class GameApi {
   }
 
   async getDailyGame(date?: string): Promise<ApiGame> {
-    const endpoint = date ? `/game/date/${date}` : '/game';
-    return this.request<ApiGame>(endpoint);
+    const currentDate = date || new Date().toISOString().split('T')[0];
+    return this.request<ApiGame>(`/game/date/${currentDate}`);
   }
 
   async getGameBySequence(sequenceNumber: number): Promise<ApiGame> {
