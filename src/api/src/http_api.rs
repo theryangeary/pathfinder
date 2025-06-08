@@ -110,7 +110,8 @@ impl ApiState {
 pub fn create_router(state: ApiState) -> Router {
     Router::new()
         .route("/api/game", get(get_daily_game))
-        .route("/api/game/:date", get(get_game_by_date))
+        .route("/api/game/date/:date", get(get_game_by_date))
+        .route("/api/game/sequence/:sequence_number", get(get_game_by_sequence))
         .route("/api/validate", post(validate_answer))
         .route("/api/submit", post(submit_answers))
         .route("/api/user", post(create_user))
@@ -147,6 +148,24 @@ async fn get_game_by_date(
         Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
     };
 
+    convert_db_game_to_api_game(db_game)
+}
+
+async fn get_game_by_sequence(
+    Path(sequence_number): Path<i32>,
+    State(state): State<ApiState>,
+) -> Result<Json<ApiGame>, StatusCode> {
+    // Get existing game by sequence number (don't generate new ones)
+    let db_game = match state.repository.get_game_by_sequence_number(sequence_number).await {
+        Ok(Some(game)) => game,
+        Ok(None) => return Err(StatusCode::NOT_FOUND),
+        Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
+    };
+
+    convert_db_game_to_api_game(db_game)
+}
+
+fn convert_db_game_to_api_game(db_game: crate::db::models::DbGame) -> Result<Json<ApiGame>, StatusCode> {
     // Parse board from JSON
     let serializable_board: crate::game::conversion::SerializableBoard = 
         serde_json::from_str(&db_game.board_data)
@@ -398,4 +417,363 @@ async fn create_new_user(state: &ApiState) -> Result<crate::db::models::DbUser, 
     
     state.repository.create_user(new_user).await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::{
+        body::Body,
+        http::{Request, StatusCode},
+    };
+    use sqlx::SqlitePool;
+    use tower::util::ServiceExt;
+    use crate::game::GameEngine;
+    use crate::db::models::NewGame;
+    use tempfile::NamedTempFile;
+
+    async fn setup_test_app() -> (Router, ApiState, NamedTempFile) {
+        let pool = SqlitePool::connect(":memory:").await.unwrap();
+        
+        // Create tables
+        sqlx::query(r#"
+            CREATE TABLE users (
+                id TEXT PRIMARY KEY,
+                cookie_token TEXT UNIQUE NOT NULL,
+                created_at TIMESTAMP NOT NULL,
+                last_seen TIMESTAMP NOT NULL
+            )
+        "#).execute(&pool).await.unwrap();
+
+        sqlx::query(r#"
+            CREATE TABLE games (
+                id TEXT PRIMARY KEY,
+                date TEXT UNIQUE NOT NULL,
+                board_data TEXT NOT NULL,
+                threshold_score INTEGER NOT NULL,
+                sequence_number INTEGER UNIQUE NOT NULL,
+                created_at TIMESTAMP NOT NULL
+            )
+        "#).execute(&pool).await.unwrap();
+
+        sqlx::query(r#"
+            CREATE TABLE game_entries (
+                id TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                game_id TEXT NOT NULL,
+                answers_data TEXT NOT NULL,
+                total_score INTEGER NOT NULL,
+                completed BOOLEAN NOT NULL,
+                created_at TIMESTAMP NOT NULL,
+                updated_at TIMESTAMP NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES users (id),
+                FOREIGN KEY (game_id) REFERENCES games (id),
+                UNIQUE(user_id, game_id)
+            )
+        "#).execute(&pool).await.unwrap();
+
+        let repository = crate::db::Repository::new(pool);
+        
+        // Create a minimal game engine for testing with a temporary wordlist
+        use std::io::Write;
+        use tempfile::NamedTempFile;
+        
+        let mut temp_file = NamedTempFile::new().unwrap();
+        temp_file.write_all("test\nword\nhello\nworld\nvalid".as_bytes()).unwrap();
+        let temp_path = temp_file.path();
+        
+        let game_engine = GameEngine::new(temp_path).await.unwrap();
+        
+        let state = ApiState::new(repository, game_engine);
+        let app = create_router(state.clone());
+        
+        (app, state, temp_file)
+    }
+
+    fn create_test_board_data() -> String {
+        r#"{"rows":[{"tiles":[{"letter":"t","points":1,"is_wildcard":false,"row":0,"col":0},{"letter":"e","points":1,"is_wildcard":false,"row":0,"col":1},{"letter":"s","points":1,"is_wildcard":false,"row":0,"col":2},{"letter":"t","points":1,"is_wildcard":false,"row":0,"col":3}]},{"tiles":[{"letter":"w","points":3,"is_wildcard":false,"row":1,"col":0},{"letter":"o","points":1,"is_wildcard":false,"row":1,"col":1},{"letter":"r","points":1,"is_wildcard":false,"row":1,"col":2},{"letter":"d","points":2,"is_wildcard":false,"row":1,"col":3}]},{"tiles":[{"letter":"h","points":3,"is_wildcard":false,"row":2,"col":0},{"letter":"e","points":1,"is_wildcard":false,"row":2,"col":1},{"letter":"l","points":2,"is_wildcard":false,"row":2,"col":2},{"letter":"l","points":2,"is_wildcard":false,"row":2,"col":3}]},{"tiles":[{"letter":"o","points":1,"is_wildcard":false,"row":3,"col":0},{"letter":"*","points":0,"is_wildcard":true,"row":3,"col":1},{"letter":"*","points":0,"is_wildcard":true,"row":3,"col":2},{"letter":"o","points":1,"is_wildcard":false,"row":3,"col":3}]}]}"#.to_string()
+    }
+
+    #[tokio::test]
+    async fn test_get_game_by_sequence_exists() {
+        let (app, state, _temp_file) = setup_test_app().await;
+        
+        // Create a test game
+        let new_game = NewGame {
+            date: "2025-06-08".to_string(),
+            board_data: create_test_board_data(),
+            threshold_score: 40,
+            sequence_number: 1,
+        };
+        let created_game = state.repository.create_game(new_game).await.unwrap();
+        
+        // Test the endpoint
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/game/sequence/1")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        
+        assert_eq!(response.status(), StatusCode::OK);
+        
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let game: ApiGame = serde_json::from_slice(&body).unwrap();
+        
+        assert_eq!(game.id, created_game.id);
+        assert_eq!(game.sequence_number, 1);
+        assert_eq!(game.date, "2025-06-08");
+        assert_eq!(game.threshold_score, 40);
+        assert_eq!(game.board.tiles.len(), 4); // 4x4 board
+    }
+
+    #[tokio::test]
+    async fn test_get_game_by_sequence_not_found() {
+        let (app, _state, _temp_file) = setup_test_app().await;
+        
+        // Test getting a non-existent sequence number
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/game/sequence/999")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn test_get_game_by_sequence_multiple_games() {
+        let (app, state, _temp_file) = setup_test_app().await;
+        
+        // Create multiple test games
+        let games = vec![
+            NewGame {
+                date: "2025-06-08".to_string(),
+                board_data: create_test_board_data(),
+                threshold_score: 40,
+                sequence_number: 1,
+            },
+            NewGame {
+                date: "2025-06-07".to_string(),
+                board_data: create_test_board_data(),
+                threshold_score: 35,
+                sequence_number: 3,
+            },
+            NewGame {
+                date: "2025-06-06".to_string(),
+                board_data: create_test_board_data(),
+                threshold_score: 45,
+                sequence_number: 5,
+            },
+        ];
+        
+        for game in games {
+            state.repository.create_game(game).await.unwrap();
+        }
+        
+        // Test getting game with sequence number 1
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/game/sequence/1")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let game: ApiGame = serde_json::from_slice(&body).unwrap();
+        assert_eq!(game.sequence_number, 1);
+        assert_eq!(game.date, "2025-06-08");
+        
+        // Test getting game with sequence number 3
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/game/sequence/3")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let game: ApiGame = serde_json::from_slice(&body).unwrap();
+        assert_eq!(game.sequence_number, 3);
+        assert_eq!(game.date, "2025-06-07");
+        
+        // Test getting game with sequence number 5
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/game/sequence/5")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let game: ApiGame = serde_json::from_slice(&body).unwrap();
+        assert_eq!(game.sequence_number, 5);
+        assert_eq!(game.date, "2025-06-06");
+        
+        // Test getting non-existent sequence numbers
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/game/sequence/2")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+        
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/game/sequence/4")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn test_get_game_by_date_endpoint() {
+        let (app, state, _temp_file) = setup_test_app().await;
+        
+        // Create a test game
+        let new_game = NewGame {
+            date: "2025-06-08".to_string(),
+            board_data: create_test_board_data(),
+            threshold_score: 40,
+            sequence_number: 1,
+        };
+        let created_game = state.repository.create_game(new_game).await.unwrap();
+        
+        // Test the date endpoint
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/game/date/2025-06-08")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        
+        assert_eq!(response.status(), StatusCode::OK);
+        
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let game: ApiGame = serde_json::from_slice(&body).unwrap();
+        
+        assert_eq!(game.id, created_game.id);
+        assert_eq!(game.date, "2025-06-08");
+        assert_eq!(game.sequence_number, 1);
+    }
+
+    #[tokio::test]
+    async fn test_validate_word_endpoint() {
+        let (app, _state, _temp_file) = setup_test_app().await;
+        
+        let request_body = ValidateRequest {
+            word: "test".to_string(),
+            previous_answers: vec![],
+        };
+        
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/validate")
+                    .method("POST")
+                    .header("content-type", "application/json")
+                    .body(Body::from(serde_json::to_string(&request_body).unwrap()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        
+        assert_eq!(response.status(), StatusCode::OK);
+        
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let validate_response: ValidateResponse = serde_json::from_slice(&body).unwrap();
+        
+        assert!(validate_response.is_valid);
+        assert_eq!(validate_response.error_message, "");
+    }
+
+    #[tokio::test]
+    async fn test_validate_invalid_word_endpoint() {
+        let (app, _state, _temp_file) = setup_test_app().await;
+        
+        let request_body = ValidateRequest {
+            word: "invalidword".to_string(),
+            previous_answers: vec![],
+        };
+        
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/validate")
+                    .method("POST")
+                    .header("content-type", "application/json")
+                    .body(Body::from(serde_json::to_string(&request_body).unwrap()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        
+        assert_eq!(response.status(), StatusCode::OK);
+        
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let validate_response: ValidateResponse = serde_json::from_slice(&body).unwrap();
+        
+        assert!(!validate_response.is_valid);
+        assert!(validate_response.error_message.contains("invalidword"));
+    }
+
+    #[tokio::test]
+    async fn test_create_user_endpoint() {
+        let (app, _state, _temp_file) = setup_test_app().await;
+        
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/user")
+                    .method("POST")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        
+        assert_eq!(response.status(), StatusCode::OK);
+        
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let user_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        
+        assert!(user_response["user_id"].is_string());
+        assert!(user_response["cookie_token"].is_string());
+        assert!(!user_response["user_id"].as_str().unwrap().is_empty());
+        assert!(!user_response["cookie_token"].as_str().unwrap().is_empty());
+    }
 }

@@ -25,7 +25,8 @@
       "Bash(./test_integration.sh:*)",
       "Bash(npm run generate-wordlist:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(npm run test:run:*)"
     ],
     "deny": []
   }

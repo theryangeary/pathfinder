@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useParams } from 'react-router-dom';
 import { ApiAnswer, ApiGame, convertApiBoardToBoard, gameApi } from './api/gameApi';
 import AnswerSection from './components/AnswerSection';
 import Board from './components/Board';
@@ -17,6 +18,7 @@ interface ValidationResult {
 }
 
 function App() {
+  const { sequenceNumber } = useParams<{ sequenceNumber: string }>();
   const { user, isLoading: userLoading, clearUser } = useUser();
   const [board, setBoard] = useState<Tile[][]>([]);
   const [answers, setAnswers] = useState<string[]>(['', '', '', '', '']);
@@ -34,9 +36,9 @@ function App() {
 
   useEffect(() => {
     if (!userLoading) {
-      loadDailyGame();
+      loadGame();
     }
-  }, [userLoading, user]);
+  }, [userLoading, user, sequenceNumber]);
 
   const validateAnswerWithBoard = (boardToUse: Tile[][], word: string, _answerIndex: number, currentConstraints: Record<string, string>, previousAnswers: string[] = []): ValidationResult => {
     if (!word || word.length < 2) return { isValid: false, score: 0, path: null };
@@ -67,11 +69,13 @@ function App() {
     return validateAnswerWithBoard(board, word, answerIndex, currentConstraints, previousAnswers);
   };
 
-  const loadDailyGame = async () => {
+  const loadGame = async () => {
     try {
       setIsLoadingGame(true);
       setApiError(null);
-      const game = await gameApi.getDailyGame();
+      const game = sequenceNumber 
+        ? await gameApi.getGameBySequence(parseInt(sequenceNumber))
+        : await gameApi.getDailyGame();
       console.log('Received game:', game);
       console.log('Sequence number:', game.sequence_number);
       setCurrentGame(game);

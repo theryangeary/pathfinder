@@ -133,6 +133,26 @@ impl Repository {
         }
     }
 
+    pub async fn get_game_by_sequence_number(&self, sequence_number: i32) -> Result<Option<DbGame>> {
+        let row = sqlx::query("SELECT id, date, board_data, threshold_score, sequence_number, created_at FROM games WHERE sequence_number = ?")
+            .bind(sequence_number)
+            .fetch_optional(&self.pool)
+            .await?;
+
+        if let Some(row) = row {
+            Ok(Some(DbGame {
+                id: row.get("id"),
+                date: row.get("date"),
+                board_data: row.get("board_data"),
+                threshold_score: row.get("threshold_score"),
+                sequence_number: row.get("sequence_number"),
+                created_at: row.get("created_at"),
+            }))
+        } else {
+            Ok(None)
+        }
+    }
+
     pub async fn get_random_historical_game(&self) -> Result<Option<DbGame>> {
         let row = sqlx::query("SELECT id, date, board_data, threshold_score, sequence_number, created_at FROM games ORDER BY RANDOM() LIMIT 1")
             .fetch_optional(&self.pool)
@@ -293,5 +313,232 @@ impl Repository {
             avg_score.unwrap_or(0.0) as i32,
             highest_score.unwrap_or(0),
         ))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sqlx::SqlitePool;
+
+    async fn setup_test_db() -> Repository {
+        let pool = SqlitePool::connect(":memory:").await.unwrap();
+        
+        // Create tables
+        sqlx::query(r#"
+            CREATE TABLE users (
+                id TEXT PRIMARY KEY,
+                cookie_token TEXT UNIQUE NOT NULL,
+                created_at TIMESTAMP NOT NULL,
+                last_seen TIMESTAMP NOT NULL
+            )
+        "#).execute(&pool).await.unwrap();
+
+        sqlx::query(r#"
+            CREATE TABLE games (
+                id TEXT PRIMARY KEY,
+                date TEXT UNIQUE NOT NULL,
+                board_data TEXT NOT NULL,
+                threshold_score INTEGER NOT NULL,
+                sequence_number INTEGER UNIQUE NOT NULL,
+                created_at TIMESTAMP NOT NULL
+            )
+        "#).execute(&pool).await.unwrap();
+
+        sqlx::query(r#"
+            CREATE TABLE game_entries (
+                id TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                game_id TEXT NOT NULL,
+                answers_data TEXT NOT NULL,
+                total_score INTEGER NOT NULL,
+                completed BOOLEAN NOT NULL,
+                created_at TIMESTAMP NOT NULL,
+                updated_at TIMESTAMP NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES users (id),
+                FOREIGN KEY (game_id) REFERENCES games (id),
+                UNIQUE(user_id, game_id)
+            )
+        "#).execute(&pool).await.unwrap();
+
+        Repository::new(pool)
+    }
+
+    fn create_test_board_data() -> String {
+        r#"{"rows":[{"tiles":[{"letter":"t","points":1,"is_wildcard":false,"row":0,"col":0},{"letter":"e","points":1,"is_wildcard":false,"row":0,"col":1},{"letter":"s","points":1,"is_wildcard":false,"row":0,"col":2},{"letter":"t","points":1,"is_wildcard":false,"row":0,"col":3}]}]}"#.to_string()
+    }
+
+    #[tokio::test]
+    async fn test_get_game_by_sequence_number_exists() {
+        let repo = setup_test_db().await;
+        
+        // Create a test game
+        let new_game = NewGame {
+            date: "2025-06-08".to_string(),
+            board_data: create_test_board_data(),
+            threshold_score: 40,
+            sequence_number: 1,
+        };
+        
+        let created_game = repo.create_game(new_game).await.unwrap();
+        
+        // Test getting the game by sequence number
+        let retrieved_game = repo.get_game_by_sequence_number(1).await.unwrap();
+        
+        assert!(retrieved_game.is_some());
+        let game = retrieved_game.unwrap();
+        assert_eq!(game.id, created_game.id);
+        assert_eq!(game.sequence_number, 1);
+        assert_eq!(game.date, "2025-06-08");
+        assert_eq!(game.threshold_score, 40);
+    }
+
+    #[tokio::test]
+    async fn test_get_game_by_sequence_number_not_exists() {
+        let repo = setup_test_db().await;
+        
+        // Test getting a non-existent sequence number
+        let result = repo.get_game_by_sequence_number(999).await.unwrap();
+        assert!(result.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_get_game_by_sequence_number_multiple_games() {
+        let repo = setup_test_db().await;
+        
+        // Create multiple test games with different sequence numbers
+        let games = vec![
+            NewGame {
+                date: "2025-06-08".to_string(),
+                board_data: create_test_board_data(),
+                threshold_score: 40,
+                sequence_number: 1,
+            },
+            NewGame {
+                date: "2025-06-07".to_string(),
+                board_data: create_test_board_data(),
+                threshold_score: 35,
+                sequence_number: 2,
+            },
+            NewGame {
+                date: "2025-06-06".to_string(),
+                board_data: create_test_board_data(),
+                threshold_score: 45,
+                sequence_number: 5,
+            },
+        ];
+        
+        let mut created_games = Vec::new();
+        for game in games {
+            created_games.push(repo.create_game(game).await.unwrap());
+        }
+        
+        // Test getting each game by sequence number
+        let game1 = repo.get_game_by_sequence_number(1).await.unwrap().unwrap();
+        assert_eq!(game1.sequence_number, 1);
+        assert_eq!(game1.date, "2025-06-08");
+        assert_eq!(game1.threshold_score, 40);
+        
+        let game2 = repo.get_game_by_sequence_number(2).await.unwrap().unwrap();
+        assert_eq!(game2.sequence_number, 2);
+        assert_eq!(game2.date, "2025-06-07");
+        assert_eq!(game2.threshold_score, 35);
+        
+        let game5 = repo.get_game_by_sequence_number(5).await.unwrap().unwrap();
+        assert_eq!(game5.sequence_number, 5);
+        assert_eq!(game5.date, "2025-06-06");
+        assert_eq!(game5.threshold_score, 45);
+        
+        // Test getting non-existent sequence numbers
+        assert!(repo.get_game_by_sequence_number(3).await.unwrap().is_none());
+        assert!(repo.get_game_by_sequence_number(4).await.unwrap().is_none());
+        assert!(repo.get_game_by_sequence_number(6).await.unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn test_get_next_sequence_number() {
+        let repo = setup_test_db().await;
+        
+        // Test getting next sequence number when no games exist
+        let next_seq = repo.get_next_sequence_number().await.unwrap();
+        assert_eq!(next_seq, 1);
+        
+        // Create a game
+        let new_game = NewGame {
+            date: "2025-06-08".to_string(),
+            board_data: create_test_board_data(),
+            threshold_score: 40,
+            sequence_number: 1,
+        };
+        repo.create_game(new_game).await.unwrap();
+        
+        // Test getting next sequence number after creating one game
+        let next_seq = repo.get_next_sequence_number().await.unwrap();
+        assert_eq!(next_seq, 2);
+        
+        // Create another game with sequence number 5
+        let new_game = NewGame {
+            date: "2025-06-07".to_string(),
+            board_data: create_test_board_data(),
+            threshold_score: 35,
+            sequence_number: 5,
+        };
+        repo.create_game(new_game).await.unwrap();
+        
+        // Test getting next sequence number - should be max + 1
+        let next_seq = repo.get_next_sequence_number().await.unwrap();
+        assert_eq!(next_seq, 6);
+    }
+
+    #[tokio::test]
+    async fn test_game_exists_for_date() {
+        let repo = setup_test_db().await;
+        
+        // Test when no game exists for date
+        let exists = repo.game_exists_for_date("2025-06-08").await.unwrap();
+        assert!(!exists);
+        
+        // Create a game
+        let new_game = NewGame {
+            date: "2025-06-08".to_string(),
+            board_data: create_test_board_data(),
+            threshold_score: 40,
+            sequence_number: 1,
+        };
+        repo.create_game(new_game).await.unwrap();
+        
+        // Test when game exists for date
+        let exists = repo.game_exists_for_date("2025-06-08").await.unwrap();
+        assert!(exists);
+        
+        // Test when game still doesn't exist for different date
+        let exists = repo.game_exists_for_date("2025-06-07").await.unwrap();
+        assert!(!exists);
+    }
+
+    #[tokio::test]
+    async fn test_get_game_by_date() {
+        let repo = setup_test_db().await;
+        
+        // Test getting non-existent game by date
+        let result = repo.get_game_by_date("2025-06-08").await.unwrap();
+        assert!(result.is_none());
+        
+        // Create a game
+        let new_game = NewGame {
+            date: "2025-06-08".to_string(),
+            board_data: create_test_board_data(),
+            threshold_score: 40,
+            sequence_number: 1,
+        };
+        let created_game = repo.create_game(new_game).await.unwrap();
+        
+        // Test getting existing game by date
+        let retrieved_game = repo.get_game_by_date("2025-06-08").await.unwrap();
+        assert!(retrieved_game.is_some());
+        let game = retrieved_game.unwrap();
+        assert_eq!(game.id, created_game.id);
+        assert_eq!(game.date, "2025-06-08");
+        assert_eq!(game.sequence_number, 1);
     }
 }

@@ -126,6 +126,18 @@ impl Repository {
         Ok(game)
     }
 
+    pub async fn get_game_by_sequence_number(&self, sequence_number: i32) -> Result<Option<DbGame>> {
+        let game = sqlx::query_as!(
+            DbGame,
+            "SELECT id, date, board_data, threshold_score, sequence_number, created_at FROM games WHERE sequence_number = ?",
+            sequence_number
+        )
+        .fetch_optional(&self.pool)
+        .await?;
+
+        Ok(game)
+    }
+
     pub async fn get_random_historical_game(&self) -> Result<Option<DbGame>> {
         let game = sqlx::query_as!(
             DbGame,

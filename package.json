@@ -7,6 +7,8 @@
     "dev": "npm run generate-wordlist && vite",
     "build": "npm run generate-wordlist && vite build",
     "preview": "vite preview",
+    "test": "vitest",
+    "test:run": "vitest run",
     "generate-wordlist": "node scripts/generate-wordlist.js"
   },
   "keywords": [],
@@ -14,14 +16,21 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@types/react-router-dom": "^5.3.3",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "react-router-dom": "^7.6.2"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
     "@types/react": "^19.1.6",
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.5.1",
+    "jsdom": "^26.1.0",
     "typescript": "^5.8.3",
-    "vite": "^6.3.5"
+    "vite": "^6.3.5",
+    "vitest": "^3.2.2"
   }
 }

@@ -86,8 +86,12 @@ class GameApi {
   }
 
   async getDailyGame(date?: string): Promise<ApiGame> {
-    const endpoint = date ? `/game/${date}` : '/game';
+    const endpoint = date ? `/game/date/${date}` : '/game';
     return this.request<ApiGame>(endpoint);
+  }
+
+  async getGameBySequence(sequenceNumber: number): Promise<ApiGame> {
+    return this.request<ApiGame>(`/game/sequence/${sequenceNumber}`);
   }
 
   async validateAnswer(request: ValidateRequest): Promise<ValidateResponse> {
