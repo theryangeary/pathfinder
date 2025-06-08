@@ -13,6 +13,7 @@ use moka::future::Cache;
 use crate::db::{Repository, conversions::AnswerStorage};
 use crate::game::GameEngine;
 use crate::game_generator::GameGenerator;
+use crate::game::conversion::SerializableBoard;
 
 // HTTP API types (simpler than protobuf for frontend)
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -306,7 +307,11 @@ async fn submit_answers(
         Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
     };
 
-    // TODO validate that given answers are valid for this game
+    // Validate that all submitted answers are valid for this game
+    if let Err(error_msg) = validate_submitted_answers(&state, &game, &request.answers).await {
+        println!("Answer validation failed: {}", error_msg);
+        return Err(StatusCode::BAD_REQUEST);
+    }
 
     // Serialize answers to JSON using stable database format
     let answers_json = match AnswerStorage::serialize_api_answers(&request.answers) {
@@ -456,6 +461,61 @@ async fn create_new_user(state: &ApiState) -> Result<crate::db::models::DbUser, 
     
     state.repository.create_user(new_user).await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
+}
+
+async fn validate_submitted_answers(
+    state: &ApiState,
+    game: &crate::db::models::DbGame,
+    submitted_answers: &[ApiAnswer],
+) -> Result<(), String> {
+    // Parse the board from the game data
+    let serializable_board: SerializableBoard = 
+        serde_json::from_str(&game.board_data)
+            .map_err(|_| "Failed to parse game board data".to_string())?;
+    
+    let board: crate::game::Board = serializable_board.into();
+    
+    // Convert API answers to game engine format for validation
+    let mut game_answers = Vec::new();
+    
+    for api_answer in submitted_answers {
+        // First validate that the word exists in the dictionary
+        if !state.game_engine.validate_word(&api_answer.word) {
+            return Err(format!("Word '{}' is not in the dictionary", api_answer.word));
+        }
+        
+        // Validate that the word can be formed on this board with a valid path
+        let answer = state.game_engine.validate_answer(&board, &api_answer.word)
+            .map_err(|e| format!("Invalid answer for word '{}': {}", api_answer.word, e))?;
+        
+        game_answers.push(answer);
+    }
+    
+    // Validate that all answers can coexist (wildcard constraints don't conflict)
+    for i in 0..game_answers.len() {
+        for j in (i + 1)..game_answers.len() {
+            let answer1 = &game_answers[i];
+            let answer2 = &game_answers[j];
+            
+            // Check if the answers have compatible wildcard constraints
+            if !answers_are_compatible(answer1, answer2) {
+                return Err(format!(
+                    "Answers '{}' and '{}' have conflicting wildcard constraints",
+                    answer1.word, answer2.word
+                ));
+            }
+        }
+    }
+    
+    Ok(())
+}
+
+fn answers_are_compatible(
+    answer1: &crate::game::board::answer::Answer,
+    answer2: &crate::game::board::answer::Answer,
+) -> bool {
+    // Use the built-in method to check if two answers can coexist
+    answer1.can_coexist_with(answer2)
 }
 
 #[cfg(test)]
