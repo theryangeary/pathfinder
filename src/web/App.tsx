@@ -72,6 +72,8 @@ function App() {
       setIsLoadingGame(true);
       setApiError(null);
       const game = await gameApi.getDailyGame();
+      console.log('Received game:', game);
+      console.log('Sequence number:', game.sequence_number);
       setCurrentGame(game);
       const newBoard = convertApiBoardToBoard(game.board);
       setBoard(newBoard);
@@ -105,7 +107,7 @@ function App() {
             let tempConstraints = {};
             const newValidAnswers = [false, false, false, false, false];
             const newScores = [0, 0, 0, 0, 0];
-            const newValidPaths = [null, null, null, null, null];
+            const newValidPaths: (Position[] | null)[] = [null, null, null, null, null];
             const validPreviousAnswers: string[] = [];
             
             for (let i = 0; i < 5; i++) {
@@ -258,7 +260,7 @@ function App() {
       }
 
       // Submit to backend
-      const response = await gameApi.submitAnswers({
+      await gameApi.submitAnswers({
         user_id: user?.user_id,
         cookie_token: user?.cookie_token,
         answers: apiAnswers
@@ -339,8 +341,7 @@ function App() {
           marginBottom: '20px',
           color: '#666'
         }}>
-          <p>Daily Puzzle: {currentGame.date}</p>
-          <p>Game ID: {currentGame.id.slice(0, 8)}...</p>
+          <p>Puzzle #{currentGame.sequence_number || 'N/A'} · {currentGame.date}</p>
         </div>
       )}
       

@@ -20,6 +20,7 @@ pub struct ApiGame {
     pub date: String,
     pub board: ApiBoard,
     pub threshold_score: i32,
+    pub sequence_number: i32,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -169,6 +170,7 @@ async fn get_game_by_date(
         date: db_game.date,
         board: api_board,
         threshold_score: db_game.threshold_score,
+        sequence_number: db_game.sequence_number,
     };
 
     Ok(Json(api_game))

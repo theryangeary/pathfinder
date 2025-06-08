@@ -7,6 +7,7 @@ export interface ApiGame {
   date: string;
   board: ApiBoard;
   threshold_score: number;
+  sequence_number: number;
 }
 
 export interface ApiBoard {
