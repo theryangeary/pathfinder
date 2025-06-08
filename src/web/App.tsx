@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { ApiAnswer, ApiGame, convertApiBoardToBoard, gameApi } from './api/gameApi';
 import AnswerSection from './components/AnswerSection';
 import Board from './components/Board';
@@ -19,6 +19,7 @@ interface ValidationResult {
 
 function App() {
   const { sequenceNumber } = useParams<{ sequenceNumber: string }>();
+  const navigate = useNavigate();
   const { user, isLoading: userLoading, clearUser } = useUser();
   const [board, setBoard] = useState<Tile[][]>([]);
   const [answers, setAnswers] = useState<string[]>(['', '', '', '', '']);
@@ -279,6 +280,32 @@ function App() {
     }
   };
 
+  const handlePreviousPuzzle = (): void => {
+    if (!currentGame || currentGame.sequence_number <= 1) return;
+    const prevSequence = currentGame.sequence_number - 1;
+    navigate(`/puzzle/${prevSequence}`);
+  };
+
+  const handleNextPuzzle = (): void => {
+    if (!currentGame) return;
+    const nextSequence = currentGame.sequence_number + 1;
+    navigate(`/puzzle/${nextSequence}`);
+  };
+
+  const isNextDisabled = (): boolean => {
+    if (!currentGame) return true;
+    
+    // Get today's date in UTC (midnight)
+    const today = new Date();
+    const todayUTC = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()));
+    
+    // Parse game date as UTC (assumes currentGame.date is YYYY-MM-DD format)
+    const currentGameDate = new Date(currentGame.date + 'T00:00:00.000Z');
+    
+    // Compare UTC dates
+    return currentGameDate >= todayUTC;
+  };
+
   if (userLoading || isLoadingGame) {
     return (
       <div style={{ 
@@ -341,11 +368,88 @@ function App() {
 
       {currentGame && (
         <div style={{
-          textAlign: 'center',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
           marginBottom: '20px',
-          color: '#666'
+          gap: '16px'
         }}>
-          <p>Puzzle #{currentGame.sequence_number || 'N/A'} · {currentGame.date}</p>
+          <button
+            onClick={handlePreviousPuzzle}
+            disabled={!currentGame || currentGame.sequence_number <= 1}
+            style={{
+              backgroundColor: (!currentGame || currentGame.sequence_number <= 1) ? '#cccccc' : '#4CAF50',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '8px 12px',
+              fontSize: '14px',
+              cursor: (!currentGame || currentGame.sequence_number <= 1) ? 'not-allowed' : 'pointer',
+              transform: 'scale(1)',
+              transition: 'all 0.1s ease',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+            }}
+            onMouseDown={(e) => {
+              if (!(!currentGame || currentGame.sequence_number <= 1)) {
+                e.currentTarget.style.transform = 'scale(0.95)';
+              }
+            }}
+            onMouseUp={(e) => {
+              if (!(!currentGame || currentGame.sequence_number <= 1)) {
+                e.currentTarget.style.transform = 'scale(1)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!(!currentGame || currentGame.sequence_number <= 1)) {
+                e.currentTarget.style.transform = 'scale(1)';
+              }
+            }}
+          >
+            ←
+          </button>
+          
+          <div style={{
+            textAlign: 'center',
+            color: '#666',
+            fontSize: '16px',
+            minWidth: '200px'
+          }}>
+            Puzzle #{currentGame.sequence_number || 'N/A'} · {currentGame.date}
+          </div>
+          
+          {!isNextDisabled() ? (
+            <button
+              onClick={handleNextPuzzle}
+              style={{
+                backgroundColor: '#4CAF50',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                padding: '8px 12px',
+                fontSize: '14px',
+                cursor: 'pointer',
+                transform: 'scale(1)',
+                transition: 'all 0.1s ease',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+              }}
+              onMouseDown={(e) => {
+                e.currentTarget.style.transform = 'scale(0.95)';
+              }}
+              onMouseUp={(e) => {
+                e.currentTarget.style.transform = 'scale(1)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'scale(1)';
+              }}
+            >
+              →
+            </button>
+          ) : (
+            <div style={{
+              width: '40px',
+              height: '32px'
+            }} />
+          )}
         </div>
       )}
       
