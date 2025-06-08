@@ -85,14 +85,15 @@ impl Repository {
 
     // Game operations
     pub async fn create_game(&self, new_game: NewGame) -> Result<DbGame> {
-        let game = DbGame::new(new_game.date, new_game.board_data, new_game.threshold_score);
+        let game = DbGame::new(new_game.date, new_game.board_data, new_game.threshold_score, new_game.sequence_number);
         
         sqlx::query!(
-            "INSERT INTO games (id, date, board_data, threshold_score, created_at) VALUES (?, ?, ?, ?, ?)",
+            "INSERT INTO games (id, date, board_data, threshold_score, sequence_number, created_at) VALUES (?, ?, ?, ?, ?, ?)",
             game.id,
             game.date,
             game.board_data,
             game.threshold_score,
+            game.sequence_number,
             game.created_at
         )
         .execute(&self.pool)
@@ -104,7 +105,7 @@ impl Repository {
     pub async fn get_game_by_date(&self, date: &str) -> Result<Option<DbGame>> {
         let game = sqlx::query_as!(
             DbGame,
-            "SELECT id, date, board_data, threshold_score, created_at FROM games WHERE date = ?",
+            "SELECT id, date, board_data, threshold_score, sequence_number, created_at FROM games WHERE date = ?",
             date
         )
         .fetch_optional(&self.pool)
@@ -116,7 +117,7 @@ impl Repository {
     pub async fn get_game_by_id(&self, game_id: &str) -> Result<Option<DbGame>> {
         let game = sqlx::query_as!(
             DbGame,
-            "SELECT id, date, board_data, threshold_score, created_at FROM games WHERE id = ?",
+            "SELECT id, date, board_data, threshold_score, sequence_number, created_at FROM games WHERE id = ?",
             game_id
         )
         .fetch_optional(&self.pool)
@@ -128,7 +129,7 @@ impl Repository {
     pub async fn get_random_historical_game(&self) -> Result<Option<DbGame>> {
         let game = sqlx::query_as!(
             DbGame,
-            "SELECT id, date, board_data, threshold_score, created_at FROM games ORDER BY RANDOM() LIMIT 1"
+            "SELECT id, date, board_data, threshold_score, sequence_number, created_at FROM games ORDER BY RANDOM() LIMIT 1"
         )
         .fetch_optional(&self.pool)
         .await?;
@@ -145,6 +146,16 @@ impl Repository {
         .await?;
 
         Ok(count > 0)
+    }
+
+    pub async fn get_next_sequence_number(&self) -> Result<i32> {
+        let max_sequence: Option<i32> = sqlx::query_scalar!(
+            "SELECT MAX(sequence_number) FROM games"
+        )
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok(max_sequence.unwrap_or(0) + 1)
     }
 
     // Game entry operations

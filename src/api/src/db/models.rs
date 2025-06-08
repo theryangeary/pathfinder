@@ -17,6 +17,7 @@ pub struct DbGame {
     pub date: String, // YYYY-MM-DD format
     pub board_data: String, // JSON serialized board
     pub threshold_score: i32,
+    pub sequence_number: i32,
     pub created_at: DateTime<Utc>,
 }
 
@@ -43,6 +44,7 @@ pub struct NewGame {
     pub date: String,
     pub board_data: String,
     pub threshold_score: i32,
+    pub sequence_number: i32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -67,12 +69,13 @@ impl DbUser {
 }
 
 impl DbGame {
-    pub fn new(date: String, board_data: String, threshold_score: i32) -> Self {
+    pub fn new(date: String, board_data: String, threshold_score: i32, sequence_number: i32) -> Self {
         Self {
             id: Uuid::new_v4().to_string(),
             date,
             board_data,
             threshold_score,
+            sequence_number,
             created_at: Utc::now(),
         }
     }

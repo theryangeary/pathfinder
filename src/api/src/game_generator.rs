@@ -58,10 +58,12 @@ impl GameGenerator {
                 
                 match self.try_generate_valid_board(&mut rng, threshold_score).await {
                     Ok(board_data) => {
+                        let sequence_number = self.repository.get_next_sequence_number().await?;
                         let new_game = NewGame {
                             date: date.to_string(),
                             board_data,
                             threshold_score,
+                            sequence_number,
                         };
                         
                         let game = self.repository.create_game(new_game).await?;

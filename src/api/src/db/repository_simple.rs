@@ -78,13 +78,14 @@ impl Repository {
 
     // Game operations
     pub async fn create_game(&self, new_game: NewGame) -> Result<DbGame> {
-        let game = DbGame::new(new_game.date, new_game.board_data, new_game.threshold_score);
+        let game = DbGame::new(new_game.date, new_game.board_data, new_game.threshold_score, new_game.sequence_number);
         
-        sqlx::query("INSERT INTO games (id, date, board_data, threshold_score, created_at) VALUES (?, ?, ?, ?, ?)")
+        sqlx::query("INSERT INTO games (id, date, board_data, threshold_score, sequence_number, created_at) VALUES (?, ?, ?, ?, ?, ?)")
             .bind(&game.id)
             .bind(&game.date)
             .bind(&game.board_data)
             .bind(&game.threshold_score)
+            .bind(&game.sequence_number)
             .bind(&game.created_at)
             .execute(&self.pool)
             .await?;
@@ -93,7 +94,7 @@ impl Repository {
     }
 
     pub async fn get_game_by_date(&self, date: &str) -> Result<Option<DbGame>> {
-        let row = sqlx::query("SELECT id, date, board_data, threshold_score, created_at FROM games WHERE date = ?")
+        let row = sqlx::query("SELECT id, date, board_data, threshold_score, sequence_number, created_at FROM games WHERE date = ?")
             .bind(date)
             .fetch_optional(&self.pool)
             .await?;
@@ -104,6 +105,7 @@ impl Repository {
                 date: row.get("date"),
                 board_data: row.get("board_data"),
                 threshold_score: row.get("threshold_score"),
+                sequence_number: row.get("sequence_number"),
                 created_at: row.get("created_at"),
             }))
         } else {
@@ -112,7 +114,7 @@ impl Repository {
     }
 
     pub async fn get_game_by_id(&self, game_id: &str) -> Result<Option<DbGame>> {
-        let row = sqlx::query("SELECT id, date, board_data, threshold_score, created_at FROM games WHERE id = ?")
+        let row = sqlx::query("SELECT id, date, board_data, threshold_score, sequence_number, created_at FROM games WHERE id = ?")
             .bind(game_id)
             .fetch_optional(&self.pool)
             .await?;
@@ -123,6 +125,7 @@ impl Repository {
                 date: row.get("date"),
                 board_data: row.get("board_data"),
                 threshold_score: row.get("threshold_score"),
+                sequence_number: row.get("sequence_number"),
                 created_at: row.get("created_at"),
             }))
         } else {
@@ -131,7 +134,7 @@ impl Repository {
     }
 
     pub async fn get_random_historical_game(&self) -> Result<Option<DbGame>> {
-        let row = sqlx::query("SELECT id, date, board_data, threshold_score, created_at FROM games ORDER BY RANDOM() LIMIT 1")
+        let row = sqlx::query("SELECT id, date, board_data, threshold_score, sequence_number, created_at FROM games ORDER BY RANDOM() LIMIT 1")
             .fetch_optional(&self.pool)
             .await?;
 
@@ -141,6 +144,7 @@ impl Repository {
                 date: row.get("date"),
                 board_data: row.get("board_data"),
                 threshold_score: row.get("threshold_score"),
+                sequence_number: row.get("sequence_number"),
                 created_at: row.get("created_at"),
             }))
         } else {
@@ -156,6 +160,15 @@ impl Repository {
         
         let count: i64 = row.get("count");
         Ok(count > 0)
+    }
+
+    pub async fn get_next_sequence_number(&self) -> Result<i32> {
+        let row = sqlx::query("SELECT MAX(sequence_number) as max_seq FROM games")
+            .fetch_one(&self.pool)
+            .await?;
+        
+        let max_sequence: Option<i32> = row.get("max_seq");
+        Ok(max_sequence.unwrap_or(0) + 1)
     }
 
     // Game entry operations

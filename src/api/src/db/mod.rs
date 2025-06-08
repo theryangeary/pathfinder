@@ -24,26 +24,57 @@ pub async fn setup_database(database_url: &str) -> Result<SqlitePool> {
 }
 
 async fn run_migrations(pool: &SqlitePool) -> Result<()> {
-    let migration_sql = include_str!("../../migrations/001_initial.sql");
+    // Create migrations table to track applied migrations
+    sqlx::query(r#"
+        CREATE TABLE IF NOT EXISTS migrations (
+            id INTEGER PRIMARY KEY,
+            filename TEXT UNIQUE NOT NULL,
+            applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    "#).execute(pool).await?;
     
-    // Check if migrations have already been run
-    let table_exists = sqlx::query("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
-        .fetch_optional(pool)
-        .await?;
+    // List of migrations in order
+    let migrations = [
+        ("001_initial.sql", include_str!("../../migrations/001_initial.sql")),
+        ("002_add_sequence_number.sql", include_str!("../../migrations/002_add_sequence_number.sql")),
+    ];
     
-    if table_exists.is_some() {
-        tracing::info!("Database migrations already completed");
-        return Ok(());
-    }
-    
-    // Split by semicolon and execute each statement
-    for statement in migration_sql.split(';') {
-        let statement = statement.trim();
-        if !statement.is_empty() {
-            sqlx::query(statement).execute(pool).await?;
+    for (filename, migration_sql) in &migrations {
+        // Check if this migration has already been applied
+        let applied = sqlx::query("SELECT filename FROM migrations WHERE filename = ?")
+            .bind(filename)
+            .fetch_optional(pool)
+            .await?;
+        
+        if applied.is_some() {
+            tracing::info!("Migration {} already applied, skipping", filename);
+            continue;
         }
+        
+        tracing::info!("Running migration: {}", filename);
+        
+        // Split by semicolon and execute each statement
+        for statement in migration_sql.split(';') {
+            let statement = statement.trim();
+            if !statement.is_empty() {
+                // Use execute and ignore "table already exists" errors for CREATE TABLE statements
+                if statement.to_uppercase().starts_with("CREATE TABLE") {
+                    let _ = sqlx::query(statement).execute(pool).await;
+                } else {
+                    sqlx::query(statement).execute(pool).await?;
+                }
+            }
+        }
+        
+        // Record that this migration was applied
+        sqlx::query("INSERT INTO migrations (filename) VALUES (?)")
+            .bind(filename)
+            .execute(pool)
+            .await?;
+        
+        tracing::info!("Migration {} completed successfully", filename);
     }
     
-    tracing::info!("Database migrations completed");
+    tracing::info!("All database migrations completed");
     Ok(())
 }
