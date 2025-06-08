@@ -61,9 +61,7 @@ function App() {
 
   // Load existing game entry when user becomes available
   useEffect(() => {
-    console.log("loading?")
     if (!userLoading && user && currentGame) {
-      console.log("loading---")
       loadExistingGameEntry();
     }
   }, [userLoading, user, currentGame]);

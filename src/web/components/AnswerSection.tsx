@@ -71,8 +71,8 @@ function AnswerSection({
         </div>
       </div>
       {answers.map((answer, index) => {
-        const isEnabled = index === 0 || validAnswers.slice(0, index).every(valid => valid);
         const isValid = validAnswers[index];
+        const isEnabled = index === 0 || validAnswers.slice(0, index).every(valid => valid) || isValid;
         const score = scores[index] || 0;
         
         return (

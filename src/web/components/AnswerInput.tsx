@@ -1,4 +1,4 @@
-import { useRef, useImperativeHandle, forwardRef, KeyboardEvent } from 'react';
+import { forwardRef, KeyboardEvent, useImperativeHandle, useRef } from 'react';
 
 interface AnswerInputProps {
   index: number;
@@ -26,7 +26,7 @@ const AnswerInput = forwardRef<AnswerInputHandle, AnswerInputProps>(function Ans
   onFocus
 }, ref) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const statusIcon = isValid ? '✅' : '❌';
+  const statusIcon = value.length <= 0 ? '' : isValid ? '✅' : '❌';
 
   useImperativeHandle(ref, () => ({
     focus: () => inputRef.current?.focus()
