@@ -113,6 +113,7 @@ pub fn create_router(state: ApiState) -> Router {
         .route("/api/game", get(get_daily_game))
         .route("/api/game/date/:date", get(get_game_by_date))
         .route("/api/game/sequence/:sequence_number", get(get_game_by_sequence))
+        // TODO consider if this can be removed from api, as it should really be done as part of /submit
         .route("/api/validate", post(validate_answer))
         .route("/api/submit", post(submit_answers))
         .route("/api/user", post(create_user))
@@ -268,6 +269,8 @@ async fn submit_answers(
         Ok(None) => return Err(StatusCode::NOT_FOUND), // Game not found
         Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
     };
+
+    // TODO validate that given answers are valid for this game
 
     // Serialize answers to JSON using stable database format
     let answers_json = match AnswerStorage::serialize_api_answers(&request.answers) {
