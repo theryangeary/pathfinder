@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "npm run generate-wordlist && vite",
+    "dev": "npm run generate-wordlist && vite --host",
     "build": "npm run generate-wordlist && vite build",
     "preview": "vite preview",
     "test": "vitest",

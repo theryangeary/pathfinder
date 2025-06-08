@@ -5,6 +5,7 @@ import AnswerSection from './components/AnswerSection';
 import Board from './components/Board';
 import HeatmapModal from './components/HeatmapModal';
 // Lazy load word list to avoid blocking initial render
+import PathfinderLogo from './components/Logo';
 import { useUser } from './hooks/useUser';
 import { generateBoard } from './utils/boardGeneration';
 import { findBestPath, findPathsForHighlighting, getWildcardConstraintsFromPath } from './utils/pathfinding';
@@ -392,7 +393,7 @@ function App() {
       flexDirection: 'column',
       alignItems: 'center'
     }}>
-      <h1 style={{ textAlign: 'center' }}>Word Game</h1>
+      <PathfinderLogo />
       
       {apiError && (
         <div style={{
@@ -412,6 +413,7 @@ function App() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
+        marginTop: '20px',
         marginBottom: '20px',
         gap: '16px'
       }}>

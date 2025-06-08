@@ -1,0 +1,48 @@
+@import url('https://fonts.googleapis.com/css2?family=Savate:ital,wght@0,200..900;1,200..900&display=swap');
+
+.logo-text {
+    font-size: 2rem;
+    font-weight: 900;
+    color: black;
+    letter-spacing: 2px;
+    line-height: 1;
+    margin: 0;
+    text-shadow: 2px 2px 0px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    font-family: 'Savate';
+}
+
+.pathfinder {
+    text-transform: uppercase;
+}
+
+.prof {
+    text-transform: lowercase;
+    color: #333;
+    font-weight: 300;
+    font-family: 'Savate';
+}
+
+.dot {
+    color: #666;
+    font-weight: 900;
+    font-family: 'Savate';
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .logo-text {
+        font-size: 1.5rem;
+        letter-spacing: 1px;
+    }
+
+    .logo-container:hover .logo-text {
+        letter-spacing: 2px;
+    }
+}
+
+@media (max-width: 480px) {
+    .logo-text {
+        font-size: 1rem;
+    }
+}
