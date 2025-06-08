@@ -61,7 +61,9 @@ function App() {
 
   // Load existing game entry when user becomes available
   useEffect(() => {
+    console.log("loading?")
     if (!userLoading && user && currentGame) {
+      console.log("loading---")
       loadExistingGameEntry();
     }
   }, [userLoading, user, currentGame]);
@@ -172,6 +174,12 @@ function App() {
         setValidAnswers(newValidAnswers);
         setScores(newScores);
         setValidPaths(newValidPaths);
+      } else {
+        setValidAnswers([false, false, false, false, false]);
+        setScores([0,0,0,0,0]);
+        setValidPaths([]);
+        setAnswers(['','','','','']);
+        setWildcardConstraints({});
       }
     } catch (error) {
       console.warn('Failed to load existing game entry:', error);
