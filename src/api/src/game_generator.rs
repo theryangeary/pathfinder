@@ -21,10 +21,30 @@ impl GameGenerator {
         }
     }
 
-    /// Generate games for the next 3 days if they don't already exist
+    /// Generate games for the past week and next 3 days if they don't already exist
     pub async fn generate_missing_games(&self) -> Result<()> {
         let today = Utc::now().date_naive();
         
+        // Generate games for the past 7 days, in case this is the first launch or the app has had downtime.
+        for days_back in 1..=7 {
+            let target_date = today - Duration::days(days_back);
+            let date_str = target_date.format("%Y-%m-%d").to_string();
+            
+            if !self.repository.game_exists_for_date(&date_str).await? {
+                match self.generate_game_for_date(&date_str).await {
+                    Ok(game) => {
+                        info!("Generated game for past date: {} with ID: {}", date_str, game.id);
+                    }
+                    Err(e) => {
+                        error!("Failed to generate game for past date {}: {}", date_str, e);
+                    }
+                }
+            } else {
+                info!("Game already exists for past date: {}", date_str);
+            }
+        }
+        
+        // Generate games for today and the next 3 days
         for days_ahead in 0..=3 {
             let target_date = today + Duration::days(days_ahead);
             let date_str = target_date.format("%Y-%m-%d").to_string();
@@ -346,13 +366,17 @@ mod tests {
     }
 
     #[test]
-    fn test_days_ahead_calculation() {
-        // Test the range used in generate_missing_games
-        let days_range: Vec<i64> = (0..=3).collect();
-        assert_eq!(days_range, vec![0, 1, 2, 3]);
+    fn test_days_calculation() {
+        // Test the ranges used in generate_missing_games
+        let days_back_range: Vec<i64> = (1..=7).collect();
+        let days_ahead_range: Vec<i64> = (0..=3).collect();
         
-        // Verify we're generating games for today + 3 days
-        assert_eq!(days_range.len(), 4);
+        assert_eq!(days_back_range, vec![1, 2, 3, 4, 5, 6, 7]);
+        assert_eq!(days_ahead_range, vec![0, 1, 2, 3]);
+        
+        // Verify we're generating games for past 7 days + today + 3 future days
+        let total_days = days_back_range.len() + days_ahead_range.len();
+        assert_eq!(total_days, 11); // 7 past + 4 current/future days
     }
 }
 
