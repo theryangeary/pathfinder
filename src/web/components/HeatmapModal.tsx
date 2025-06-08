@@ -40,14 +40,14 @@ function HeatmapModal({ isOpen, onClose, tileUsage, board, totalScore, scores }:
 
   // Define emoji heat scale from black (0 uses) to red (max uses)
   const getHeatEmoji = (usageCount: number): string => {
-    if (usageCount === 0) return '⬛'; // Black for no usage
+    if (usageCount === 0) return '⬜️'; // Black for no usage
     
     const intensity = usageCount / maxUsage;
     
-    if (intensity <= 0.2) return '🟪'; // Purple for very low usage
-    if (intensity <= 0.4) return '🟦'; // Blue for low usage  
-    if (intensity <= 0.6) return '🟩'; // Green for medium usage
-    if (intensity <= 0.8) return '🟨'; // Yellow for high usage
+    if (intensity <= 0.2) return '🟦'; // Blue for very low usage
+    if (intensity <= 0.4) return '🟩'; // Green for low usage  
+    if (intensity <= 0.6) return '🟨'; // Yellow for medium usage
+    if (intensity <= 0.8) return '🟧'; // Orange for high usage
     return '🟥'; // Red for maximum usage
   };
 
