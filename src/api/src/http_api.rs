@@ -8,13 +8,14 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tower_http::cors::CorsLayer;
+use moka::future::Cache;
 
 use crate::db::{Repository, conversions::AnswerStorage};
 use crate::game::GameEngine;
 use crate::game_generator::GameGenerator;
 
 // HTTP API types (simpler than protobuf for frontend)
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ApiGame {
     pub id: String,
     pub date: String,
@@ -23,12 +24,12 @@ pub struct ApiGame {
     pub sequence_number: i32,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ApiBoard {
     pub tiles: Vec<Vec<ApiTile>>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ApiTile {
     pub letter: String,
     pub points: i32,
@@ -95,15 +96,26 @@ pub struct ApiState {
     pub repository: Repository,
     pub game_engine: GameEngine,
     pub game_generator: GameGenerator,
+    pub game_cache: Cache<String, ApiGame>,
 }
 
 impl ApiState {
     pub fn new(repository: Repository, game_engine: GameEngine) -> Self {
         let game_generator = GameGenerator::new(repository.clone(), game_engine.clone());
+        
+        // Create cache with heavy caching settings for immutable games
+        // Since games are immutable once created, we can cache them indefinitely
+        let game_cache = Cache::builder()
+            .max_capacity(1000) // Cache up to 10,000 games (about 27 years worth)
+            .time_to_live(std::time::Duration::from_secs(24 * 60 * 60)) // 24 hours TTL as safety
+            .time_to_idle(std::time::Duration::from_secs(6 * 60 * 60))  // 6 hours idle timeout
+            .build();
+            
         Self {
             repository,
             game_engine,
             game_generator,
+            game_cache,
         }
     }
 }
@@ -132,6 +144,13 @@ async fn get_game_by_date(
     Path(date): Path<String>,
     State(state): State<ApiState>,
 ) -> Result<Json<ApiGame>, StatusCode> {
+    let cache_key = format!("date:{}", date);
+    
+    // Check cache first
+    if let Some(cached_game) = state.game_cache.get(&cache_key).await {
+        return Ok(Json(cached_game));
+    }
+    
     // Try to get existing game
     let db_game = match state.repository.get_game_by_date(&date).await {
         Ok(Some(game)) => game,
@@ -145,13 +164,25 @@ async fn get_game_by_date(
         Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
     };
 
-    convert_db_game_to_api_game(db_game)
+    let api_game = convert_db_game_to_api_game_direct(db_game)?;
+    
+    // Cache the result before returning
+    state.game_cache.insert(cache_key, api_game.clone()).await;
+    
+    Ok(Json(api_game))
 }
 
 async fn get_game_by_sequence(
     Path(sequence_number): Path<i32>,
     State(state): State<ApiState>,
 ) -> Result<Json<ApiGame>, StatusCode> {
+    let cache_key = format!("seq:{}", sequence_number);
+    
+    // Check cache first
+    if let Some(cached_game) = state.game_cache.get(&cache_key).await {
+        return Ok(Json(cached_game));
+    }
+    
     // Get existing game by sequence number (don't generate new ones)
     let db_game = match state.repository.get_game_by_sequence_number(sequence_number).await {
         Ok(Some(game)) => game,
@@ -159,10 +190,20 @@ async fn get_game_by_sequence(
         Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
     };
 
-    convert_db_game_to_api_game(db_game)
+    let api_game = convert_db_game_to_api_game_direct(db_game)?;
+    
+    // Cache the result before returning
+    state.game_cache.insert(cache_key, api_game.clone()).await;
+    
+    Ok(Json(api_game))
 }
 
 fn convert_db_game_to_api_game(db_game: crate::db::models::DbGame) -> Result<Json<ApiGame>, StatusCode> {
+    let api_game = convert_db_game_to_api_game_direct(db_game)?;
+    Ok(Json(api_game))
+}
+
+fn convert_db_game_to_api_game_direct(db_game: crate::db::models::DbGame) -> Result<ApiGame, StatusCode> {
     // Parse board from JSON
     let serializable_board: crate::game::conversion::SerializableBoard = 
         serde_json::from_str(&db_game.board_data)
@@ -189,7 +230,7 @@ fn convert_db_game_to_api_game(db_game: crate::db::models::DbGame) -> Result<Jso
         sequence_number: db_game.sequence_number,
     };
 
-    Ok(Json(api_game))
+    Ok(api_game)
 }
 
 async fn validate_answer(
@@ -773,5 +814,56 @@ mod tests {
         assert!(user_response["cookie_token"].is_string());
         assert!(!user_response["user_id"].as_str().unwrap().is_empty());
         assert!(!user_response["cookie_token"].as_str().unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_game_caching_works() {
+        let (app, state, _temp_file) = setup_test_app().await;
+        
+        // Create a test game
+        let new_game = NewGame {
+            date: "2025-06-08".to_string(),
+            board_data: create_test_board_data(),
+            threshold_score: 40,
+            sequence_number: 1,
+        };
+        let _created_game = state.repository.create_game(new_game).await.unwrap();
+        
+        // First request - should hit database and cache
+        let response1 = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/game/sequence/1")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        
+        assert_eq!(response1.status(), StatusCode::OK);
+        
+        // Verify cache has the game
+        let cache_key = "seq:1";
+        let cached_game = state.game_cache.get(cache_key).await;
+        assert!(cached_game.is_some());
+        
+        // Second request - should hit cache
+        let response2 = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/game/sequence/1")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        
+        assert_eq!(response2.status(), StatusCode::OK);
+        
+        // Both responses should be identical
+        let body1 = axum::body::to_bytes(response1.into_body(), usize::MAX).await.unwrap();
+        let body2 = axum::body::to_bytes(response2.into_body(), usize::MAX).await.unwrap();
+        assert_eq!(body1, body2);
     }
 }

@@ -36,6 +36,9 @@ tokio-cron-scheduler = "0.11"
 rand = "0.8"
 rand_seeder = "0.3"
 
+# Caching for immutable game responses
+moka = { version = "0.12", features = ["future"] }
+
 # Game logic dependencies (reuse from word-game)
 log = "0.4"
 
