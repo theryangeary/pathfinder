@@ -26,7 +26,8 @@
       "Bash(npm run generate-wordlist:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(npm run test:run:*)"
+      "Bash(npm run test:run:*)",
+      "Bash(time curl:*)"
     ],
     "deny": []
   }
