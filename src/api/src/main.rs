@@ -2,6 +2,7 @@ mod db;
 mod game;
 mod game_generator;
 mod http_api;
+mod security;
 
 use anyhow::Result;
 use dotenvy::dotenv;
@@ -12,6 +13,7 @@ use tracing::{info, error};
 use db::{setup_database, Repository};
 use game::GameEngine;
 use game_generator::GameGenerator;
+use security::SecurityConfig;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -44,9 +46,13 @@ async fn main() -> Result<()> {
     info!("Initializing game engine");
     let game_engine = GameEngine::new("wordlist").await?;
 
+    // Setup security configuration
+    info!("Loading security configuration");
+    let security_config = SecurityConfig::from_env();
+
     // Setup HTTP API
     let api_state = http_api::ApiState::new(repository.clone(), game_engine.clone());
-    let http_router = http_api::create_router(api_state);
+    let http_router = http_api::create_secure_router(api_state, security_config);
 
     let http_addr = format!("{}:{}", server_host, http_port);
     

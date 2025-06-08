@@ -7,13 +7,22 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use tower_http::cors::CorsLayer;
+use tower_http::{cors::CorsLayer, timeout::TimeoutLayer, limit::RequestBodyLimitLayer};
 use moka::future::Cache;
+use tower::ServiceBuilder;
 
 use crate::db::{Repository, conversions::AnswerStorage};
 use crate::game::GameEngine;
 use crate::game_generator::GameGenerator;
 use crate::game::conversion::SerializableBoard;
+use crate::security::{
+    SecurityConfig, 
+    cors::CorsLayer as SecurityCorsLayer,
+    rate_limit::RateLimitLayer,
+    referer::RefererLayer,
+    headers::SecurityHeadersLayer,
+    session::{SessionLayer, cookie_layer},
+};
 
 // HTTP API types (simpler than protobuf for frontend)
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -136,6 +145,26 @@ pub fn create_router(state: ApiState) -> Router {
                 .allow_methods(tower_http::cors::Any)
                 .allow_headers(tower_http::cors::Any),
         )
+        .with_state(state)
+}
+
+pub fn create_secure_router(state: ApiState, config: SecurityConfig) -> Router {
+    Router::new()
+        .route("/api/game/date/:date", get(get_game_by_date))
+        .route("/api/game/sequence/:sequence_number", get(get_game_by_sequence))
+        .route("/api/validate", post(validate_answer))
+        .route("/api/submit", post(submit_answers))
+        .route("/api/user", post(create_user))
+        .route("/api/game-entry/:game_id", get(get_game_entry))
+        .route("/health", get(health_check))
+        .layer(RequestBodyLimitLayer::new(config.max_request_size))
+        .layer(TimeoutLayer::new(config.request_timeout))
+        .layer(RateLimitLayer::new(config.clone()))
+        .layer(SecurityCorsLayer::new(config.clone()))
+        .layer(RefererLayer::new(config.clone()))
+        .layer(cookie_layer())
+        .layer(SessionLayer::new(config.clone()))
+        .layer(SecurityHeadersLayer::new(config.clone()))
         .with_state(state)
 }
 
@@ -516,6 +545,13 @@ fn answers_are_compatible(
 ) -> bool {
     // Use the built-in method to check if two answers can coexist
     answer1.can_coexist_with(answer2)
+}
+
+async fn health_check() -> Result<Json<serde_json::Value>, StatusCode> {
+    Ok(Json(serde_json::json!({
+        "status": "healthy",
+        "timestamp": chrono::Utc::now().to_rfc3339()
+    })))
 }
 
 #[cfg(test)]
