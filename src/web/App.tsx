@@ -4,7 +4,7 @@ import { ApiAnswer, ApiGame, convertApiBoardToBoard, gameApi } from './api/gameA
 import AnswerSection from './components/AnswerSection';
 import Board from './components/Board';
 import HeatmapModal from './components/HeatmapModal';
-import { isValidWord } from './data/wordList';
+// Lazy load word list to avoid blocking initial render
 import { useUser } from './hooks/useUser';
 import { generateBoard } from './utils/boardGeneration';
 import { findBestPath, findPathsForHighlighting, getWildcardConstraintsFromPath } from './utils/pathfinding';
@@ -34,17 +34,45 @@ function App() {
   const [isLoadingGame, setIsLoadingGame] = useState(true);
   const [apiError, setApiError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isValidWordLoaded, setIsValidWordLoaded] = useState(false);
+  const [isValidWordFn, setIsValidWordFn] = useState<((word: string) => boolean) | null>(null);
 
+  // Load word validation function asynchronously
   useEffect(() => {
-    if (!userLoading) {
-      loadGame();
+    const loadWordList = async () => {
+      try {
+        const { isValidWord } = await import('./data/wordList');
+        setIsValidWordFn(() => isValidWord);
+        setIsValidWordLoaded(true);
+      } catch (error) {
+        console.error('Failed to load word list:', error);
+        // Fallback: allow all words if word list fails to load
+        setIsValidWordFn(() => () => true);
+        setIsValidWordLoaded(true);
+      }
+    };
+    loadWordList();
+  }, []);
+
+  // Load game immediately, don't wait for user
+  useEffect(() => {
+    loadGame();
+  }, [sequenceNumber]);
+
+  // Load existing game entry when user becomes available
+  useEffect(() => {
+    if (!userLoading && user && currentGame) {
+      loadExistingGameEntry();
     }
-  }, [userLoading, user, sequenceNumber]);
+  }, [userLoading, user, currentGame]);
 
   const validateAnswerWithBoard = (boardToUse: Tile[][], word: string, _answerIndex: number, currentConstraints: Record<string, string>, previousAnswers: string[] = []): ValidationResult => {
     if (!word || word.length < 2) return { isValid: false, score: 0, path: null };
     
-    if (!isValidWord(word)) return { isValid: false, score: 0, path: null };
+    // Skip word validation if word list hasn't loaded yet (allow all words temporarily)
+    if (isValidWordLoaded && isValidWordFn && !isValidWordFn(word)) {
+      return { isValid: false, score: 0, path: null };
+    }
     
     // Check if this word was already used in a previous answer slot
     if (previousAnswers.includes(word.toLowerCase())) {
@@ -82,68 +110,6 @@ function App() {
       setCurrentGame(game);
       const newBoard = convertApiBoardToBoard(game.board);
       setBoard(newBoard);
-      
-      // Try to load existing game entry if user is available
-      if (user) {
-        try {
-          const existingAnswers = await gameApi.getGameEntry(
-            game.id, 
-            user.user_id, 
-            user.cookie_token
-          );
-          
-          if (existingAnswers && existingAnswers.length > 0) {
-            // Populate answers from existing game entry
-            const loadedAnswers = ['', '', '', '', ''];
-            const loadedConstraints: Record<string, string> = {};
-            
-            // Merge wildcard constraints from all answers
-            existingAnswers.forEach((answer, index) => {
-              if (index < 5) {
-                loadedAnswers[index] = answer.word;
-                Object.assign(loadedConstraints, answer.wildcard_constraints);
-              }
-            });
-            
-            setAnswers(loadedAnswers);
-            setWildcardConstraints(loadedConstraints);
-            
-            // Re-validate all answers to set validation state
-            let tempConstraints = {};
-            const newValidAnswers = [false, false, false, false, false];
-            const newScores = [0, 0, 0, 0, 0];
-            const newValidPaths: (Position[] | null)[] = [null, null, null, null, null];
-            const validPreviousAnswers: string[] = [];
-            
-            for (let i = 0; i < 5; i++) {
-              if (loadedAnswers[i]) {
-                // Validate against the new board (not the current state)
-                const result = validateAnswerWithBoard(newBoard, loadedAnswers[i], i, tempConstraints, validPreviousAnswers);
-                newValidAnswers[i] = result.isValid;
-                newScores[i] = result.score;
-                
-                if (result.isValid && result.newConstraints) {
-                  tempConstraints = { ...tempConstraints, ...result.newConstraints };
-                  validPreviousAnswers.push(loadedAnswers[i].toLowerCase());
-                  newValidPaths[i] = result.path;
-                }
-              }
-            }
-            
-            setValidAnswers(newValidAnswers);
-            setScores(newScores);
-            setValidPaths(newValidPaths);
-          }
-        } catch (error) {
-          console.warn('Failed to load existing game entry:', error);
-          // If this is a 401 error, the user is invalid, clear localStorage
-          if (error instanceof Error && error.message.includes('401')) {
-            console.log('User appears to be invalid, clearing localStorage and creating new user');
-            clearUser();
-            return; // Exit early to avoid setting empty answers
-          }
-        }
-      }
     } catch (error) {
       console.error('Failed to load daily game from API, falling back to local generation:', error);
       setApiError('Failed to connect to server. Playing offline.');
@@ -152,6 +118,68 @@ function App() {
       setBoard(newBoard);
     } finally {
       setIsLoadingGame(false);
+    }
+  };
+
+  const loadExistingGameEntry = async () => {
+    if (!user || !currentGame) return;
+    
+    try {
+      const existingAnswers = await gameApi.getGameEntry(
+        currentGame.id, 
+        user.user_id, 
+        user.cookie_token
+      );
+      
+      if (existingAnswers && existingAnswers.length > 0) {
+        // Populate answers from existing game entry
+        const loadedAnswers = ['', '', '', '', ''];
+        const loadedConstraints: Record<string, string> = {};
+        
+        // Merge wildcard constraints from all answers
+        existingAnswers.forEach((answer, index) => {
+          if (index < 5) {
+            loadedAnswers[index] = answer.word;
+            Object.assign(loadedConstraints, answer.wildcard_constraints);
+          }
+        });
+        
+        setAnswers(loadedAnswers);
+        setWildcardConstraints(loadedConstraints);
+        
+        // Re-validate all answers to set validation state
+        let tempConstraints = {};
+        const newValidAnswers = [false, false, false, false, false];
+        const newScores = [0, 0, 0, 0, 0];
+        const newValidPaths: (Position[] | null)[] = [null, null, null, null, null];
+        const validPreviousAnswers: string[] = [];
+        
+        for (let i = 0; i < 5; i++) {
+          if (loadedAnswers[i]) {
+            // Validate against the board
+            const result = validateAnswerWithBoard(board, loadedAnswers[i], i, tempConstraints, validPreviousAnswers);
+            newValidAnswers[i] = result.isValid;
+            newScores[i] = result.score;
+            
+            if (result.isValid && result.newConstraints) {
+              tempConstraints = { ...tempConstraints, ...result.newConstraints };
+              validPreviousAnswers.push(loadedAnswers[i].toLowerCase());
+              newValidPaths[i] = result.path;
+            }
+          }
+        }
+        
+        setValidAnswers(newValidAnswers);
+        setScores(newScores);
+        setValidPaths(newValidPaths);
+      }
+    } catch (error) {
+      console.warn('Failed to load existing game entry:', error);
+      // If this is a 401 error, the user is invalid, clear localStorage
+      if (error instanceof Error && error.message.includes('401')) {
+        console.log('User appears to be invalid, clearing localStorage and creating new user');
+        clearUser();
+      }
     }
   };
 
@@ -327,7 +355,8 @@ function App() {
     </>
   );
 
-  if (userLoading) {
+  // Only show loading if both user and game are loading
+  if (userLoading && isLoadingGame) {
     return (
       <div style={{ 
         fontFamily: 'Arial, sans-serif', 
@@ -470,14 +499,30 @@ function App() {
         )}
       </div>
       
-      <Board 
-        board={board} 
-        highlightedPaths={highlightedPaths}
-        wildcardConstraints={wildcardConstraints}
-        answers={answers}
-        validAnswers={validAnswers}
-        currentWord={currentInputIndex >= 0 ? answers[currentInputIndex] : ''}
-      />
+      {board.length > 0 && (
+        <Board 
+          board={board} 
+          highlightedPaths={highlightedPaths}
+          wildcardConstraints={wildcardConstraints}
+          answers={answers}
+          validAnswers={validAnswers}
+          currentWord={currentInputIndex >= 0 ? answers[currentInputIndex] : ''}
+        />
+      )}
+      
+      {board.length === 0 && isLoadingGame && (
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '300px',
+          gap: '16px'
+        }}>
+          <span>Loading board...</span>
+          <LoadingSpinner />
+        </div>
+      )}
       
       <AnswerSection
         answers={answers}
@@ -487,6 +532,7 @@ function App() {
         onSubmit={handleSubmit}
         onAnswerFocus={handleAnswerFocus}
         isSubmitting={isSubmitting}
+        isWordListLoading={!isValidWordLoaded}
       />
       
       <HeatmapModal

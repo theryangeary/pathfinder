@@ -9,6 +9,7 @@ interface AnswerSectionProps {
   onSubmit: () => void;
   onAnswerFocus: (index: number) => void;
   isSubmitting?: boolean;
+  isWordListLoading?: boolean;
 }
 
 function AnswerSection({ 
@@ -18,7 +19,8 @@ function AnswerSection({
   scores,
   onSubmit,
   onAnswerFocus,
-  isSubmitting = false
+  isSubmitting = false,
+  isWordListLoading = false
 }: AnswerSectionProps) {
   const inputRefs = useRef<(AnswerInputHandle | null)[]>([]);
 
@@ -47,7 +49,19 @@ function AnswerSection({
         alignItems: 'center',
         marginBottom: '10px'
       }}>
-        <h3 style={{ margin: 0 }}>Answers:</h3>
+        <h3 style={{ margin: 0 }}>
+          Answers:
+          {isWordListLoading && (
+            <span style={{ 
+              fontSize: '12px', 
+              color: '#666', 
+              fontWeight: 'normal',
+              marginLeft: '8px'
+            }}>
+              (loading dictionary...)
+            </span>
+          )}
+        </h3>
         <div style={{ 
           fontSize: '18px', 
           fontWeight: 'bold', 
