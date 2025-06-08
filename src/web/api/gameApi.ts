@@ -51,6 +51,7 @@ export interface SubmitRequest {
   user_id?: string;
   cookie_token?: string;
   answers: ApiAnswer[];
+  game_id: string;
 }
 
 export interface SubmitResponse {

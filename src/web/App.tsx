@@ -296,7 +296,8 @@ function App() {
       await gameApi.submitAnswers({
         user_id: user?.user_id,
         cookie_token: user?.cookie_token,
-        answers: apiAnswers
+        answers: apiAnswers,
+        game_id: currentGame.id,
       });
 
       setShowHeatmapModal(true);

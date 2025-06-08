@@ -71,6 +71,7 @@ pub struct SubmitRequest {
     pub user_id: Option<String>,
     pub cookie_token: Option<String>,
     pub answers: Vec<ApiAnswer>,
+    pub game_id: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -261,11 +262,10 @@ async fn submit_answers(
 
     let total_score: i32 = request.answers.iter().map(|a| a.score).sum();
 
-    // Get today's game to store the entry against
-    let today = chrono::Utc::now().date_naive().format("%Y-%m-%d").to_string();
-    let game = match state.repository.get_game_by_date(&today).await {
+    // Get the specified game to store the entry against
+    let game = match state.repository.get_game_by_id(&request.game_id).await {
         Ok(Some(game)) => game,
-        Ok(None) => return Err(StatusCode::NOT_FOUND), // Game should exist by now
+        Ok(None) => return Err(StatusCode::NOT_FOUND), // Game not found
         Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
     };
 
