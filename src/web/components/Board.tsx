@@ -27,6 +27,11 @@ function Board({ board, highlightedPaths, wildcardConstraints, answers, validAns
     return constraint ? constraint.toUpperCase() : '*';
   };
 
+  // Show empty tiles if board is empty
+  const boardToRender = board.length === 0 
+    ? Array(4).fill(null).map(() => Array(4).fill(null))
+    : board;
+
   return (
     <div 
       className="board"
@@ -41,8 +46,28 @@ function Board({ board, highlightedPaths, wildcardConstraints, answers, validAns
         margin: '0 auto'
       }}
     >
-      {board.map((row, rowIndex) =>
+      {boardToRender.map((row, rowIndex) =>
         row.map((tile, colIndex) => {
+          // If tile is null (loading state), show empty tile
+          if (tile === null) {
+            return (
+              <div
+                key={`${rowIndex}-${colIndex}`}
+                style={{
+                  width: '60px',
+                  height: '60px',
+                  border: '2px solid #333',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: '#fff',
+                  cursor: 'default'
+                }}
+              />
+            );
+          }
+          
           const isHighlighted = highlightedPaths.some(path =>
             path.some(pos => pos.row === rowIndex && pos.col === colIndex)
           );

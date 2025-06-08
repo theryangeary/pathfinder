@@ -306,7 +306,28 @@ function App() {
     return currentGameDate >= todayUTC;
   };
 
-  if (userLoading || isLoadingGame) {
+  const LoadingSpinner = () => (
+    <>
+      <div style={{ 
+        width: '40px', 
+        height: '40px', 
+        border: '4px solid #f3f3f3',
+        borderTop: '4px solid #3498db',
+        borderRadius: '50%',
+        animation: 'spin 1s linear infinite'
+      }} />
+      <style dangerouslySetInnerHTML={{
+        __html: `
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `
+      }} />
+    </>
+  );
+
+  if (userLoading) {
     return (
       <div style={{ 
         fontFamily: 'Arial, sans-serif', 
@@ -320,22 +341,7 @@ function App() {
         minHeight: '50vh'
       }}>
         <h2>Loading daily puzzle...</h2>
-        <div style={{ 
-          width: '40px', 
-          height: '40px', 
-          border: '4px solid #f3f3f3',
-          borderTop: '4px solid #3498db',
-          borderRadius: '50%',
-          animation: 'spin 1s linear infinite'
-        }} />
-        <style dangerouslySetInnerHTML={{
-          __html: `
-            @keyframes spin {
-              0% { transform: rotate(0deg); }
-              100% { transform: rotate(360deg); }
-            }
-          `
-        }} />
+        <LoadingSpinner />
       </div>
     );
   }
@@ -366,92 +372,103 @@ function App() {
         </div>
       )}
 
-      {currentGame && (
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: '20px',
+        gap: '16px'
+      }}>
+        <button
+          onClick={handlePreviousPuzzle}
+          disabled={!currentGame || currentGame.sequence_number <= 1}
+          style={{
+            backgroundColor: (!currentGame || currentGame.sequence_number <= 1) ? '#cccccc' : '#4CAF50',
+            color: 'white',
+            border: 'none',
+            borderRadius: '8px',
+            padding: '8px 12px',
+            fontSize: '14px',
+            cursor: (!currentGame || currentGame.sequence_number <= 1) ? 'not-allowed' : 'pointer',
+            transform: 'scale(1)',
+            transition: 'all 0.1s ease',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+          }}
+          onMouseDown={(e) => {
+            if (!(!currentGame || currentGame.sequence_number <= 1)) {
+              e.currentTarget.style.transform = 'scale(0.95)';
+            }
+          }}
+          onMouseUp={(e) => {
+            if (!(!currentGame || currentGame.sequence_number <= 1)) {
+              e.currentTarget.style.transform = 'scale(1)';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!(!currentGame || currentGame.sequence_number <= 1)) {
+              e.currentTarget.style.transform = 'scale(1)';
+            }
+          }}
+        >
+          ←
+        </button>
+        
         <div style={{
+          textAlign: 'center',
+          color: '#666',
+          fontSize: '16px',
+          minWidth: '200px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          marginBottom: '20px',
-          gap: '16px'
+          gap: '8px'
         }}>
+          {isLoadingGame ? (
+            <>
+              <span>Puzzle #</span>
+              {!sequenceNumber && (
+                <span> · {new Date().toISOString().split('T')[0]}</span>
+              )}
+            </>
+          ) : (
+            <>Puzzle #{currentGame?.sequence_number || 'N/A'} · {currentGame?.date}</>
+          )}
+        </div>
+        
+        {!isNextDisabled() && currentGame ? (
           <button
-            onClick={handlePreviousPuzzle}
-            disabled={!currentGame || currentGame.sequence_number <= 1}
+            onClick={handleNextPuzzle}
             style={{
-              backgroundColor: (!currentGame || currentGame.sequence_number <= 1) ? '#cccccc' : '#4CAF50',
+              backgroundColor: '#4CAF50',
               color: 'white',
               border: 'none',
               borderRadius: '8px',
               padding: '8px 12px',
               fontSize: '14px',
-              cursor: (!currentGame || currentGame.sequence_number <= 1) ? 'not-allowed' : 'pointer',
+              cursor: 'pointer',
               transform: 'scale(1)',
               transition: 'all 0.1s ease',
               boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
             }}
             onMouseDown={(e) => {
-              if (!(!currentGame || currentGame.sequence_number <= 1)) {
-                e.currentTarget.style.transform = 'scale(0.95)';
-              }
+              e.currentTarget.style.transform = 'scale(0.95)';
             }}
             onMouseUp={(e) => {
-              if (!(!currentGame || currentGame.sequence_number <= 1)) {
-                e.currentTarget.style.transform = 'scale(1)';
-              }
+              e.currentTarget.style.transform = 'scale(1)';
             }}
             onMouseLeave={(e) => {
-              if (!(!currentGame || currentGame.sequence_number <= 1)) {
-                e.currentTarget.style.transform = 'scale(1)';
-              }
+              e.currentTarget.style.transform = 'scale(1)';
             }}
           >
-            ←
+            →
           </button>
-          
+        ) : (
           <div style={{
-            textAlign: 'center',
-            color: '#666',
-            fontSize: '16px',
-            minWidth: '200px'
-          }}>
-            Puzzle #{currentGame.sequence_number || 'N/A'} · {currentGame.date}
-          </div>
-          
-          {!isNextDisabled() ? (
-            <button
-              onClick={handleNextPuzzle}
-              style={{
-                backgroundColor: '#4CAF50',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                padding: '8px 12px',
-                fontSize: '14px',
-                cursor: 'pointer',
-                transform: 'scale(1)',
-                transition: 'all 0.1s ease',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-              }}
-              onMouseDown={(e) => {
-                e.currentTarget.style.transform = 'scale(0.95)';
-              }}
-              onMouseUp={(e) => {
-                e.currentTarget.style.transform = 'scale(1)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'scale(1)';
-              }}
-            >
-              →
-            </button>
-          ) : (
-            <div style={{
-              width: '40px',
-              height: '32px'
-            }} />
-          )}
-        </div>
-      )}
+            width: '40px',
+            height: '32px'
+          }} />
+        )}
+      </div>
       
       <Board 
         board={board} 
