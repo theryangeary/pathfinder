@@ -27,7 +27,10 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(npm run test:run:*)",
-      "Bash(time curl:*)"
+      "Bash(time curl:*)",
+      "Bash(docker-compose up:*)",
+      "Bash(docker compose:*)",
+      "Bash(rustc --version)"
     ],
     "deny": []
   }

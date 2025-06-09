@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: pathfinder-postgres
+    environment:
+      POSTGRES_DB: pathfinder
+      POSTGRES_USER: pathfinder
+      POSTGRES_PASSWORD: pathfinder_pass
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pathfinder -d pathfinder"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend Rust API
+  backend:
+    build:
+      context: ./src/api
+      dockerfile: Dockerfile
+    container_name: pathfinder-backend
+    environment:
+      DATABASE_URL: postgresql://pathfinder:pathfinder_pass@postgres:5432/pathfinder
+      SERVER_HOST: 0.0.0.0
+      HTTP_PORT: 3001
+      RUST_LOG: info
+      ALLOWED_ORIGINS: http://localhost:3000,http://frontend
+      RATE_LIMIT_SESSION: 10
+      RATE_LIMIT_READ: 200
+      RATE_LIMIT_WRITE: 50
+      RATE_LIMIT_WINDOW: 60
+      COOKIE_MAX_AGE: 31536000
+      REQUEST_TIMEOUT: 30
+      MAX_REQUEST_SIZE: 1048576
+      STRICT_REFERER: "false"
+      HSTS_MAX_AGE: 31536000
+      CORS_MAX_AGE: 300
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./src/api/wordlist:/app/wordlist:ro
+
+  # Frontend React App
+  frontend:
+    build:
+      context: .
+      dockerfile: src/web/Dockerfile
+    container_name: pathfinder-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    environment:
+      - NODE_ENV=production
+
+volumes:
+  postgres_data:

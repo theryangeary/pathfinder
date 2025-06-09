@@ -1,7 +1,7 @@
 -- Initial database schema for word game backend
 
 -- Users table - tracks browser sessions via cookies
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
     cookie_token TEXT UNIQUE NOT NULL,
     created_at TIMESTAMP DEFAULT NOW(),
@@ -9,7 +9,7 @@ CREATE TABLE users (
 );
 
 -- Games table - stores daily puzzles and historical games
-CREATE TABLE games (
+CREATE TABLE IF NOT EXISTS games (
     id TEXT PRIMARY KEY,
     date TEXT UNIQUE NOT NULL, -- YYYY-MM-DD format
     board_data TEXT NOT NULL,  -- JSON serialized board data
@@ -18,7 +18,7 @@ CREATE TABLE games (
 );
 
 -- Game entries table - user solutions for specific games
-CREATE TABLE game_entries (
+CREATE TABLE IF NOT EXISTS game_entries (
     id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL,
     game_id TEXT NOT NULL,
@@ -33,8 +33,8 @@ CREATE TABLE game_entries (
 );
 
 -- Indexes for performance
-CREATE INDEX idx_games_date ON games(date);
-CREATE INDEX idx_game_entries_user_id ON game_entries(user_id);
-CREATE INDEX idx_game_entries_game_id ON game_entries(game_id);
-CREATE INDEX idx_game_entries_total_score ON game_entries(total_score);
-CREATE INDEX idx_users_cookie_token ON users(cookie_token);
+CREATE INDEX IF NOT EXISTS idx_games_date ON games(date);
+CREATE INDEX IF NOT EXISTS idx_game_entries_user_id ON game_entries(user_id);
+CREATE INDEX IF NOT EXISTS idx_game_entries_game_id ON game_entries(game_id);
+CREATE INDEX IF NOT EXISTS idx_game_entries_total_score ON game_entries(total_score);
+CREATE INDEX IF NOT EXISTS idx_users_cookie_token ON users(cookie_token);

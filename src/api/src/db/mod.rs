@@ -5,13 +5,11 @@ pub mod conversions;
 
 pub use repository_simple::Repository;
 
-use sqlx::{postgres::PgPool, migrate::MigrateDatabase, Postgres};
+use sqlx::{postgres::PgPool, Postgres};
 use anyhow::Result;
 
 pub async fn setup_database(database_url: &str) -> Result<PgPool> {
-    // Note: PostgreSQL database should be created externally
-    // We don't auto-create PostgreSQL databases like we did with SQLite
-    
+    // Connect to PostgreSQL database
     let pool = PgPool::connect(database_url).await?;
     
     // Run migrations
@@ -21,12 +19,15 @@ pub async fn setup_database(database_url: &str) -> Result<PgPool> {
 }
 
 async fn run_migrations(pool: &PgPool) -> Result<()> {
+    // Drop and recreate migrations table to fix any corruption
+    sqlx::query("DROP TABLE IF EXISTS migrations").execute(pool).await?;
+    
     // Create migrations table to track applied migrations
     sqlx::query(r#"
-        CREATE TABLE IF NOT EXISTS migrations (
-            id INTEGER PRIMARY KEY,
+        CREATE TABLE migrations (
+            id SERIAL PRIMARY KEY,
             filename TEXT UNIQUE NOT NULL,
-            applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            applied_at TIMESTAMP DEFAULT NOW()
         )
     "#).execute(pool).await?;
     

@@ -1,0 +1,34 @@
+# Build output
+target
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git
+.gitignore
+
+# Docker
+Dockerfile
+.dockerignore
+
+# Environment files
+.env
+.env.local
+
+# Database files
+*.db
+*.sqlite
+
+# Logs
+*.log
+
+# Coverage
+coverage

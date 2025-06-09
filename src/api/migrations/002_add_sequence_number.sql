@@ -1,7 +1,8 @@
 -- Add sequence_number column to games table
 -- The first game should have sequence number 1, incrementing by 1 for each subsequent day
 
-ALTER TABLE games ADD COLUMN sequence_number INTEGER NOT NULL DEFAULT 0;
+-- Add column if it doesn't exist (PostgreSQL supports IF NOT EXISTS for ALTER TABLE)
+ALTER TABLE games ADD COLUMN IF NOT EXISTS sequence_number INTEGER NOT NULL DEFAULT 0;
 
 -- Update existing games to have proper sequence numbers based on their date
 -- Assuming games are created in chronological order
@@ -13,4 +14,4 @@ SET sequence_number = (
 );
 
 -- Add unique constraint to ensure no duplicate sequence numbers
-CREATE UNIQUE INDEX idx_games_sequence_number ON games(sequence_number);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_games_sequence_number ON games(sequence_number);

@@ -1,0 +1,38 @@
+# This .dockerignore is for the frontend build context
+# Build outputs
+src/web/dist
+src/web/node_modules
+src/api/target
+dist
+node_modules
+
+# Environment files
+.env*
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git
+.gitignore
+
+# Backend files not needed for frontend
+src/api/target
+src/api/.env*
+src/api/*.log
+src/api/*.db
+
+# Test files
+src/web/test
+*.test.ts
+*.test.tsx
+
+# Logs
+*.log
