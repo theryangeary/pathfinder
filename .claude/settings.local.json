@@ -30,7 +30,8 @@
       "Bash(time curl:*)",
       "Bash(docker-compose up:*)",
       "Bash(docker compose:*)",
-      "Bash(rustc --version)"
+      "Bash(rustc --version)",
+      "Bash(npm test:*)"
     ],
     "deny": []
   }

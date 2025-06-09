@@ -141,7 +141,7 @@ impl Board {
         let current_location_letter = current_location.letter.chars().next();
         
         if current_location_letter != Some(current_char)
-            && !(current_location_letter == None && current_location.is_wildcard)
+            && !current_location.is_wildcard
         {
             return result;
         }
