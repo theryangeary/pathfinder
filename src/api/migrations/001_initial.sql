@@ -4,8 +4,8 @@
 CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
     cookie_token TEXT UNIQUE NOT NULL,
-    created_at TIMESTAMP DEFAULT NOW(),
-    last_seen TIMESTAMP DEFAULT NOW()
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    last_seen TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Games table - stores daily puzzles and historical games
@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS games (
     date TEXT UNIQUE NOT NULL, -- YYYY-MM-DD format
     board_data TEXT NOT NULL,  -- JSON serialized board data
     threshold_score INTEGER NOT NULL,
-    created_at TIMESTAMP DEFAULT NOW()
+    created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Game entries table - user solutions for specific games
@@ -25,8 +25,8 @@ CREATE TABLE IF NOT EXISTS game_entries (
     answers_data TEXT NOT NULL, -- JSON serialized answers array
     total_score INTEGER NOT NULL,
     completed BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW(),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (game_id) REFERENCES games(id) ON DELETE CASCADE,
     UNIQUE(user_id, game_id)  -- One entry per user per game
