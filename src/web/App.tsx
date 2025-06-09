@@ -57,6 +57,9 @@ function App() {
 
   // Load game immediately, don't wait for user
   useEffect(() => {
+    // Clear highlighting state when switching puzzles
+    setHighlightedPaths([]);
+    setCurrentInputIndex(-1);
     loadGame();
   }, [sequenceNumber]);
 
@@ -173,10 +176,18 @@ function App() {
   };
 
   const handleAnswerFocus = (index: number): void => {
-    // Clear highlighting when focusing on a different input
+    // Update highlighting when focusing on a different input
     if (currentInputIndex !== index) {
-      setHighlightedPaths([]);
       setCurrentInputIndex(index);
+      
+      // If the focused input has content, show its highlighting
+      const currentValue = answers[index];
+      if (currentValue && currentValue.length > 0) {
+        const paths = findPathsForHighlighting(board, currentValue, wildcardConstraints);
+        setHighlightedPaths(paths);
+      } else {
+        setHighlightedPaths([]);
+      }
     }
   };
 
