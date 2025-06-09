@@ -148,31 +148,13 @@ function App() {
         setAnswers(loadedAnswers);
         setWildcardConstraints(loadedConstraints);
         
-        // Re-validate all answers to set validation state
-        let tempConstraints = {};
-        const newValidAnswers = [false, false, false, false, false];
-        const newScores = [0, 0, 0, 0, 0];
-        const newValidPaths: (Position[] | null)[] = [null, null, null, null, null];
-        const validPreviousAnswers: string[] = [];
+        // Re-validate all answers using the same strict logic as the backend
+        const validation = validateAllAnswersTogether(loadedAnswers);
         
-        for (let i = 0; i < 5; i++) {
-          if (loadedAnswers[i]) {
-            // Validate against the board
-            const result = validateAnswerWithBoard(board, loadedAnswers[i], i, tempConstraints, validPreviousAnswers);
-            newValidAnswers[i] = result.isValid;
-            newScores[i] = result.score;
-            
-            if (result.isValid && result.newConstraints) {
-              tempConstraints = { ...tempConstraints, ...result.newConstraints };
-              validPreviousAnswers.push(loadedAnswers[i].toLowerCase());
-              newValidPaths[i] = result.path;
-            }
-          }
-        }
-        
-        setValidAnswers(newValidAnswers);
-        setScores(newScores);
-        setValidPaths(newValidPaths);
+        setValidAnswers(validation.validAnswers);
+        setScores(validation.scores);
+        setValidPaths(validation.paths);
+        setWildcardConstraints(validation.constraints);
       } else {
         setValidAnswers([false, false, false, false, false]);
         setScores([0,0,0,0,0]);
@@ -198,61 +180,127 @@ function App() {
     }
   };
 
+  // Validate all answers together using the same strict logic as the backend
+  const validateAllAnswersTogether = (allAnswers: string[]): { validAnswers: boolean[], scores: number[], paths: (Position[] | null)[], constraints: Record<string, string> } => {
+    const validAnswers = [false, false, false, false, false];
+    const scores = [0, 0, 0, 0, 0];
+    const paths: (Position[] | null)[] = [null, null, null, null, null];
+    let cumulativeConstraints = {};
+    const usedWords = new Set<string>();
+    
+    // First pass: validate each answer sequentially, building up constraints
+    for (let i = 0; i < 5; i++) {
+      const word = allAnswers[i];
+      if (!word || word.length < 2) {
+        continue;
+      }
+      
+      // Skip word validation if word list hasn't loaded yet
+      if (isValidWordLoaded && isValidWordFn && !isValidWordFn(word)) {
+        continue;
+      }
+      
+      // Check for duplicate words
+      const lowerWord = word.toLowerCase();
+      if (usedWords.has(lowerWord)) {
+        continue;
+      }
+      
+      // Try to find a valid path with current constraints
+      const path = findBestPath(board, word, cumulativeConstraints);
+      if (!path) {
+        continue;
+      }
+      
+      // Get new constraints from this path
+      const newConstraints = getWildcardConstraintsFromPath(board, word, path);
+      
+      // Check if new constraints conflict with existing ones
+      let hasConflict = false;
+      for (const [key, value] of Object.entries(newConstraints)) {
+        if (cumulativeConstraints[key] && cumulativeConstraints[key] !== value) {
+          hasConflict = true;
+          break;
+        }
+      }
+      
+      if (hasConflict) {
+        continue;
+      }
+      
+      // This answer is valid
+      validAnswers[i] = true;
+      scores[i] = calculateWordScore(word, path, board);
+      paths[i] = path;
+      usedWords.add(lowerWord);
+      cumulativeConstraints = { ...cumulativeConstraints, ...newConstraints };
+    }
+    
+    // Second pass: re-validate to ensure all valid answers still work together
+    // This mimics the backend's behavior of validating the entire set
+    const finalValidAnswers = [false, false, false, false, false];
+    const finalScores = [0, 0, 0, 0, 0];
+    const finalPaths: (Position[] | null)[] = [null, null, null, null, null];
+    let finalConstraints = {};
+    const finalUsedWords = new Set<string>();
+    
+    for (let i = 0; i < 5; i++) {
+      if (validAnswers[i] && allAnswers[i]) {
+        const word = allAnswers[i];
+        const lowerWord = word.toLowerCase();
+        
+        // Re-validate with cumulative constraints
+        const path = findBestPath(board, word, finalConstraints);
+        if (path) {
+          const newConstraints = getWildcardConstraintsFromPath(board, word, path);
+          
+          // Check constraints don't conflict
+          let hasConflict = false;
+          for (const [key, value] of Object.entries(newConstraints)) {
+            if (finalConstraints[key] && finalConstraints[key] !== value) {
+              hasConflict = true;
+              break;
+            }
+          }
+          
+          if (!hasConflict && !finalUsedWords.has(lowerWord)) {
+            finalValidAnswers[i] = true;
+            finalScores[i] = calculateWordScore(word, path, board);
+            finalPaths[i] = path;
+            finalUsedWords.add(lowerWord);
+            finalConstraints = { ...finalConstraints, ...newConstraints };
+          }
+        }
+      }
+    }
+    
+    return {
+      validAnswers: finalValidAnswers,
+      scores: finalScores,
+      paths: finalPaths,
+      constraints: finalConstraints
+    };
+  };
+
   const handleAnswerChange = (index: number, value: string): void => {
     const newAnswers = [...answers];
     newAnswers[index] = value;
     setAnswers(newAnswers);
 
-    // Reset constraints and rebuild from scratch based on all valid answers
-    let tempConstraints = {};
-    const newValidAnswers = [...validAnswers];
-    const newScores = [...scores];
-    const newValidPaths = [...validPaths];
+    // Use strict validation that matches the backend
+    const validation = validateAllAnswersTogether(newAnswers);
+    
+    setValidAnswers(validation.validAnswers);
+    setScores(validation.scores);
+    setWildcardConstraints(validation.constraints);
+    setValidPaths(validation.paths);
 
-    // Validate all answers from the beginning, rebuilding constraints as we go
-    const validPreviousAnswers = [];
-    for (let i = 0; i < 5; i++) {
-      if (newAnswers[i]) {
-        const result = validateAnswer(newAnswers[i], i, tempConstraints, validPreviousAnswers);
-        newValidAnswers[i] = result.isValid;
-        newScores[i] = result.score;
-        
-        if (result.isValid && result.newConstraints) {
-          tempConstraints = { ...tempConstraints, ...result.newConstraints };
-          // Add this valid answer to the list of previous answers for future validation
-          validPreviousAnswers.push(newAnswers[i].toLowerCase());
-          // Store the path for heatmap calculation
-          newValidPaths[i] = result.path;
-        } else {
-          newValidPaths[i] = null;
-        }
-
-        // Set highlighted paths only for the current input
-        if (i === index) {
-          const paths = findPathsForHighlighting(board, newAnswers[i], tempConstraints);
-          setHighlightedPaths(paths);
-          setCurrentInputIndex(index);
-        }
-      } else {
-        // Clear validation state for empty answers
-        newValidAnswers[i] = false;
-        newScores[i] = 0;
-        newValidPaths[i] = null;
-        
-        // Clear highlighted paths if this is the current input
-        if (i === index) {
-          setHighlightedPaths([]);
-          setCurrentInputIndex(index);
-        }
-      }
-    }
-
-    setValidAnswers(newValidAnswers);
-    setScores(newScores);
-    setWildcardConstraints(tempConstraints);
-    setValidPaths(newValidPaths);
-
-    if (!value) {
+    // Set highlighted paths for the current input
+    if (value && index >= 0) {
+      const paths = findPathsForHighlighting(board, value, validation.constraints);
+      setHighlightedPaths(paths);
+      setCurrentInputIndex(index);
+    } else {
       setHighlightedPaths([]);
       setCurrentInputIndex(-1);
     }
