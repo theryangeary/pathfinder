@@ -31,7 +31,8 @@
       "Bash(docker-compose up:*)",
       "Bash(docker compose:*)",
       "Bash(rustc --version)",
-      "Bash(npm test:*)"
+      "Bash(npm test:*)",
+      "WebFetch(domain:fly.io)"
     ],
     "deny": []
   }

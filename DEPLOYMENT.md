@@ -131,7 +131,7 @@ cargo run
 
 Create `Dockerfile` for backend:
 ```dockerfile
-FROM rust:1.70 AS builder
+FROM rust:1.87 AS builder
 WORKDIR /app
 COPY src/api .
 RUN cargo build --release
