@@ -1,17 +1,17 @@
 use anyhow::Result;
 use chrono::{DateTime, Utc};
-use sqlx::{SqlitePool, Row};
+use sqlx::{PgPool, Row};
 use uuid::Uuid;
 
 use super::models::{DbUser, DbGame, DbGameEntry, NewUser, NewGame, NewGameEntry};
 
 #[derive(Clone)]
 pub struct Repository {
-    pool: SqlitePool,
+    pool: PgPool,
 }
 
 impl Repository {
-    pub fn new(pool: SqlitePool) -> Self {
+    pub fn new(pool: PgPool) -> Self {
         Self { pool }
     }
 
@@ -20,7 +20,7 @@ impl Repository {
         let user = DbUser::new(new_user.cookie_token);
         
         sqlx::query(
-            "INSERT INTO users (id, cookie_token, created_at, last_seen) VALUES (?, ?, ?, ?)"
+            "INSERT INTO users (id, cookie_token, created_at, last_seen) VALUES ($1, $2, $3, $4)"
         )
         .bind(&user.id)
         .bind(&user.cookie_token)
@@ -34,7 +34,7 @@ impl Repository {
 
     pub async fn get_user_by_cookie(&self, cookie_token: &str) -> Result<Option<DbUser>> {
         let row = sqlx::query(
-            "SELECT id, cookie_token, created_at, last_seen FROM users WHERE cookie_token = ?"
+            "SELECT id, cookie_token, created_at, last_seen FROM users WHERE cookie_token = $1"
         )
         .bind(cookie_token)
         .fetch_optional(&self.pool)
@@ -54,7 +54,7 @@ impl Repository {
 
     pub async fn get_user_by_id(&self, user_id: &str) -> Result<Option<DbUser>> {
         let row = sqlx::query(
-            "SELECT id, cookie_token, created_at, last_seen FROM users WHERE id = ?"
+            "SELECT id, cookie_token, created_at, last_seen FROM users WHERE id = $1"
         )
         .bind(user_id)
         .fetch_optional(&self.pool)
@@ -74,7 +74,7 @@ impl Repository {
 
     pub async fn update_user_last_seen(&self, user_id: &str) -> Result<()> {
         let now = Utc::now();
-        sqlx::query("UPDATE users SET last_seen = ? WHERE id = ?")
+        sqlx::query("UPDATE users SET last_seen = $1 WHERE id = $2")
             .bind(now)
             .bind(user_id)
             .execute(&self.pool)
@@ -88,7 +88,7 @@ impl Repository {
         let game = DbGame::new(new_game.date, new_game.board_data, new_game.threshold_score, new_game.sequence_number);
         
         sqlx::query!(
-            "INSERT INTO games (id, date, board_data, threshold_score, sequence_number, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+            "INSERT INTO games (id, date, board_data, threshold_score, sequence_number, created_at) VALUES ($1, $2, $3, $4, $5, $6)",
             game.id,
             game.date,
             game.board_data,
@@ -105,7 +105,7 @@ impl Repository {
     pub async fn get_game_by_date(&self, date: &str) -> Result<Option<DbGame>> {
         let game = sqlx::query_as!(
             DbGame,
-            "SELECT id, date, board_data, threshold_score, sequence_number, created_at FROM games WHERE date = ?",
+            "SELECT id, date, board_data, threshold_score, sequence_number, created_at FROM games WHERE date = $1",
             date
         )
         .fetch_optional(&self.pool)
@@ -117,7 +117,7 @@ impl Repository {
     pub async fn get_game_by_id(&self, game_id: &str) -> Result<Option<DbGame>> {
         let game = sqlx::query_as!(
             DbGame,
-            "SELECT id, date, board_data, threshold_score, sequence_number, created_at FROM games WHERE id = ?",
+            "SELECT id, date, board_data, threshold_score, sequence_number, created_at FROM games WHERE id = $1",
             game_id
         )
         .fetch_optional(&self.pool)
@@ -129,7 +129,7 @@ impl Repository {
     pub async fn get_game_by_sequence_number(&self, sequence_number: i32) -> Result<Option<DbGame>> {
         let game = sqlx::query_as!(
             DbGame,
-            "SELECT id, date, board_data, threshold_score, sequence_number, created_at FROM games WHERE sequence_number = ?",
+            "SELECT id, date, board_data, threshold_score, sequence_number, created_at FROM games WHERE sequence_number = $1",
             sequence_number
         )
         .fetch_optional(&self.pool)
@@ -151,7 +151,7 @@ impl Repository {
 
     pub async fn game_exists_for_date(&self, date: &str) -> Result<bool> {
         let count: i64 = sqlx::query_scalar!(
-            "SELECT COUNT(*) FROM games WHERE date = ?",
+            "SELECT COUNT(*) FROM games WHERE date = $1",
             date
         )
         .fetch_one(&self.pool)
@@ -177,7 +177,7 @@ impl Repository {
             // Update existing entry
             let now = Utc::now();
             sqlx::query!(
-                "UPDATE game_entries SET answers_data = ?, total_score = ?, completed = ?, updated_at = ? WHERE id = ?",
+                "UPDATE game_entries SET answers_data = $1, total_score = $2, completed = $3, updated_at = $4 WHERE id = $5",
                 new_entry.answers_data,
                 new_entry.total_score,
                 new_entry.completed,
@@ -208,7 +208,7 @@ impl Repository {
             );
 
             sqlx::query!(
-                "INSERT INTO game_entries (id, user_id, game_id, answers_data, total_score, completed, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO game_entries (id, user_id, game_id, answers_data, total_score, completed, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
                 entry.id,
                 entry.user_id,
                 entry.game_id,
@@ -228,7 +228,7 @@ impl Repository {
     pub async fn get_game_entry(&self, user_id: &str, game_id: &str) -> Result<Option<DbGameEntry>> {
         let entry = sqlx::query_as!(
             DbGameEntry,
-            "SELECT id, user_id, game_id, answers_data, total_score, completed, created_at, updated_at FROM game_entries WHERE user_id = ? AND game_id = ?",
+            "SELECT id, user_id, game_id, answers_data, total_score, completed, created_at, updated_at FROM game_entries WHERE user_id = $1 AND game_id = $2",
             user_id,
             game_id
         )
@@ -242,7 +242,7 @@ impl Repository {
     pub async fn get_game_stats(&self, game_id: &str, user_score: i32) -> Result<(i32, i32, f64, i32, i32)> {
         // Get total players for this game
         let total_players: i64 = sqlx::query_scalar!(
-            "SELECT COUNT(*) FROM game_entries WHERE game_id = ? AND completed = TRUE",
+            "SELECT COUNT(*) FROM game_entries WHERE game_id = $1 AND completed = TRUE",
             game_id
         )
         .fetch_one(&self.pool)
@@ -250,7 +250,7 @@ impl Repository {
 
         // Get number of players with score <= user_score (for ranking)
         let players_at_or_below: i64 = sqlx::query_scalar!(
-            "SELECT COUNT(*) FROM game_entries WHERE game_id = ? AND completed = TRUE AND total_score <= ?",
+            "SELECT COUNT(*) FROM game_entries WHERE game_id = $1 AND completed = TRUE AND total_score <= $2",
             game_id,
             user_score
         )
@@ -269,7 +269,7 @@ impl Repository {
 
         // Get average score
         let avg_score: Option<f64> = sqlx::query_scalar!(
-            "SELECT AVG(CAST(total_score AS REAL)) FROM game_entries WHERE game_id = ? AND completed = TRUE",
+            "SELECT AVG(total_score::float) FROM game_entries WHERE game_id = $1 AND completed = TRUE",
             game_id
         )
         .fetch_one(&self.pool)
@@ -277,7 +277,7 @@ impl Repository {
 
         // Get highest score
         let highest_score: Option<i32> = sqlx::query_scalar!(
-            "SELECT MAX(total_score) FROM game_entries WHERE game_id = ? AND completed = TRUE",
+            "SELECT MAX(total_score) FROM game_entries WHERE game_id = $1 AND completed = TRUE",
             game_id
         )
         .fetch_one(&self.pool)

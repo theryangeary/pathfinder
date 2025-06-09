@@ -5,17 +5,14 @@ pub mod conversions;
 
 pub use repository_simple::Repository;
 
-use sqlx::{sqlite::SqlitePool, migrate::MigrateDatabase, Sqlite};
+use sqlx::{postgres::PgPool, migrate::MigrateDatabase, Postgres};
 use anyhow::Result;
 
-pub async fn setup_database(database_url: &str) -> Result<SqlitePool> {
-    // Create database if it doesn't exist
-    if !Sqlite::database_exists(database_url).await.unwrap_or(false) {
-        Sqlite::create_database(database_url).await?;
-        tracing::info!("Database created successfully");
-    }
-
-    let pool = SqlitePool::connect(database_url).await?;
+pub async fn setup_database(database_url: &str) -> Result<PgPool> {
+    // Note: PostgreSQL database should be created externally
+    // We don't auto-create PostgreSQL databases like we did with SQLite
+    
+    let pool = PgPool::connect(database_url).await?;
     
     // Run migrations
     run_migrations(&pool).await?;
@@ -23,7 +20,7 @@ pub async fn setup_database(database_url: &str) -> Result<SqlitePool> {
     Ok(pool)
 }
 
-async fn run_migrations(pool: &SqlitePool) -> Result<()> {
+async fn run_migrations(pool: &PgPool) -> Result<()> {
     // Create migrations table to track applied migrations
     sqlx::query(r#"
         CREATE TABLE IF NOT EXISTS migrations (
@@ -41,7 +38,7 @@ async fn run_migrations(pool: &SqlitePool) -> Result<()> {
     
     for (filename, migration_sql) in &migrations {
         // Check if this migration has already been applied
-        let applied = sqlx::query("SELECT filename FROM migrations WHERE filename = ?")
+        let applied = sqlx::query("SELECT filename FROM migrations WHERE filename = $1")
             .bind(filename)
             .fetch_optional(pool)
             .await?;
@@ -67,7 +64,7 @@ async fn run_migrations(pool: &SqlitePool) -> Result<()> {
         }
         
         // Record that this migration was applied
-        sqlx::query("INSERT INTO migrations (filename) VALUES (?)")
+        sqlx::query("INSERT INTO migrations (filename) VALUES ($1)")
             .bind(filename)
             .execute(pool)
             .await?;

@@ -29,7 +29,7 @@ async fn main() -> Result<()> {
 
     // Get configuration from environment
     let database_url = env::var("DATABASE_URL")
-        .unwrap_or_else(|_| "sqlite://game.db".to_string());
+        .unwrap_or_else(|_| "postgresql://localhost/pathfinder".to_string());
     let server_host = env::var("SERVER_HOST")
         .unwrap_or_else(|_| "127.0.0.1".to_string());
     let http_port = env::var("HTTP_PORT")
