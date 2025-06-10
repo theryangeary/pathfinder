@@ -318,82 +318,39 @@ impl Repository {
 
 #[cfg(test)]
 mod tests {
+    use sqlx::{Pool, Postgres};
+
     use super::*;
-    // No database imports needed for disabled tests
-
-    // Commented out SQLite test setup for PostgreSQL migration
-    // async fn setup_test_db() -> Repository {
-    //     let pool = SqlitePool::connect(":memory:").await.unwrap();
-    //     
-    //     // Create tables
-    //     sqlx::query(r#"
-    //         CREATE TABLE users (
-    //             id TEXT PRIMARY KEY,
-    //             cookie_token TEXT UNIQUE NOT NULL,
-    //             created_at TIMESTAMP NOT NULL,
-    //             last_seen TIMESTAMP NOT NULL
-    //         )
-    //     "#).execute(&pool).await.unwrap();
-
-    //     sqlx::query(r#"
-    //         CREATE TABLE games (
-    //             id TEXT PRIMARY KEY,
-    //             date TEXT UNIQUE NOT NULL,
-    //             board_data TEXT NOT NULL,
-    //             threshold_score INTEGER NOT NULL,
-    //             sequence_number INTEGER UNIQUE NOT NULL,
-    //             created_at TIMESTAMP NOT NULL
-    //         )
-    //     "#).execute(&pool).await.unwrap();
-
-    //     sqlx::query(r#"
-    //         CREATE TABLE game_entries (
-    //             id TEXT PRIMARY KEY,
-    //             user_id TEXT NOT NULL,
-    //             game_id TEXT NOT NULL,
-    //             answers_data TEXT NOT NULL,
-    //             total_score INTEGER NOT NULL,
-    //             completed BOOLEAN NOT NULL,
-    //             created_at TIMESTAMP NOT NULL,
-    //             updated_at TIMESTAMP NOT NULL,
-    //             FOREIGN KEY (user_id) REFERENCES users (id),
-    //             FOREIGN KEY (game_id) REFERENCES games (id),
-    //             UNIQUE(user_id, game_id)
-    //         )
-    //     "#).execute(&pool).await.unwrap();
-
-    //     Repository::new(pool)
-    // }
 
     fn create_test_board_data() -> String {
         r#"{"rows":[{"tiles":[{"letter":"t","points":1,"is_wildcard":false,"row":0,"col":0},{"letter":"e","points":1,"is_wildcard":false,"row":0,"col":1},{"letter":"s","points":1,"is_wildcard":false,"row":0,"col":2},{"letter":"t","points":1,"is_wildcard":false,"row":0,"col":3}]}]}"#.to_string()
     }
 
     // Commented out tests for PostgreSQL migration - tests depend on SQLite setup
-    // #[tokio::test]
-    // async fn test_get_game_by_sequence_number_exists() {
-    //     let repo = setup_test_db().await;
-    //     
-    //     // Create a test game
-    //     let new_game = NewGame {
-    //         date: "2025-06-08".to_string(),
-    //         board_data: create_test_board_data(),
-    //         threshold_score: 40,
-    //         sequence_number: 1,
-    //     };
-    //     
-    //     let created_game = repo.create_game(new_game).await.unwrap();
-    //     
-    //     // Test getting the game by sequence number
-    //     let retrieved_game = repo.get_game_by_sequence_number(1).await.unwrap();
-    //     
-    //     assert!(retrieved_game.is_some());
-    //     let game = retrieved_game.unwrap();
-    //     assert_eq!(game.id, created_game.id);
-    //     assert_eq!(game.sequence_number, 1);
-    //     assert_eq!(game.date, "2025-06-08");
-    //     assert_eq!(game.threshold_score, 40);
-    // }
+    #[sqlx::test]
+    async fn test_get_game_by_sequence_number_exists(pool: Pool<Postgres>) {
+        let repo = Repository::new(pool);
+        
+        // Create a test game
+        let new_game = NewGame {
+            date: "2025-06-08".to_string(),
+            board_data: create_test_board_data(),
+            threshold_score: 40,
+            sequence_number: 1,
+        };
+        
+        let created_game = repo.create_game(new_game).await.unwrap();
+        
+        // Test getting the game by sequence number
+        let retrieved_game = repo.get_game_by_sequence_number(1).await.unwrap();
+        
+        assert!(retrieved_game.is_some());
+        let game = retrieved_game.unwrap();
+        assert_eq!(game.id, created_game.id);
+        assert_eq!(game.sequence_number, 1);
+        assert_eq!(game.date, "2025-06-08");
+        assert_eq!(game.threshold_score, 40);
+    }
 
     // #[tokio::test]
     // async fn test_get_game_by_sequence_number_not_exists() {
