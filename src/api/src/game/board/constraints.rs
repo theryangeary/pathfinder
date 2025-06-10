@@ -6,10 +6,14 @@ use crate::game::board::constraints;
 #[derive(Debug, Copy, Clone, PartialEq)]
 struct UnsatisfiableConstraint;
 
+// Constraint represents the constraint imposed upon a single wildcard tile.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Constraint {
+    // Unconstrainted means that the wildcard tile is unused and therefore could represent any letter
     Unconstrainted,
+    // Decided means that the wildcard must be a single, specific letter and cannot be any other letter
     Decided(char),
+    // AnyOf means that the wildcard must be one of more than one letters
     AnyOf(Vec<char>),
 }
 
@@ -72,18 +76,18 @@ impl ConstraintsSet {
         ConstraintsSet(HashMap::new())
     }
 
-    // pub fn has_collision_with(&self, other: &ConstraintsSet) -> bool {
-    //     let mut merged = self.0.clone();
-    //     for (k, v) in (&other.0).into_iter() {
-    //         let previous = merged.insert(k.to_string(), *v);
-    //         if let Some(p) = previous {
-    //             if p != *v {
-    //                 return true;
-    //             }
-    //         }
-    //     }
-    //     return false;
-    // }
+    pub fn has_collision_with(&self, other: &ConstraintsSet) -> bool {
+        let mut merged = self.0.clone();
+        for (k, v) in (&other.0).into_iter() {
+            let previous = merged.insert(k.to_string(), *v);
+            if let Some(p) = previous {
+                if p != *v {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
 
     // // returns None if the intersection of constraints is invalid
     // pub fn intersection(&self, other: &ConstraintsSet) -> Option<ConstraintsSet> {
@@ -162,21 +166,243 @@ mod tests {
     #[test]
     fn test_constraint_merge() {
         struct TestCase {
+            name: &'static str,
             c1: Constraint,
             c2: Constraint,
             expected: Result<Constraint, UnsatisfiableConstraint>,
         }
 
         let test_cases = vec![
+            // === Unconstrainted + X cases ===
             TestCase {
+                name: "Unconstrainted + Unconstrainted",
                 c1: Constraint::Unconstrainted,
                 c2: Constraint::Unconstrainted,
                 expected: Ok(Constraint::Unconstrainted),
-            }
+            },
+            TestCase {
+                name: "Unconstrainted + Decided",
+                c1: Constraint::Unconstrainted,
+                c2: Constraint::Decided('a'),
+                expected: Ok(Constraint::Decided('a')),
+            },
+            TestCase {
+                name: "Unconstrainted + AnyOf (single)",
+                c1: Constraint::Unconstrainted,
+                c2: Constraint::AnyOf(vec!['a']),
+                expected: Ok(Constraint::AnyOf(vec!['a'])),
+            },
+            TestCase {
+                name: "Unconstrainted + AnyOf (multiple)",
+                c1: Constraint::Unconstrainted,
+                c2: Constraint::AnyOf(vec!['a', 'b', 'c']),
+                expected: Ok(Constraint::AnyOf(vec!['a', 'b', 'c'])),
+            },
+            TestCase {
+                name: "Unconstrainted + AnyOf (empty)",
+                c1: Constraint::Unconstrainted,
+                c2: Constraint::AnyOf(vec![]),
+                expected: Ok(Constraint::AnyOf(vec![])),
+            },
+
+            // === Decided + X cases ===
+            TestCase {
+                name: "Decided + Unconstrainted",
+                c1: Constraint::Decided('a'),
+                c2: Constraint::Unconstrainted,
+                expected: Ok(Constraint::Decided('a')),
+            },
+            TestCase {
+                name: "Decided + Decided (same)",
+                c1: Constraint::Decided('a'),
+                c2: Constraint::Decided('a'),
+                expected: Ok(Constraint::Decided('a')),
+            },
+            TestCase {
+                name: "Decided + Decided (different)",
+                c1: Constraint::Decided('a'),
+                c2: Constraint::Decided('b'),
+                expected: Err(UnsatisfiableConstraint),
+            },
+            TestCase {
+                name: "Decided + AnyOf (contained)",
+                c1: Constraint::Decided('a'),
+                c2: Constraint::AnyOf(vec!['a', 'b', 'c']),
+                expected: Ok(Constraint::Decided('a')),
+            },
+            TestCase {
+                name: "Decided + AnyOf (not contained)",
+                c1: Constraint::Decided('d'),
+                c2: Constraint::AnyOf(vec!['a', 'b', 'c']),
+                expected: Err(UnsatisfiableConstraint),
+            },
+            TestCase {
+                name: "Decided + AnyOf (single, matching)",
+                c1: Constraint::Decided('a'),
+                c2: Constraint::AnyOf(vec!['a']),
+                expected: Ok(Constraint::Decided('a')),
+            },
+            TestCase {
+                name: "Decided + AnyOf (single, not matching)",
+                c1: Constraint::Decided('a'),
+                c2: Constraint::AnyOf(vec!['b']),
+                expected: Err(UnsatisfiableConstraint),
+            },
+            TestCase {
+                // N.B. this case is never expected to happen
+                name: "Decided + AnyOf (empty)",
+                c1: Constraint::Decided('a'),
+                c2: Constraint::AnyOf(vec![]),
+                expected: Err(UnsatisfiableConstraint),
+            },
+
+            // === AnyOf + X cases ===
+            TestCase {
+                name: "AnyOf + Unconstrainted",
+                c1: Constraint::AnyOf(vec!['a', 'b']),
+                c2: Constraint::Unconstrainted,
+                expected: Ok(Constraint::AnyOf(vec!['a', 'b'])),
+            },
+            TestCase {
+                name: "AnyOf + Decided (contained)",
+                c1: Constraint::AnyOf(vec!['a', 'b', 'c']),
+                c2: Constraint::Decided('b'),
+                expected: Ok(Constraint::Decided('b')),
+            },
+            TestCase {
+                name: "AnyOf + Decided (not contained)",
+                c1: Constraint::AnyOf(vec!['a', 'b', 'c']),
+                c2: Constraint::Decided('d'),
+                expected: Err(UnsatisfiableConstraint),
+            },
+            TestCase {
+                // N.B. this case is never expected to happen
+                name: "AnyOf (empty) + Decided",
+                c1: Constraint::AnyOf(vec![]),
+                c2: Constraint::Decided('a'),
+                expected: Err(UnsatisfiableConstraint),
+            },
+
+            // === AnyOf + AnyOf cases ===
+            TestCase {
+                name: "AnyOf + AnyOf (full overlap)",
+                c1: Constraint::AnyOf(vec!['a', 'b']),
+                c2: Constraint::AnyOf(vec!['a', 'b']),
+                expected: Ok(Constraint::AnyOf(vec!['a', 'b'])),
+            },
+            TestCase {
+                name: "AnyOf + AnyOf (partial overlap - multiple)",
+                c1: Constraint::AnyOf(vec!['a', 'b', 'c']),
+                c2: Constraint::AnyOf(vec!['b', 'c', 'd']),
+                expected: Ok(Constraint::AnyOf(vec!['b', 'c'])),
+            },
+            TestCase {
+                name: "AnyOf + AnyOf (partial overlap - single)",
+                c1: Constraint::AnyOf(vec!['a', 'b']),
+                c2: Constraint::AnyOf(vec!['b', 'c']),
+                expected: Ok(Constraint::Decided('b')),
+            },
+            TestCase {
+                name: "AnyOf + AnyOf (no overlap)",
+                c1: Constraint::AnyOf(vec!['a', 'b']),
+                c2: Constraint::AnyOf(vec!['c', 'd']),
+                expected: Err(UnsatisfiableConstraint),
+            },
+            TestCase {
+                name: "AnyOf + AnyOf (one empty)",
+                c1: Constraint::AnyOf(vec!['a', 'b']),
+                c2: Constraint::AnyOf(vec![]),
+                expected: Err(UnsatisfiableConstraint),
+            },
+            TestCase {
+                name: "AnyOf + AnyOf (both empty)",
+                c1: Constraint::AnyOf(vec![]),
+                c2: Constraint::AnyOf(vec![]),
+                expected: Err(UnsatisfiableConstraint),
+            },
+            TestCase {
+                name: "AnyOf (single) + AnyOf (single, same)",
+                c1: Constraint::AnyOf(vec!['a']),
+                c2: Constraint::AnyOf(vec!['a']),
+                expected: Ok(Constraint::Decided('a')),
+            },
+            TestCase {
+                name: "AnyOf (single) + AnyOf (single, different)",
+                c1: Constraint::AnyOf(vec!['a']),
+                c2: Constraint::AnyOf(vec!['b']),
+                expected: Err(UnsatisfiableConstraint),
+            },
+            TestCase {
+                name: "AnyOf (single) + AnyOf (multiple, contained)",
+                c1: Constraint::AnyOf(vec!['a']),
+                c2: Constraint::AnyOf(vec!['a', 'b', 'c']),
+                expected: Ok(Constraint::Decided('a')),
+            },
+            TestCase {
+                name: "AnyOf (single) + AnyOf (multiple, not contained)",
+                c1: Constraint::AnyOf(vec!['a']),
+                c2: Constraint::AnyOf(vec!['b', 'c', 'd']),
+                expected: Err(UnsatisfiableConstraint),
+            },
+
+            // === Edge cases with duplicate characters ===
+            TestCase {
+                name: "AnyOf + AnyOf (with duplicates)",
+                c1: Constraint::AnyOf(vec!['a', 'b', 'a']),
+                c2: Constraint::AnyOf(vec!['b', 'c', 'b']),
+                expected: Ok(Constraint::Decided('b')),
+            },
+            TestCase {
+                name: "Decided + AnyOf (with duplicates, contained)",
+                c1: Constraint::Decided('a'),
+                c2: Constraint::AnyOf(vec!['a', 'b', 'a']),
+                expected: Ok(Constraint::Decided('a')),
+            },
         ];
 
         for test_case in test_cases {
-            assert_eq!(test_case.c1.merge(test_case.c2), test_case.expected);
+            let result = test_case.c1.merge(test_case.c2);
+            match (&result, &test_case.expected) {
+                (Ok(Constraint::AnyOf(actual)), Ok(Constraint::AnyOf(expected))) => {
+                    // For AnyOf constraints, we need to compare sets since order doesn't matter
+                    let actual_set: std::collections::HashSet<char> = actual.iter().cloned().collect();
+                    let expected_set: std::collections::HashSet<char> = expected.iter().cloned().collect();
+                    assert_eq!(actual_set, expected_set, "Failed test case: {}", test_case.name);
+                }
+                _ => {
+                    assert_eq!(result, test_case.expected, "Failed test case: {}", test_case.name);
+                }
+            }
         }
+    }
+
+    #[test]
+    fn test_merge_decided_with_any_of() {
+        // Test the helper function directly
+        assert_eq!(
+            Constraint::merge_decided_with_any_of('a', vec!['a', 'b', 'c']),
+            Ok(Constraint::Decided('a'))
+        );
+        
+        assert_eq!(
+            Constraint::merge_decided_with_any_of('d', vec!['a', 'b', 'c']),
+            Err(UnsatisfiableConstraint)
+        );
+        
+        assert_eq!(
+            Constraint::merge_decided_with_any_of('a', vec![]),
+            Err(UnsatisfiableConstraint)
+        );
+        
+        assert_eq!(
+            Constraint::merge_decided_with_any_of('a', vec!['a']),
+            Ok(Constraint::Decided('a'))
+        );
+        
+        // Test with duplicates
+        assert_eq!(
+            Constraint::merge_decided_with_any_of('a', vec!['a', 'b', 'a']),
+            Ok(Constraint::Decided('a'))
+        );
     }
 }
