@@ -61,11 +61,11 @@ async fn main() -> Result<()> {
 
     // Setup HTTP API
     info!("Creating API state");
-    let api_state = http_api::ApiState::new(repository.clone(), game_engine.clone(), &mut memory_profiler);
+    let api_state = http_api::ApiState::new(repository.clone(), game_engine.clone());
     memory_profiler.log_memory("after_api_state");
 
     info!("Creating secure router");
-    let http_router = http_api::create_secure_router(api_state, security_config, &mut memory_profiler);
+    let http_router = http_api::create_secure_router(api_state, security_config);
     memory_profiler.log_memory("after_secure_router_creation");
 
     let http_addr = format!("{}:{}", server_host, http_port);

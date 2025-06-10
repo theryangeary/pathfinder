@@ -113,10 +113,10 @@ impl ApiState {
     pub fn new(repository: Repository, game_engine: GameEngine) -> Self {
         let game_generator = GameGenerator::new(repository.clone(), game_engine.clone());
         
-        // Create cache with heavy caching settings for immutable games
-        // Since games are immutable once created, we can cache them indefinitely
+        // Create cache with reasonable memory footprint
+        // Since games are immutable once created, we can cache recent ones
         let game_cache = Cache::builder()
-            .max_capacity(1000) // Cache up to 10,000 games (about 27 years worth)
+            .max_capacity(100) // Cache up to 100 games (about 3 months worth) to reduce memory
             .time_to_live(std::time::Duration::from_secs(24 * 60 * 60)) // 24 hours TTL as safety
             .time_to_idle(std::time::Duration::from_secs(6 * 60 * 60))  // 6 hours idle timeout
             .build();

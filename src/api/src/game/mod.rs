@@ -93,18 +93,19 @@ impl BoardGenerator {
 
 use std::path::{PathBuf, Path};
 use std::collections::HashMap;
+use std::sync::Arc;
 use anyhow::Result;
 
 /// Main game engine that combines all the game logic components
 #[derive(Clone)]
 pub struct GameEngine {
-    word_trie: Trie,
+    word_trie: Arc<Trie>,
     scorer: Scorer,
 }
 
 impl GameEngine {
     pub async fn new<P: AsRef<Path>>(wordlist_path: P) -> Result<Self> {
-        let word_trie = Trie::from_file(wordlist_path.as_ref().to_path_buf())?;
+        let word_trie = Arc::new(Trie::from_file(wordlist_path.as_ref().to_path_buf())?);
         Ok(Self {
             word_trie,
             scorer: Scorer::new(),

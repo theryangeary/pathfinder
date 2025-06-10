@@ -1,5 +1,4 @@
 use std::{
-    collections::HashMap,
     fs::File,
     io::{BufRead, BufReader},
     path::PathBuf,
@@ -9,14 +8,16 @@ use anyhow::Result;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Trie {
-    next: HashMap<char, Box<Trie>>,
+    // Use Vec instead of HashMap for small branching factors (memory efficient)
+    // Most nodes will have only a few children, so linear search is faster and uses less memory
+    next: Vec<(char, Box<Trie>)>,
     finish: bool,
 }
 
 impl Trie {
     fn new() -> Self {
         Trie {
-            next: HashMap::new(),
+            next: Vec::new(),
             finish: false,
         }
     }
@@ -28,12 +29,13 @@ impl Trie {
                 return;
             }
             Some(c) => {
-                if self.next.get(&c).is_none() {
-                    let trie = Trie::new();
-                    self.next.insert(c, Box::new(trie));
-                }
-                if let Some(map) = self.next.get_mut(&c) {
-                    map.insert(&word[1..]);
+                // Find existing entry or create new one
+                if let Some(pos) = self.next.iter().position(|(ch, _)| *ch == c) {
+                    self.next[pos].1.insert(&word[1..]);
+                } else {
+                    let mut trie = Trie::new();
+                    trie.insert(&word[1..]);
+                    self.next.push((c, Box::new(trie)));
                 }
             }
         }
@@ -41,9 +43,13 @@ impl Trie {
 
     fn isearch(&self, word: &mut Chars) -> bool {
         match word.next() {
-            Some(c) => match self.next.get(&c) {
-                Some(map) => map.isearch(word),
-                None => false,
+            Some(c) => {
+                // Linear search for small branching factors
+                if let Some((_, child)) = self.next.iter().find(|(ch, _)| *ch == c) {
+                    child.isearch(word)
+                } else {
+                    false
+                }
             },
             None => self.finish,
         }
@@ -55,9 +61,13 @@ impl Trie {
 
     fn ihas_prefix(&self, prefix: &mut Chars) -> bool {
         match prefix.next() {
-            Some(c) => match self.next.get(&c) {
-                Some(map) => map.ihas_prefix(prefix),
-                None => false,
+            Some(c) => {
+                // Linear search for small branching factors
+                if let Some((_, child)) = self.next.iter().find(|(ch, _)| *ch == c) {
+                    child.ihas_prefix(prefix)
+                } else {
+                    false
+                }
             },
             None => true, // Empty prefix always exists
         }
