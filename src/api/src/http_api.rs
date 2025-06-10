@@ -655,50 +655,27 @@ mod tests {
         http::{Request, StatusCode},
     };
     use tower::util::ServiceExt;
-    use crate::game::GameEngine;
     use crate::db::models::NewGame;
-
-
-    async fn setup_app(pool: sqlx::Pool<sqlx::Postgres>) -> (ApiState, Router) {
-        let repository = crate::db::Repository::new(pool);
-        
-        // Create a minimal game engine for testing with a word vector
-        let words = vec!["test", "word", "hello", "world", "valid"];
-        let game_engine = GameEngine::new(words);
-        
-        let state = ApiState::new(repository, game_engine);
-        let app = create_router(state.clone());
-        
-        (state, app)
-    }
-
-    fn create_test_board_data() -> String {
-        r#"{"rows":[{"tiles":[{"letter":"t","points":1,"is_wildcard":false,"row":0,"col":0},{"letter":"e","points":1,"is_wildcard":false,"row":0,"col":1},{"letter":"s","points":1,"is_wildcard":false,"row":0,"col":2},{"letter":"t","points":1,"is_wildcard":false,"row":0,"col":3}]},{"tiles":[{"letter":"w","points":3,"is_wildcard":false,"row":1,"col":0},{"letter":"o","points":1,"is_wildcard":false,"row":1,"col":1},{"letter":"r","points":1,"is_wildcard":false,"row":1,"col":2},{"letter":"d","points":2,"is_wildcard":false,"row":1,"col":3}]},{"tiles":[{"letter":"h","points":3,"is_wildcard":false,"row":2,"col":0},{"letter":"e","points":1,"is_wildcard":false,"row":2,"col":1},{"letter":"l","points":2,"is_wildcard":false,"row":2,"col":2},{"letter":"l","points":2,"is_wildcard":false,"row":2,"col":3}]},{"tiles":[{"letter":"o","points":1,"is_wildcard":false,"row":3,"col":0},{"letter":"*","points":0,"is_wildcard":true,"row":3,"col":1},{"letter":"*","points":0,"is_wildcard":true,"row":3,"col":2},{"letter":"o","points":1,"is_wildcard":false,"row":3,"col":3}]}]}"#.to_string()
-    }
+    use crate::test_utils::test_utils::*;
 
     #[sqlx::test]
     async fn test_get_game_by_sequence_exists(pool: sqlx::Pool<sqlx::Postgres>) {
         let (state, app) = setup_app(pool).await;
         
-        // Create a test game
-        let new_game = NewGame {
-            date: "2025-06-08".to_string(),
-            board_data: create_test_board_data(),
-            threshold_score: 40,
-            sequence_number: 1,
-        };
+        // Create a test game using test_utils
+        let mut new_game = create_new_test_game();
+        new_game.date = "2025-06-08".to_string();
+        new_game.threshold_score = 40;
+        new_game.sequence_number = 1;
         let created_game = state.repository.create_game(new_game).await.unwrap();
         
-        // Test the endpoint
-        let response = app
-            .oneshot(
-                Request::builder()
-                    .uri("/api/game/sequence/1")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
+        // Test the endpoint using test_utils request helper
+        let request = create_test_request(
+            axum::http::Method::GET,
+            "/api/game/sequence/1",
+            None,
+        );
+        let response = app.oneshot(request).await.unwrap();
         
         assert_eq!(response.status(), StatusCode::OK);
         
@@ -717,15 +694,12 @@ mod tests {
         let (_state, app) = setup_app(pool).await;
         
         // Test getting a non-existent sequence number
-        let response = app
-            .oneshot(
-                Request::builder()
-                    .uri("/api/game/sequence/999")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
+        let request = create_test_request(
+            axum::http::Method::GET,
+            "/api/game/sequence/999",
+            None,
+        );
+        let response = app.oneshot(request).await.unwrap();
         
         assert_eq!(response.status(), StatusCode::NOT_FOUND);
     }
@@ -734,43 +708,35 @@ mod tests {
     async fn test_get_game_by_sequence_multiple_games(pool: sqlx::Pool<sqlx::Postgres>) {
         let (state, app) = setup_app(pool).await;
         
-        // Create multiple test games
-        let games = vec![
-            NewGame {
-                date: "2025-06-08".to_string(),
-                board_data: create_test_board_data(),
-                threshold_score: 40,
-                sequence_number: 1,
-            },
-            NewGame {
-                date: "2025-06-07".to_string(),
-                board_data: create_test_board_data(),
-                threshold_score: 35,
-                sequence_number: 3,
-            },
-            NewGame {
-                date: "2025-06-06".to_string(),
-                board_data: create_test_board_data(),
-                threshold_score: 45,
-                sequence_number: 5,
-            },
-        ];
+        // Create multiple test games using test_utils
+        let mut game1 = create_new_test_game();
+        game1.date = "2025-06-08".to_string();
+        game1.threshold_score = 40;
+        game1.sequence_number = 1;
+        
+        let mut game2 = create_new_test_game();
+        game2.date = "2025-06-07".to_string();
+        game2.threshold_score = 35;
+        game2.sequence_number = 3;
+        
+        let mut game3 = create_new_test_game();
+        game3.date = "2025-06-06".to_string();
+        game3.threshold_score = 45;
+        game3.sequence_number = 5;
+        
+        let games = vec![game1, game2, game3];
         
         for game in games {
             state.repository.create_game(game).await.unwrap();
         }
         
         // Test getting game with sequence number 1
-        let response = app
-            .clone()
-            .oneshot(
-                Request::builder()
-                    .uri("/api/game/sequence/1")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
+        let request = create_test_request(
+            axum::http::Method::GET,
+            "/api/game/sequence/1",
+            None,
+        );
+        let response = app.clone().oneshot(request).await.unwrap();
         
         assert_eq!(response.status(), StatusCode::OK);
         let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
@@ -779,16 +745,12 @@ mod tests {
         assert_eq!(game.date, "2025-06-08");
         
         // Test getting game with sequence number 3
-        let response = app
-            .clone()
-            .oneshot(
-                Request::builder()
-                    .uri("/api/game/sequence/3")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
+        let request = create_test_request(
+            axum::http::Method::GET,
+            "/api/game/sequence/3",
+            None,
+        );
+        let response = app.clone().oneshot(request).await.unwrap();
         
         assert_eq!(response.status(), StatusCode::OK);
         let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
@@ -797,16 +759,12 @@ mod tests {
         assert_eq!(game.date, "2025-06-07");
         
         // Test getting game with sequence number 5
-        let response = app
-            .clone()
-            .oneshot(
-                Request::builder()
-                    .uri("/api/game/sequence/5")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
+        let request = create_test_request(
+            axum::http::Method::GET,
+            "/api/game/sequence/5",
+            None,
+        );
+        let response = app.clone().oneshot(request).await.unwrap();
         
         assert_eq!(response.status(), StatusCode::OK);
         let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
@@ -815,27 +773,20 @@ mod tests {
         assert_eq!(game.date, "2025-06-06");
         
         // Test getting non-existent sequence numbers
-        let response = app
-            .clone()
-            .oneshot(
-                Request::builder()
-                    .uri("/api/game/sequence/2")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
+        let request = create_test_request(
+            axum::http::Method::GET,
+            "/api/game/sequence/2",
+            None,
+        );
+        let response = app.clone().oneshot(request).await.unwrap();
         assert_eq!(response.status(), StatusCode::NOT_FOUND);
         
-        let response = app
-            .oneshot(
-                Request::builder()
-                    .uri("/api/game/sequence/4")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
+        let request = create_test_request(
+            axum::http::Method::GET,
+            "/api/game/sequence/4",
+            None,
+        );
+        let response = app.oneshot(request).await.unwrap();
         assert_eq!(response.status(), StatusCode::NOT_FOUND);
     }
 
@@ -843,25 +794,20 @@ mod tests {
     async fn test_get_game_by_date_endpoint(pool: sqlx::Pool<sqlx::Postgres>) {
         let (state, app) = setup_app(pool).await;
         
-        // Create a test game
-        let new_game = NewGame {
-            date: "2025-06-08".to_string(),
-            board_data: create_test_board_data(),
-            threshold_score: 40,
-            sequence_number: 1,
-        };
+        // Create a test game using test_utils
+        let mut new_game = create_new_test_game();
+        new_game.date = "2025-06-08".to_string();
+        new_game.threshold_score = 40;
+        new_game.sequence_number = 1;
         let created_game = state.repository.create_game(new_game).await.unwrap();
         
         // Test the date endpoint
-        let response = app
-            .oneshot(
-                Request::builder()
-                    .uri("/api/game/date/2025-06-08")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
+        let request = create_test_request(
+            axum::http::Method::GET,
+            "/api/game/date/2025-06-08",
+            None,
+        );
+        let response = app.oneshot(request).await.unwrap();
         
         assert_eq!(response.status(), StatusCode::OK);
         
@@ -882,17 +828,13 @@ mod tests {
             previous_answers: vec![],
         };
         
-        let response = app
-            .oneshot(
-                Request::builder()
-                    .uri("/api/validate")
-                    .method("POST")
-                    .header("content-type", "application/json")
-                    .body(Body::from(serde_json::to_string(&request_body).unwrap()))
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
+        let body_json = serde_json::to_string(&request_body).unwrap();
+        let request = create_test_request(
+            axum::http::Method::POST,
+            "/api/validate",
+            Some(&body_json),
+        );
+        let response = app.oneshot(request).await.unwrap();
         
         assert_eq!(response.status(), StatusCode::OK);
         
@@ -912,17 +854,13 @@ mod tests {
             previous_answers: vec![],
         };
         
-        let response = app
-            .oneshot(
-                Request::builder()
-                    .uri("/api/validate")
-                    .method("POST")
-                    .header("content-type", "application/json")
-                    .body(Body::from(serde_json::to_string(&request_body).unwrap()))
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
+        let body_json = serde_json::to_string(&request_body).unwrap();
+        let request = create_test_request(
+            axum::http::Method::POST,
+            "/api/validate",
+            Some(&body_json),
+        );
+        let response = app.oneshot(request).await.unwrap();
         
         assert_eq!(response.status(), StatusCode::OK);
         
@@ -937,16 +875,12 @@ mod tests {
     async fn test_create_user_endpoint(pool: sqlx::Pool<sqlx::Postgres>) {
         let (_state, app) = setup_app(pool).await;
         
-        let response = app
-            .oneshot(
-                Request::builder()
-                    .uri("/api/user")
-                    .method("POST")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
+        let request = create_test_request(
+            axum::http::Method::POST,
+            "/api/user",
+            None,
+        );
+        let response = app.oneshot(request).await.unwrap();
         
         assert_eq!(response.status(), StatusCode::OK);
         
@@ -963,26 +897,20 @@ mod tests {
     async fn test_game_caching_works(pool: sqlx::Pool<sqlx::Postgres>) {
         let (state, app) = setup_app(pool).await;
         
-        // Create a test game
-        let new_game = NewGame {
-            date: "2025-06-08".to_string(),
-            board_data: create_test_board_data(),
-            threshold_score: 40,
-            sequence_number: 1,
-        };
+        // Create a test game using test_utils
+        let mut new_game = create_new_test_game();
+        new_game.date = "2025-06-08".to_string();
+        new_game.threshold_score = 40;
+        new_game.sequence_number = 1;
         let _created_game = state.repository.create_game(new_game).await.unwrap();
         
         // First request - should hit database and cache
-        let response1 = app
-            .clone()
-            .oneshot(
-                Request::builder()
-                    .uri("/api/game/sequence/1")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
+        let request1 = create_test_request(
+            axum::http::Method::GET,
+            "/api/game/sequence/1",
+            None,
+        );
+        let response1 = app.clone().oneshot(request1).await.unwrap();
         
         assert_eq!(response1.status(), StatusCode::OK);
         
@@ -992,15 +920,12 @@ mod tests {
         assert!(cached_game.is_some());
         
         // Second request - should hit cache
-        let response2 = app
-            .oneshot(
-                Request::builder()
-                    .uri("/api/game/sequence/1")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
+        let request2 = create_test_request(
+            axum::http::Method::GET,
+            "/api/game/sequence/1",
+            None,
+        );
+        let response2 = app.oneshot(request2).await.unwrap();
         
         assert_eq!(response2.status(), StatusCode::OK);
         
@@ -1021,7 +946,7 @@ mod tests {
         let game = crate::db::models::DbGame {
             id: "test-game".to_string(),
             date: "2025-06-04".to_string(),
-            board_data,
+            board_data: board_data.clone(),
             threshold_score: 15,
             sequence_number: 1,
             created_at: chrono::Utc::now(),
@@ -1056,7 +981,7 @@ mod tests {
         // This should succeed - the key test is that it uses validate_answer_with_constraints
         // internally rather than validate_answer
         let result = validate_submitted_answers(&state, &game, &test_answers).await;
-        assert!(result.is_ok(), "Submitted answers should be valid: {:?}", result.err());
+        assert!(result.is_ok(), "Submitted answers should be valid: {:?} {:?}", result.err(), board_data.clone());
         
         // Test that we can detect when answers would conflict (if they did)
         // This validates that the function is actually checking constraints properly
@@ -1117,9 +1042,9 @@ mod tests {
     async fn test_wildcard_pathfinding_fix() {
         // Test that wildcard pathfinding works correctly after the fix
         
-        // Create a minimal wordlist for testing
-        let words = vec!["sed", "test", "word", "silo", "seed", "sold", "does"];
-        let game_engine = GameEngine::new(words);
+        // Create a test game engine using test_utils with additional words
+        let (game_engine, _temp_file) = create_test_game_engine();
+        // Note: The test_utils game engine already includes "test", "sed", etc.
         
         // Create the exact board from puzzle #8
         let serializable_board: SerializableBoard = 
