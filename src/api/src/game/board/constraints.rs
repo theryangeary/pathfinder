@@ -4,7 +4,7 @@ use std::collections::{HashMap, HashSet};
 use crate::game::board::constraints;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
-struct UnsatisfiableConstraint;
+pub struct UnsatisfiableConstraint;
 
 // Constraint represents the constraint imposed upon a single wildcard tile.
 #[derive(Debug, Clone, PartialEq)]
@@ -77,31 +77,32 @@ impl ConstraintsSet {
     }
 
     pub fn has_collision_with(&self, other: &ConstraintsSet) -> bool {
-        let mut merged = self.0.clone();
-        for (k, v) in (&other.0).into_iter() {
-            let previous = merged.insert(k.to_string(), *v);
-            if let Some(p) = previous {
-                if p != *v {
+        for (key, other_constraint) in &other.0 {
+            if let Some(self_constraint) = self.0.get(key) {
+                if self_constraint.merge(other_constraint.clone()).is_err() {
                     return true;
                 }
             }
         }
-        return false;
+        false
     }
 
-    // // returns None if the intersection of constraints is invalid
-    // pub fn intersection(&self, other: &ConstraintsSet) -> Option<ConstraintsSet> {
-    //     let mut merged = self.0.clone();
-    //     for (k, v) in other.0.iter() {
-    //         let previous = merged.insert(k.to_string(), *v);
-    //         if let Some(p) = previous {
-    //             if p != *v {
-    //                 return None;
-    //             }
-    //         }
-    //     }
-    //     return Some(ConstraintsSet(merged));
-    // }
+    pub fn intersection(&self, other: &ConstraintsSet) -> Result<ConstraintsSet, UnsatisfiableConstraint> {
+        let mut result = self.0.clone();
+        
+        for (key, other_constraint) in &other.0 {
+            if let Some(self_constraint) = self.0.get(key) {
+                // Both sets have this key, merge the constraints
+                let merged_constraint = self_constraint.merge(other_constraint.clone())?;
+                result.insert(key.clone(), merged_constraint);
+            } else {
+                // Only other set has this key, add it to result
+                result.insert(key.clone(), other_constraint.clone());
+            }
+        }
+        
+        Ok(ConstraintsSet(result))
+    }
 }
 
 impl Constraints {
@@ -404,5 +405,325 @@ mod tests {
             Constraint::merge_decided_with_any_of('a', vec!['a', 'b', 'a']),
             Ok(Constraint::Decided('a'))
         );
+    }
+
+    struct ConstraintsSetTestCase {
+        name: &'static str,
+        set1: ConstraintsSet,
+        set2: ConstraintsSet,
+        expected_collision: bool,
+    }
+
+    fn constraints_set_from(pairs: Vec<(&str, Constraint)>) -> ConstraintsSet {
+        let mut map = HashMap::new();
+        for (key, constraint) in pairs {
+            map.insert(key.to_string(), constraint);
+        }
+        ConstraintsSet(map)
+    }
+
+    fn create_constraints_set_test_cases() -> Vec<ConstraintsSetTestCase> {
+        vec![
+            // === Empty sets ===
+            ConstraintsSetTestCase {
+                name: "Empty sets",
+                set1: constraints_set_from(vec![]),
+                set2: constraints_set_from(vec![]),
+                expected_collision: false,
+            },
+            ConstraintsSetTestCase {
+                name: "Empty vs non-empty",
+                set1: constraints_set_from(vec![]),
+                set2: constraints_set_from(vec![("w1", Constraint::Decided('a'))]),
+                expected_collision: false,
+            },
+            ConstraintsSetTestCase {
+                name: "Non-empty vs empty",
+                set1: constraints_set_from(vec![("w1", Constraint::Decided('a'))]),
+                set2: constraints_set_from(vec![]),
+                expected_collision: false,
+            },
+
+            // === Non-overlapping keys ===
+            ConstraintsSetTestCase {
+                name: "Different keys - no collision",
+                set1: constraints_set_from(vec![("w1", Constraint::Decided('a'))]),
+                set2: constraints_set_from(vec![("w2", Constraint::Decided('b'))]),
+                expected_collision: false,
+            },
+            ConstraintsSetTestCase {
+                name: "Multiple different keys - no collision",
+                set1: constraints_set_from(vec![
+                    ("w1", Constraint::Decided('a')),
+                    ("w2", Constraint::AnyOf(vec!['x', 'y']))
+                ]),
+                set2: constraints_set_from(vec![
+                    ("w3", Constraint::Decided('b')),
+                    ("w4", Constraint::Unconstrainted)
+                ]),
+                expected_collision: false,
+            },
+
+            // === Same keys, compatible constraints ===
+            ConstraintsSetTestCase {
+                name: "Unconstrainted + Unconstrainted",
+                set1: constraints_set_from(vec![("w1", Constraint::Unconstrainted)]),
+                set2: constraints_set_from(vec![("w1", Constraint::Unconstrainted)]),
+                expected_collision: false,
+            },
+            ConstraintsSetTestCase {
+                name: "Unconstrainted + Decided",
+                set1: constraints_set_from(vec![("w1", Constraint::Unconstrainted)]),
+                set2: constraints_set_from(vec![("w1", Constraint::Decided('a'))]),
+                expected_collision: false,
+            },
+            ConstraintsSetTestCase {
+                name: "Decided + Unconstrainted",
+                set1: constraints_set_from(vec![("w1", Constraint::Decided('a'))]),
+                set2: constraints_set_from(vec![("w1", Constraint::Unconstrainted)]),
+                expected_collision: false,
+            },
+            ConstraintsSetTestCase {
+                name: "Decided + Decided (same)",
+                set1: constraints_set_from(vec![("w1", Constraint::Decided('a'))]),
+                set2: constraints_set_from(vec![("w1", Constraint::Decided('a'))]),
+                expected_collision: false,
+            },
+            ConstraintsSetTestCase {
+                name: "Unconstrainted + AnyOf",
+                set1: constraints_set_from(vec![("w1", Constraint::Unconstrainted)]),
+                set2: constraints_set_from(vec![("w1", Constraint::AnyOf(vec!['a', 'b']))]),
+                expected_collision: false,
+            },
+            ConstraintsSetTestCase {
+                name: "AnyOf + Unconstrainted",
+                set1: constraints_set_from(vec![("w1", Constraint::AnyOf(vec!['a', 'b']))]),
+                set2: constraints_set_from(vec![("w1", Constraint::Unconstrainted)]),
+                expected_collision: false,
+            },
+            ConstraintsSetTestCase {
+                name: "Decided + AnyOf (contained)",
+                set1: constraints_set_from(vec![("w1", Constraint::Decided('a'))]),
+                set2: constraints_set_from(vec![("w1", Constraint::AnyOf(vec!['a', 'b', 'c']))]),
+                expected_collision: false,
+            },
+            ConstraintsSetTestCase {
+                name: "AnyOf + Decided (contained)",
+                set1: constraints_set_from(vec![("w1", Constraint::AnyOf(vec!['a', 'b', 'c']))]),
+                set2: constraints_set_from(vec![("w1", Constraint::Decided('b'))]),
+                expected_collision: false,
+            },
+            ConstraintsSetTestCase {
+                name: "AnyOf + AnyOf (overlap)",
+                set1: constraints_set_from(vec![("w1", Constraint::AnyOf(vec!['a', 'b']))]),
+                set2: constraints_set_from(vec![("w1", Constraint::AnyOf(vec!['b', 'c']))]),
+                expected_collision: false,
+            },
+            ConstraintsSetTestCase {
+                name: "AnyOf + AnyOf (full overlap)",
+                set1: constraints_set_from(vec![("w1", Constraint::AnyOf(vec!['a', 'b']))]),
+                set2: constraints_set_from(vec![("w1", Constraint::AnyOf(vec!['a', 'b']))]),
+                expected_collision: false,
+            },
+
+            // === Same keys, incompatible constraints ===
+            ConstraintsSetTestCase {
+                name: "Decided + Decided (different)",
+                set1: constraints_set_from(vec![("w1", Constraint::Decided('a'))]),
+                set2: constraints_set_from(vec![("w1", Constraint::Decided('b'))]),
+                expected_collision: true,
+            },
+            ConstraintsSetTestCase {
+                name: "Decided + AnyOf (not contained)",
+                set1: constraints_set_from(vec![("w1", Constraint::Decided('d'))]),
+                set2: constraints_set_from(vec![("w1", Constraint::AnyOf(vec!['a', 'b', 'c']))]),
+                expected_collision: true,
+            },
+            ConstraintsSetTestCase {
+                name: "AnyOf + Decided (not contained)",
+                set1: constraints_set_from(vec![("w1", Constraint::AnyOf(vec!['a', 'b', 'c']))]),
+                set2: constraints_set_from(vec![("w1", Constraint::Decided('d'))]),
+                expected_collision: true,
+            },
+            ConstraintsSetTestCase {
+                name: "AnyOf + AnyOf (no overlap)",
+                set1: constraints_set_from(vec![("w1", Constraint::AnyOf(vec!['a', 'b']))]),
+                set2: constraints_set_from(vec![("w1", Constraint::AnyOf(vec!['c', 'd']))]),
+                expected_collision: true,
+            },
+            ConstraintsSetTestCase {
+                name: "Decided + AnyOf (empty)",
+                set1: constraints_set_from(vec![("w1", Constraint::Decided('a'))]),
+                set2: constraints_set_from(vec![("w1", Constraint::AnyOf(vec![]))]),
+                expected_collision: true,
+            },
+            ConstraintsSetTestCase {
+                name: "AnyOf (empty) + Decided",
+                set1: constraints_set_from(vec![("w1", Constraint::AnyOf(vec![]))]),
+                set2: constraints_set_from(vec![("w1", Constraint::Decided('a'))]),
+                expected_collision: true,
+            },
+            ConstraintsSetTestCase {
+                name: "AnyOf (empty) + AnyOf (empty)",
+                set1: constraints_set_from(vec![("w1", Constraint::AnyOf(vec![]))]),
+                set2: constraints_set_from(vec![("w1", Constraint::AnyOf(vec![]))]),
+                expected_collision: true,
+            },
+
+            // === Multiple keys with mixed scenarios ===
+            ConstraintsSetTestCase {
+                name: "Mixed keys - one collision",
+                set1: constraints_set_from(vec![
+                    ("w1", Constraint::Decided('a')),
+                    ("w2", Constraint::Unconstrainted)
+                ]),
+                set2: constraints_set_from(vec![
+                    ("w1", Constraint::Decided('b')), // collision here
+                    ("w2", Constraint::Decided('x'))  // no collision
+                ]),
+                expected_collision: true,
+            },
+            ConstraintsSetTestCase {
+                name: "Mixed keys - no collisions",
+                set1: constraints_set_from(vec![
+                    ("w1", Constraint::Decided('a')),
+                    ("w2", Constraint::AnyOf(vec!['x', 'y']))
+                ]),
+                set2: constraints_set_from(vec![
+                    ("w1", Constraint::Decided('a')),     // no collision
+                    ("w2", Constraint::AnyOf(vec!['x']))  // no collision (subset)
+                ]),
+                expected_collision: false,
+            },
+            ConstraintsSetTestCase {
+                name: "Partial key overlap - compatible",
+                set1: constraints_set_from(vec![
+                    ("w1", Constraint::Decided('a')),
+                    ("w2", Constraint::AnyOf(vec!['x', 'y']))
+                ]),
+                set2: constraints_set_from(vec![
+                    ("w1", Constraint::Unconstrainted), // no collision
+                    ("w3", Constraint::Decided('z'))    // different key
+                ]),
+                expected_collision: false,
+            },
+            ConstraintsSetTestCase {
+                name: "Partial key overlap - incompatible",
+                set1: constraints_set_from(vec![
+                    ("w1", Constraint::Decided('a')),
+                    ("w2", Constraint::AnyOf(vec!['x', 'y']))
+                ]),
+                set2: constraints_set_from(vec![
+                    ("w1", Constraint::Decided('b')),   // collision here
+                    ("w3", Constraint::Decided('z'))    // different key
+                ]),
+                expected_collision: true,
+            },
+
+            // === Complex multi-wildcard scenarios ===
+            ConstraintsSetTestCase {
+                name: "Multiple wildcards - all compatible",
+                set1: constraints_set_from(vec![
+                    ("w1", Constraint::Decided('a')),
+                    ("w2", Constraint::AnyOf(vec!['x', 'y', 'z'])),
+                    ("w3", Constraint::Unconstrainted)
+                ]),
+                set2: constraints_set_from(vec![
+                    ("w1", Constraint::AnyOf(vec!['a', 'b'])),
+                    ("w2", Constraint::Decided('y')),
+                    ("w3", Constraint::AnyOf(vec!['p', 'q']))
+                ]),
+                expected_collision: false,
+            },
+            ConstraintsSetTestCase {
+                name: "Multiple wildcards - one incompatible",
+                set1: constraints_set_from(vec![
+                    ("w1", Constraint::Decided('a')),
+                    ("w2", Constraint::AnyOf(vec!['x', 'y', 'z'])),
+                    ("w3", Constraint::Unconstrainted)
+                ]),
+                set2: constraints_set_from(vec![
+                    ("w1", Constraint::AnyOf(vec!['a', 'b'])),
+                    ("w2", Constraint::Decided('w')),  // collision here
+                    ("w3", Constraint::AnyOf(vec!['p', 'q']))
+                ]),
+                expected_collision: true,
+            },
+
+            // === Edge cases ===
+            ConstraintsSetTestCase {
+                name: "Single char AnyOf collision",
+                set1: constraints_set_from(vec![("w1", Constraint::AnyOf(vec!['a']))]),
+                set2: constraints_set_from(vec![("w1", Constraint::AnyOf(vec!['b']))]),
+                expected_collision: true,
+            },
+            ConstraintsSetTestCase {
+                name: "Single char AnyOf compatible",
+                set1: constraints_set_from(vec![("w1", Constraint::AnyOf(vec!['a']))]),
+                set2: constraints_set_from(vec![("w1", Constraint::AnyOf(vec!['a']))]),
+                expected_collision: false,
+            },
+            ConstraintsSetTestCase {
+                name: "Duplicate chars in AnyOf",
+                set1: constraints_set_from(vec![("w1", Constraint::AnyOf(vec!['a', 'b', 'a']))]),
+                set2: constraints_set_from(vec![("w1", Constraint::AnyOf(vec!['b', 'c', 'b']))]),
+                expected_collision: false, // overlap on 'b'
+            },
+        ]
+    }
+
+    #[test]
+    fn test_constraints_set_has_collision_with() {
+        let test_cases = create_constraints_set_test_cases();
+
+        for test_case in test_cases {
+            let result = test_case.set1.has_collision_with(&test_case.set2);
+            assert_eq!(
+                result, 
+                test_case.expected_collision,
+                "Failed test case: {} - expected collision: {}, got: {}",
+                test_case.name,
+                test_case.expected_collision,
+                result
+            );
+        }
+    }
+
+    #[test]
+    fn test_constraints_set_intersection() {
+        let test_cases = create_constraints_set_test_cases();
+
+        for test_case in test_cases {
+            let result = test_case.set1.intersection(&test_case.set2);
+            
+            if test_case.expected_collision {
+                // If there's a collision, intersection should return an error
+                assert!(
+                    result.is_err(),
+                    "Failed test case: {} - expected intersection error but got Ok",
+                    test_case.name
+                );
+            } else {
+                // If there's no collision, intersection should succeed
+                assert!(
+                    result.is_ok(),
+                    "Failed test case: {} - expected intersection success but got Err",
+                    test_case.name
+                );
+                
+                // Verify the result makes sense by checking it doesn't have collision with either input
+                let intersection = result.unwrap();
+                assert!(
+                    !intersection.has_collision_with(&test_case.set1),
+                    "Failed test case: {} - intersection result has collision with set1",
+                    test_case.name
+                );
+                assert!(
+                    !intersection.has_collision_with(&test_case.set2),
+                    "Failed test case: {} - intersection result has collision with set2",
+                    test_case.name
+                );
+            }
+        }
     }
 }
