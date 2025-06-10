@@ -158,4 +158,25 @@ mod tests {
 
         assert!(ab.has_collision_with(&ac));
     }
+
+    #[test]
+    fn test_constraint_merge() {
+        struct TestCase {
+            c1: Constraint,
+            c2: Constraint,
+            expected: Result<Constraint, UnsatisfiableConstraint>,
+        }
+
+        let test_cases = vec![
+            TestCase {
+                c1: Constraint::Unconstrainted,
+                c2: Constraint::Unconstrainted,
+                expected: Ok(Constraint::Unconstrainted),
+            }
+        ];
+
+        for test_case in test_cases {
+            assert_eq!(test_case.c1.merge(test_case.c2), test_case.expected);
+        }
+    }
 }
