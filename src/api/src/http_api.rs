@@ -647,8 +647,7 @@ async fn health_check() -> Result<Json<serde_json::Value>, StatusCode> {
     })))
 }
 
-// Tests disabled - need to be updated to use PostgreSQL instead of SQLite
-#[cfg(disabled)]
+#[cfg(test)]
 mod tests {
     use super::*;
     use axum::{
@@ -659,47 +658,10 @@ mod tests {
     use crate::game::GameEngine;
     use crate::db::models::NewGame;
     use tempfile::NamedTempFile;
+    use sqlx::{pool, Pool, Postgres};
 
-    async fn setup_test_app() -> (Router, ApiState, NamedTempFile) {
-        let pool = SqlitePool::connect(":memory:").await.unwrap();
-        
-        // Create tables
-        sqlx::query(r#"
-            CREATE TABLE users (
-                id TEXT PRIMARY KEY,
-                cookie_token TEXT UNIQUE NOT NULL,
-                created_at TIMESTAMP NOT NULL,
-                last_seen TIMESTAMP NOT NULL
-            )
-        "#).execute(&pool).await.unwrap();
 
-        sqlx::query(r#"
-            CREATE TABLE games (
-                id TEXT PRIMARY KEY,
-                date TEXT UNIQUE NOT NULL,
-                board_data TEXT NOT NULL,
-                threshold_score INTEGER NOT NULL,
-                sequence_number INTEGER UNIQUE NOT NULL,
-                created_at TIMESTAMP NOT NULL
-            )
-        "#).execute(&pool).await.unwrap();
-
-        sqlx::query(r#"
-            CREATE TABLE game_entries (
-                id TEXT PRIMARY KEY,
-                user_id TEXT NOT NULL,
-                game_id TEXT NOT NULL,
-                answers_data TEXT NOT NULL,
-                total_score INTEGER NOT NULL,
-                completed BOOLEAN NOT NULL,
-                created_at TIMESTAMP NOT NULL,
-                updated_at TIMESTAMP NOT NULL,
-                FOREIGN KEY (user_id) REFERENCES users (id),
-                FOREIGN KEY (game_id) REFERENCES games (id),
-                UNIQUE(user_id, game_id)
-            )
-        "#).execute(&pool).await.unwrap();
-
+    async fn setup_app(pool: sqlx::Pool<sqlx::Postgres>) -> (ApiState, Router) {
         let repository = crate::db::Repository::new(pool);
         
         // Create a minimal game engine for testing with a temporary wordlist
@@ -715,16 +677,16 @@ mod tests {
         let state = ApiState::new(repository, game_engine);
         let app = create_router(state.clone());
         
-        (app, state, temp_file)
+        (state, app)
     }
 
     fn create_test_board_data() -> String {
         r#"{"rows":[{"tiles":[{"letter":"t","points":1,"is_wildcard":false,"row":0,"col":0},{"letter":"e","points":1,"is_wildcard":false,"row":0,"col":1},{"letter":"s","points":1,"is_wildcard":false,"row":0,"col":2},{"letter":"t","points":1,"is_wildcard":false,"row":0,"col":3}]},{"tiles":[{"letter":"w","points":3,"is_wildcard":false,"row":1,"col":0},{"letter":"o","points":1,"is_wildcard":false,"row":1,"col":1},{"letter":"r","points":1,"is_wildcard":false,"row":1,"col":2},{"letter":"d","points":2,"is_wildcard":false,"row":1,"col":3}]},{"tiles":[{"letter":"h","points":3,"is_wildcard":false,"row":2,"col":0},{"letter":"e","points":1,"is_wildcard":false,"row":2,"col":1},{"letter":"l","points":2,"is_wildcard":false,"row":2,"col":2},{"letter":"l","points":2,"is_wildcard":false,"row":2,"col":3}]},{"tiles":[{"letter":"o","points":1,"is_wildcard":false,"row":3,"col":0},{"letter":"*","points":0,"is_wildcard":true,"row":3,"col":1},{"letter":"*","points":0,"is_wildcard":true,"row":3,"col":2},{"letter":"o","points":1,"is_wildcard":false,"row":3,"col":3}]}]}"#.to_string()
     }
 
-    #[tokio::test]
-    async fn test_get_game_by_sequence_exists() {
-        let (app, state, _temp_file) = setup_test_app().await;
+    #[sqlx::test]
+    async fn test_get_game_by_sequence_exists(pool: sqlx::Pool<sqlx::Postgres>) {
+        let (state, app) = setup_app(pool).await;
         
         // Create a test game
         let new_game = NewGame {
@@ -758,9 +720,9 @@ mod tests {
         assert_eq!(game.board.tiles.len(), 4); // 4x4 board
     }
 
-    #[tokio::test]
-    async fn test_get_game_by_sequence_not_found() {
-        let (app, _state, _temp_file) = setup_test_app().await;
+    #[sqlx::test]
+    async fn test_get_game_by_sequence_not_found(pool: sqlx::Pool<sqlx::Postgres>) {
+        let (_state, app) = setup_app(pool).await;
         
         // Test getting a non-existent sequence number
         let response = app
@@ -776,9 +738,9 @@ mod tests {
         assert_eq!(response.status(), StatusCode::NOT_FOUND);
     }
 
-    #[tokio::test]
-    async fn test_get_game_by_sequence_multiple_games() {
-        let (app, state, _temp_file) = setup_test_app().await;
+    #[sqlx::test]
+    async fn test_get_game_by_sequence_multiple_games(pool: sqlx::Pool<sqlx::Postgres>) {
+        let (state, app) = setup_app(pool).await;
         
         // Create multiple test games
         let games = vec![
@@ -885,9 +847,9 @@ mod tests {
         assert_eq!(response.status(), StatusCode::NOT_FOUND);
     }
 
-    #[tokio::test]
-    async fn test_get_game_by_date_endpoint() {
-        let (app, state, _temp_file) = setup_test_app().await;
+    #[sqlx::test]
+    async fn test_get_game_by_date_endpoint(pool: sqlx::Pool<sqlx::Postgres>) {
+        let (state, app) = setup_app(pool).await;
         
         // Create a test game
         let new_game = NewGame {
@@ -919,9 +881,9 @@ mod tests {
         assert_eq!(game.sequence_number, 1);
     }
 
-    #[tokio::test]
-    async fn test_validate_word_endpoint() {
-        let (app, _state, _temp_file) = setup_test_app().await;
+    #[sqlx::test]
+    async fn test_validate_word_endpoint(pool: sqlx::Pool<sqlx::Postgres>) {
+        let (_state, app) = setup_app(pool).await;
         
         let request_body = ValidateRequest {
             word: "test".to_string(),
@@ -949,9 +911,9 @@ mod tests {
         assert_eq!(validate_response.error_message, "");
     }
 
-    #[tokio::test]
-    async fn test_validate_invalid_word_endpoint() {
-        let (app, _state, _temp_file) = setup_test_app().await;
+    #[sqlx::test]
+    async fn test_validate_invalid_word_endpoint(pool: sqlx::Pool<sqlx::Postgres>) {
+        let (_state, app) = setup_app(pool).await;
         
         let request_body = ValidateRequest {
             word: "invalidword".to_string(),
@@ -979,9 +941,9 @@ mod tests {
         assert!(validate_response.error_message.contains("invalidword"));
     }
 
-    #[tokio::test]
-    async fn test_create_user_endpoint() {
-        let (app, _state, _temp_file) = setup_test_app().await;
+    #[sqlx::test]
+    async fn test_create_user_endpoint(pool: sqlx::Pool<sqlx::Postgres>) {
+        let (_state, app) = setup_app(pool).await;
         
         let response = app
             .oneshot(
@@ -1005,9 +967,9 @@ mod tests {
         assert!(!user_response["cookie_token"].as_str().unwrap().is_empty());
     }
 
-    #[tokio::test]
-    async fn test_game_caching_works() {
-        let (app, state, _temp_file) = setup_test_app().await;
+    #[sqlx::test]
+    async fn test_game_caching_works(pool: sqlx::Pool<sqlx::Postgres>) {
+        let (state, app) = setup_app(pool).await;
         
         // Create a test game
         let new_game = NewGame {
@@ -1056,11 +1018,11 @@ mod tests {
         assert_eq!(body1, body2);
     }
 
-    /*
-    #[tokio::test]
-    async fn test_validate_submitted_answers_with_cumulative_constraints() {
+    
+    #[sqlx::test]
+    async fn test_validate_submitted_answers_with_cumulative_constraints(pool: sqlx::Pool<sqlx::Postgres>) {
         // Integration test for the validate_submitted_answers function fix
-        let (_, state, _temp_file) = setup_test_app_with_diode_scenario().await;
+        let (state, _app) = setup_app(pool).await;
         
         // Create a test game with a simple board that allows constraint testing
         let board_data = create_test_board_data(); // Use existing simple board
@@ -1135,71 +1097,6 @@ mod tests {
         assert!(result.is_err(), "Invalid word should be rejected");
         assert!(result.unwrap_err().contains("not in the dictionary"), "Should reject invalid words");
     }
-    */
-
-    /*
-    async fn setup_test_app_with_diode_scenario() -> (Router, ApiState, tempfile::NamedTempFile) {
-        use std::io::Write;
-        use tempfile::NamedTempFile;
-        
-        // Create in-memory SQLite database
-        let pool = SqlitePoolOptions::new()
-            .connect("sqlite::memory:")
-            .await
-            .unwrap();
-        
-        // Run migrations
-        sqlx::query(r#"
-            CREATE TABLE users (
-                id TEXT PRIMARY KEY,
-                cookie_token TEXT UNIQUE NOT NULL,
-                created_at TIMESTAMP NOT NULL,
-                last_seen TIMESTAMP NOT NULL
-            )
-        "#).execute(&pool).await.unwrap();
-
-        sqlx::query(r#"
-            CREATE TABLE games (
-                id TEXT PRIMARY KEY,
-                date TEXT UNIQUE NOT NULL,
-                board_data TEXT NOT NULL,
-                threshold_score INTEGER NOT NULL,
-                sequence_number INTEGER UNIQUE NOT NULL,
-                created_at TIMESTAMP NOT NULL
-            )
-        "#).execute(&pool).await.unwrap();
-
-        sqlx::query(r#"
-            CREATE TABLE game_entries (
-                id TEXT PRIMARY KEY,
-                user_id TEXT NOT NULL,
-                game_id TEXT NOT NULL,
-                answers_data TEXT NOT NULL,
-                total_score INTEGER NOT NULL,
-                completed BOOLEAN NOT NULL,
-                created_at TIMESTAMP NOT NULL,
-                updated_at TIMESTAMP NOT NULL,
-                FOREIGN KEY (user_id) REFERENCES users (id),
-                FOREIGN KEY (game_id) REFERENCES games (id),
-                UNIQUE(user_id, game_id)
-            )
-        "#).execute(&pool).await.unwrap();
-
-        let repository = crate::db::Repository::new(pool);
-        
-        // Create a wordlist that includes diode scenario words
-        let mut temp_file = NamedTempFile::new().unwrap();
-        temp_file.write_all("ran\nrod\ndiode\nbet\nredo\ntest\nword\nhello\nworld\nvalid".as_bytes()).unwrap();
-        let temp_path = temp_file.path();
-        
-        let game_engine = GameEngine::new(temp_path).await.unwrap();
-        
-        let state = ApiState::new(repository, game_engine);
-        let app = create_router(state.clone());
-        
-        (app, state, temp_file)
-    }
-    */
 
     fn create_diode_scenario_board_data() -> String {
         // JSON representation of the puzzle #4 board that caused the bug
@@ -1224,8 +1121,8 @@ mod tests {
         r#"{"rows":[{"tiles":[{"letter":"t","points":1,"is_wildcard":false,"row":0,"col":0},{"letter":"m","points":3,"is_wildcard":false,"row":0,"col":1},{"letter":"i","points":1,"is_wildcard":false,"row":0,"col":2},{"letter":"t","points":1,"is_wildcard":false,"row":0,"col":3}]},{"tiles":[{"letter":"c","points":2,"is_wildcard":false,"row":1,"col":0},{"letter":"*","points":0,"is_wildcard":true,"row":1,"col":1},{"letter":"o","points":1,"is_wildcard":false,"row":1,"col":2},{"letter":"t","points":1,"is_wildcard":false,"row":1,"col":3}]},{"tiles":[{"letter":"s","points":1,"is_wildcard":false,"row":2,"col":0},{"letter":"a","points":1,"is_wildcard":false,"row":2,"col":1},{"letter":"*","points":0,"is_wildcard":true,"row":2,"col":2},{"letter":"i","points":1,"is_wildcard":false,"row":2,"col":3}]},{"tiles":[{"letter":"i","points":1,"is_wildcard":false,"row":3,"col":0},{"letter":"n","points":1,"is_wildcard":false,"row":3,"col":1},{"letter":"a","points":1,"is_wildcard":false,"row":3,"col":2},{"letter":"l","points":2,"is_wildcard":false,"row":3,"col":3}]}]}"#.to_string()
     }
 
-    #[tokio::test]
-    async fn test_wildcard_pathfinding_fix() {
+    #[sqlx::test]
+    async fn test_wildcard_pathfinding_fix(pool: sqlx::Pool<sqlx::Postgres>) {
         // Test that wildcard pathfinding works correctly after the fix
         use std::io::Write;
         use tempfile::NamedTempFile;
