@@ -110,12 +110,20 @@ impl Board {
                 paths.append(&mut new_paths);
             }
         }
+
+        // At this point we have a set of paths for this answer, which may use wildcards and therefore impose constraints
+        // we need to rollup the Decided constraints from the series of paths into a single ConstraintsSet for this whole word
+        // if there is any path that uses no wildcards, the wildcards are unconstrainted
+        // if there is no path without wildcards:
+        //      if there is one path, that path's constraints are the constraint set
+        //      if there are multiple paths, we can accept any of them, but how do represent that? // TODO
         
         // Filter out paths that use a superset of wildcards compared to other paths
-        let final_paths = Self::filter_minimal_wildcard_paths(paths);
+        // N.B. we probably don't want this
+        // let final_paths = Self::filter_minimal_wildcard_paths(paths);
         
         return answer::Answer {
-            paths: final_paths,
+            paths: paths,
             word: word.into(),
         };
     }
@@ -151,11 +159,12 @@ impl Board {
             tiles.push_back(GameTile::from(current_location));
             let mut constraints = HashMap::new();
             if current_location.is_wildcard {
-                let _ = constraints.insert(current_location.id(), current_char);
+                let _ = constraints.insert(current_location.id(), constraints::Constraint::Decided(current_char));
             }
             let path = path::Path {
                 tiles,
-                constraints: constraints::Constraints(constraints),
+                // TODO sort out
+                constraints: constraints::ConstraintsSet(constraints),
             };
             result.push(path);
             return result;
@@ -186,7 +195,7 @@ impl Board {
                     let _ = path
                         .constraints
                         .0
-                        .insert(current_location.id(), current_char);
+                        .insert(current_location.id(), constraints::Constraint::Decided(current_char));
                 }
                 result.push(path.clone());
             }

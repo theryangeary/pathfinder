@@ -112,7 +112,7 @@ impl GameEngine {
         }
     }
 
-    pub fn validate_word(&self, word: &str) -> bool {
+    pub fn is_valid_word_in_dictionary(&self, word: &str) -> bool {
         self.word_trie.search(word)
     }
 
@@ -126,7 +126,7 @@ impl GameEngine {
 
     pub fn validate_answer(&self, board: &Board, word: &str) -> Result<board::answer::Answer, String> {
         // First check if the word is in our dictionary
-        if !self.validate_word(word) {
+        if !self.is_valid_word_in_dictionary(word) {
             return Err(format!("Word '{}' not found in dictionary", word));
         }
 
@@ -157,33 +157,33 @@ impl GameEngine {
         Ok(answer)
     }
 
-    pub async fn validate_word_with_constraints(
-        &self,
-        board: &Board,
-        word: &str,
-        previous_constraints: &HashMap<String, char>,
-    ) -> Result<Option<board::answer::Answer>> {
-        // First check if the word is in our dictionary
-        if !self.validate_word(word) {
-            return Ok(None);
-        }
+    // pub async fn validate_word_with_constraints(
+    //     &self,
+    //     board: &Board,
+    //     word: &str,
+    //     previous_constraints: &HashMap<String, char>,
+    // ) -> Result<Option<board::answer::Answer>> {
+    //     // First check if the word is in our dictionary
+    //     if !self.is_valid_word_in_dictionary(word) {
+    //         return Ok(None);
+    //     }
 
-        // Find all possible paths for this word on the board
-        let answer = self.find_word_paths(board, word);
+    //     // Find all possible paths for this word on the board
+    //     let answer = self.find_word_paths(board, word);
         
-        if answer.paths.is_empty() {
-            return Ok(None);
-        }
+    //     if answer.paths.is_empty() {
+    //         return Ok(None);
+    //     }
 
-        // Apply constraint filtering based on existing constraints
-        let filtered_answer = answer.filter_paths_by_constraints(previous_constraints);
+    //     // Apply constraint filtering based on existing constraints
+    //     let filtered_answer = answer.filter_paths_by_constraints(previous_constraints);
         
-        if filtered_answer.paths.is_empty() {
-            return Ok(None);
-        }
+    //     if filtered_answer.paths.is_empty() {
+    //         return Ok(None);
+    //     }
 
-        Ok(Some(filtered_answer))
-    }
+    //     Ok(Some(filtered_answer))
+    // }
 
     pub async fn find_all_valid_words(&self, board: &Board) -> Result<Vec<board::answer::Answer>> {
         let mut valid_answers = Vec::new();
@@ -201,7 +201,7 @@ impl GameEngine {
         
         // Validate found words against our dictionary and create answers
         for word in found_words {
-            if word.len() >= 3 && self.validate_word(&word) {
+            if word.len() >= 3 && self.is_valid_word_in_dictionary(&word) {
                 if let Ok(answer) = self.validate_answer(board, &word) {
                     if !answer.paths.is_empty() {
                         valid_answers.push(answer);
@@ -421,9 +421,9 @@ mod tests {
         let engine = GameEngine::new(words);
         
         // Test that the engine was initialized properly
-        assert!(engine.validate_word("cat"));
-        assert!(engine.validate_word("dog"));
-        assert!(!engine.validate_word("nonexistent"));
+        assert!(engine.is_valid_word_in_dictionary("cat"));
+        assert!(engine.is_valid_word_in_dictionary("dog"));
+        assert!(!engine.is_valid_word_in_dictionary("nonexistent"));
     }
 
     #[tokio::test]
@@ -432,14 +432,14 @@ mod tests {
         let engine = GameEngine::new(words);
         
         // Test valid words
-        assert!(engine.validate_word("cat"));
-        assert!(engine.validate_word("dog"));
-        assert!(engine.validate_word("test"));
+        assert!(engine.is_valid_word_in_dictionary("cat"));
+        assert!(engine.is_valid_word_in_dictionary("dog"));
+        assert!(engine.is_valid_word_in_dictionary("test"));
         
         // Test invalid words
-        assert!(!engine.validate_word("xyz"));
-        assert!(!engine.validate_word(""));
-        assert!(!engine.validate_word("notinlist"));
+        assert!(!engine.is_valid_word_in_dictionary("xyz"));
+        assert!(!engine.is_valid_word_in_dictionary(""));
+        assert!(!engine.is_valid_word_in_dictionary("notinlist"));
     }
 
     #[tokio::test]
@@ -528,47 +528,47 @@ mod tests {
         assert_eq!(answer.word, "cat");
     }
 
-    #[tokio::test]
-    async fn test_game_engine_validate_word_with_constraints_valid() {
-        let words = create_test_wordlist();
-        let engine = GameEngine::new(words);
-        let board = create_test_board();
+    // #[tokio::test]
+    // async fn test_game_engine_validate_word_with_constraints_valid() {
+    //     let words = create_test_wordlist();
+    //     let engine = GameEngine::new(words);
+    //     let board = create_test_board();
         
-        // Test with empty constraints
-        let constraints = HashMap::new();
-        let result = engine.validate_word_with_constraints(&board, "cat", &constraints).await;
-        assert!(result.is_ok());
+    //     // Test with empty constraints
+    //     let constraints = HashMap::new();
+    //     let result = engine.validate_word_with_constraints(&board, "cat", &constraints).await;
+    //     assert!(result.is_ok());
         
-        let answer = result.unwrap();
-        assert!(answer.is_some());
-        assert_eq!(answer.unwrap().word, "cat");
-    }
+    //     let answer = result.unwrap();
+    //     assert!(answer.is_some());
+    //     assert_eq!(answer.unwrap().word, "cat");
+    // }
 
-    #[tokio::test]
-    async fn test_game_engine_validate_word_with_constraints_invalid_word() {
-        let words = create_test_wordlist();
-        let engine = GameEngine::new(words);
-        let board = create_test_board();
+    // #[tokio::test]
+    // async fn test_game_engine_validate_word_with_constraints_invalid_word() {
+    //     let words = create_test_wordlist();
+    //     let engine = GameEngine::new(words);
+    //     let board = create_test_board();
         
-        // Test invalid word
-        let constraints = HashMap::new();
-        let result = engine.validate_word_with_constraints(&board, "xyz", &constraints).await;
-        assert!(result.is_ok());
-        assert!(result.unwrap().is_none());
-    }
+    //     // Test invalid word
+    //     let constraints = HashMap::new();
+    //     let result = engine.validate_word_with_constraints(&board, "xyz", &constraints).await;
+    //     assert!(result.is_ok());
+    //     assert!(result.unwrap().is_none());
+    // }
 
-    #[tokio::test]
-    async fn test_game_engine_validate_word_with_constraints_no_path() {
-        let words = create_test_wordlist();
-        let engine = GameEngine::new(words);
-        let board = create_test_board();
+    // #[tokio::test]
+    // async fn test_game_engine_validate_word_with_constraints_no_path() {
+    //     let words = create_test_wordlist();
+    //     let engine = GameEngine::new(words);
+    //     let board = create_test_board();
         
-        // Test word that can't be formed on board
-        let constraints = HashMap::new();
-        let result = engine.validate_word_with_constraints(&board, "game", &constraints).await;
-        assert!(result.is_ok());
-        assert!(result.unwrap().is_none());
-    }
+    //     // Test word that can't be formed on board
+    //     let constraints = HashMap::new();
+    //     let result = engine.validate_word_with_constraints(&board, "game", &constraints).await;
+    //     assert!(result.is_ok());
+    //     assert!(result.unwrap().is_none());
+    // }
 
     #[tokio::test]
     async fn test_find_all_valid_words() {

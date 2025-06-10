@@ -23,5 +23,5 @@ impl GameTile {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Path {
     pub tiles: VecDeque<GameTile>,
-    pub constraints: constraints::Constraints,
+    pub constraints: constraints::ConstraintsSet,
 }

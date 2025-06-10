@@ -56,6 +56,16 @@ pub struct ApiAnswer {
     pub wildcard_constraints: HashMap<String, String>,
 }
 
+impl ApiAnswer {
+    pub fn sanitize(self) -> Self {
+        Self {
+            word: self.word.to_lowercase(),
+            // TODO sanitize score
+            ..self
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ApiPosition {
     pub row: i32,
@@ -270,7 +280,7 @@ async fn validate_answer(
     Json(request): Json<ValidateRequest>,
 ) -> Result<Json<ValidateResponse>, StatusCode> {
     // Use the game engine to validate the word
-    let is_valid = state.game_engine.validate_word(&request.word);
+    let is_valid = state.game_engine.is_valid_word_in_dictionary(&request.word);
     
     let response = ValidateResponse {
         is_valid,
@@ -505,13 +515,29 @@ async fn validate_submitted_answers(
             .map_err(|_| "Failed to parse game board data".to_string())?;
     
     let board: crate::game::Board = serializable_board.into();
-    
+
+    // Sanitize input
+    let mut sanitized_answers: Vec<ApiAnswer> = Vec::new();
+    for i in 0..submitted_answers.len() {
+        sanitized_answers.push(submitted_answers[i].clone().sanitize());
+    }
+
     // First validate that all words exist in the dictionary
-    for api_answer in submitted_answers {
-        if !state.game_engine.validate_word(&api_answer.word) {
-            return Err(format!("Word '{}' is not in the dictionary", api_answer.word));
+    for answer in &sanitized_answers {
+        if !state.game_engine.is_valid_word_in_dictionary(&answer.word) {
+            return Err(format!("Word '{}' is not in the dictionary", answer.word));
         }
     }
+
+    // Get all paths for each word
+    let mut answers_with_all_paths = Vec::new();
+    for input in &sanitized_answers {
+        answers_with_all_paths.push(board.paths_for(&input.word));
+    }
+
+    // For any word that does not require wildcards, filter to non-wildcard paths
+
+    // For words that do require wildcards, ensure constraints can be satisfied
     
     // Find all possible answers (with all their paths) for each word
     let mut all_possible_answers = Vec::new();

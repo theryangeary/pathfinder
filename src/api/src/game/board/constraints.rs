@@ -67,8 +67,6 @@ impl Constraint {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Constraints(pub HashMap<String, char>);
-#[derive(Debug, Clone, PartialEq)]
 pub struct ConstraintsSet(pub HashMap<String, Constraint>);
 
 impl ConstraintsSet {
@@ -105,39 +103,6 @@ impl ConstraintsSet {
     }
 }
 
-impl Constraints {
-    pub fn new() -> Self {
-        Constraints(HashMap::new())
-    }
-
-    pub fn has_collision_with(&self, other: &Constraints) -> bool {
-        let mut merged = self.0.clone();
-        for (k, v) in (&other.0).into_iter() {
-            let previous = merged.insert(k.to_string(), *v);
-            if let Some(p) = previous {
-                if p != *v {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    // returns None if the intersection of constraints is invalid
-    pub fn intersection(&self, other: &Constraints) -> Option<Constraints> {
-        let mut merged = self.0.clone();
-        for (k, v) in other.0.iter() {
-            let previous = merged.insert(k.to_string(), *v);
-            if let Some(p) = previous {
-                if p != *v {
-                    return None;
-                }
-            }
-        }
-        return Some(Constraints(merged));
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -145,15 +110,15 @@ mod tests {
     const X: &str = "1_1";
     const Y: &str = "2_2";
 
-    fn constraints_from(xi: Option<char>, yi: Option<char>) -> Constraints {
+    fn constraints_from(xi: Option<char>, yi: Option<char>) -> ConstraintsSet {
         let mut c = HashMap::new();
         if let Some(x) = xi {
-            c.insert(X.into(), x);
+            c.insert(X.into(), Constraint::Decided(x));
         }
         if let Some(y) = yi {
-            c.insert(Y.into(), y);
+            c.insert(Y.into(), Constraint::Decided(y));
         }
-        return Constraints(c);
+        return ConstraintsSet(c);
     }
 
     #[test]
