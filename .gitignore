@@ -85,6 +85,7 @@ jspm_packages/
 .claude/
 
 # Rust backend
+target/
 src/api/target/
 src/api/Cargo.lock
 src/api/*.db
