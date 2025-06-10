@@ -52,6 +52,9 @@ nonzero = "0.2"
 # Game logic dependencies (reuse from word-game)
 log = "0.4"
 
+# Memory profiling
+sysinfo = "0.30"
+
 
 [dev-dependencies]
 tokio-test = "0.4"
