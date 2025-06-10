@@ -384,4 +384,78 @@ mod tests {
         // Should find multiple paths from different 'a' tiles to adjacent 'b' tiles
         assert!(answer.paths.len() > 1, "Should find multiple paths for 'ab'");
     }
+
+    #[test]
+    fn test_wildcard_constraint_resolution() {
+        // Test our constraint resolution logic with a focused board scenario
+        let board = create_puzzle9_test_board();
+        
+        // Test that we can find answers for puzzle #9 words
+        let words = ["til", "moccasin", "moan", "tonal"];
+        let mut answers = Vec::new();
+        
+        for word in words {
+            let answer = board.paths_for(word);
+            if !answer.paths.is_empty() {
+                answers.push(answer);
+            }
+        }
+        
+        // All words should be findable on the board
+        assert_eq!(answers.len(), 4, "All test words should be findable on puzzle #9 board");
+        
+        // Test constraint compatibility
+        for i in 0..answers.len() {
+            for j in (i + 1)..answers.len() {
+                let answer1 = &answers[i];
+                let answer2 = &answers[j];
+                let can_coexist = answer1.can_coexist_with(answer2);
+                println!("Words '{}' and '{}' can coexist: {}", answer1.word, answer2.word, can_coexist);
+            }
+        }
+    }
+
+    fn create_puzzle9_test_board() -> Board {
+        // Create the exact puzzle #9 board for testing
+        // T M I T
+        // C * O T  <- wildcard at (1,1)
+        // S A * I  <- wildcard at (2,2)
+        // I N A L
+        Board {
+            rows: vec![
+                Row {
+                    tiles: vec![
+                        Tile { letter: "t".into(), points: 1, is_wildcard: false, row: 0, col: 0 },
+                        Tile { letter: "m".into(), points: 3, is_wildcard: false, row: 0, col: 1 },
+                        Tile { letter: "i".into(), points: 1, is_wildcard: false, row: 0, col: 2 },
+                        Tile { letter: "t".into(), points: 1, is_wildcard: false, row: 0, col: 3 },
+                    ],
+                },
+                Row {
+                    tiles: vec![
+                        Tile { letter: "c".into(), points: 2, is_wildcard: false, row: 1, col: 0 },
+                        Tile { letter: "*".into(), points: 0, is_wildcard: true, row: 1, col: 1 },
+                        Tile { letter: "o".into(), points: 1, is_wildcard: false, row: 1, col: 2 },
+                        Tile { letter: "t".into(), points: 1, is_wildcard: false, row: 1, col: 3 },
+                    ],
+                },
+                Row {
+                    tiles: vec![
+                        Tile { letter: "s".into(), points: 1, is_wildcard: false, row: 2, col: 0 },
+                        Tile { letter: "a".into(), points: 1, is_wildcard: false, row: 2, col: 1 },
+                        Tile { letter: "*".into(), points: 0, is_wildcard: true, row: 2, col: 2 },
+                        Tile { letter: "i".into(), points: 1, is_wildcard: false, row: 2, col: 3 },
+                    ],
+                },
+                Row {
+                    tiles: vec![
+                        Tile { letter: "i".into(), points: 1, is_wildcard: false, row: 3, col: 0 },
+                        Tile { letter: "n".into(), points: 1, is_wildcard: false, row: 3, col: 1 },
+                        Tile { letter: "a".into(), points: 1, is_wildcard: false, row: 3, col: 2 },
+                        Tile { letter: "l".into(), points: 2, is_wildcard: false, row: 3, col: 3 },
+                    ],
+                },
+            ],
+        }
+    }
 }

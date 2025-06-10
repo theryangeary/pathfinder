@@ -506,36 +506,32 @@ async fn validate_submitted_answers(
     
     let board: crate::game::Board = serializable_board.into();
     
-    // Convert API answers to game engine format for validation
-    let mut game_answers = Vec::new();
-    
+    // First validate that all words exist in the dictionary
     for api_answer in submitted_answers {
-        // First validate that the word exists in the dictionary
         if !state.game_engine.validate_word(&api_answer.word) {
             return Err(format!("Word '{}' is not in the dictionary", api_answer.word));
         }
-        
-        // Validate that the word can be formed on this board with a valid path,
-        // considering constraints from all previously validated answers
-        let answer = state.game_engine.validate_answer_with_constraints(&board, &api_answer.word, &game_answers)
-            .map_err(|e| format!("Invalid answer for word '{}': {}", api_answer.word, e))?;
-        
-        game_answers.push(answer);
     }
     
-    // Validate that all answers can coexist (wildcard constraints don't conflict)
-    for i in 0..game_answers.len() {
-        for j in (i + 1)..game_answers.len() {
-            let answer1 = &game_answers[i];
-            let answer2 = &game_answers[j];
-            
-            // Check if the answers have compatible wildcard constraints
-            if !answers_are_compatible(answer1, answer2) {
-                return Err(format!(
-                    "Answers '{}' and '{}' have conflicting wildcard constraints",
-                    answer1.word, answer2.word
-                ));
-            }
+    // Find all possible answers (with all their paths) for each word
+    let mut all_possible_answers = Vec::new();
+    for api_answer in submitted_answers {
+        let answer = state.game_engine.validate_answer(&board, &api_answer.word)
+            .map_err(|e| format!("Invalid answer for word '{}': {}", api_answer.word, e))?;
+        all_possible_answers.push(answer);
+    }
+    
+    // Use sophisticated constraint resolution to find a compatible set of paths
+    if !find_compatible_answer_set(&all_possible_answers) {
+        // Try to identify which specific answers are conflicting for better error messages
+        let conflicting_pair = find_conflicting_answer_pair(&all_possible_answers);
+        if let Some((word1, word2)) = conflicting_pair {
+            return Err(format!(
+                "Answers '{}' and '{}' have conflicting wildcard constraints",
+                word1, word2
+            ));
+        } else {
+            return Err("Some answers have conflicting wildcard constraints".to_string());
         }
     }
     
@@ -548,6 +544,100 @@ fn answers_are_compatible(
 ) -> bool {
     // Use the built-in method to check if two answers can coexist
     answer1.can_coexist_with(answer2)
+}
+
+/// Find a compatible set of answer paths using constraint satisfaction
+fn find_compatible_answer_set(answers: &[crate::game::board::answer::Answer]) -> bool {
+    if answers.is_empty() {
+        return true;
+    }
+    
+    // Use backtracking to find a compatible combination of paths
+    let mut selected_paths = vec![0; answers.len()]; // Index of selected path for each answer
+    find_compatible_paths_recursive(answers, &mut selected_paths, 0)
+}
+
+/// Recursive backtracking to find compatible path combinations
+fn find_compatible_paths_recursive(
+    answers: &[crate::game::board::answer::Answer],
+    selected_paths: &mut [usize],
+    answer_index: usize,
+) -> bool {
+    if answer_index >= answers.len() {
+        // We've selected paths for all answers - check if they're all compatible
+        return validate_all_selected_paths_compatible(answers, selected_paths);
+    }
+    
+    let current_answer = &answers[answer_index];
+    
+    // Try each path for the current answer
+    for path_index in 0..current_answer.paths.len() {
+        selected_paths[answer_index] = path_index;
+        
+        // Check if this path is compatible with all previously selected paths
+        if is_path_compatible_with_previous(answers, selected_paths, answer_index) {
+            // Recursively try to find compatible paths for remaining answers
+            if find_compatible_paths_recursive(answers, selected_paths, answer_index + 1) {
+                return true;
+            }
+        }
+    }
+    
+    false
+}
+
+/// Check if the currently selected path is compatible with all previously selected paths
+fn is_path_compatible_with_previous(
+    answers: &[crate::game::board::answer::Answer],
+    selected_paths: &[usize],
+    current_index: usize,
+) -> bool {
+    let current_answer = &answers[current_index];
+    let current_path = &current_answer.paths[selected_paths[current_index]];
+    
+    for prev_index in 0..current_index {
+        let prev_answer = &answers[prev_index];
+        let prev_path = &prev_answer.paths[selected_paths[prev_index]];
+        
+        // Check if the constraints of these two paths are compatible
+        if current_path.constraints.has_collision_with(&prev_path.constraints) {
+            return false;
+        }
+    }
+    
+    true
+}
+
+/// Validate that all selected paths are mutually compatible
+fn validate_all_selected_paths_compatible(
+    answers: &[crate::game::board::answer::Answer],
+    selected_paths: &[usize],
+) -> bool {
+    for i in 0..answers.len() {
+        for j in (i + 1)..answers.len() {
+            let path1 = &answers[i].paths[selected_paths[i]];
+            let path2 = &answers[j].paths[selected_paths[j]];
+            
+            if path1.constraints.has_collision_with(&path2.constraints) {
+                return false;
+            }
+        }
+    }
+    true
+}
+
+/// Find a pair of answers that cannot coexist for error reporting
+fn find_conflicting_answer_pair(
+    answers: &[crate::game::board::answer::Answer],
+) -> Option<(String, String)> {
+    for i in 0..answers.len() {
+        for j in (i + 1)..answers.len() {
+            if !answers[i].can_coexist_with(&answers[j]) {
+                return Some((answers[i].word.clone(), answers[j].word.clone()));
+            }
+        }
+    }
+    None
 }
 
 async fn health_check() -> Result<Json<serde_json::Value>, StatusCode> {
