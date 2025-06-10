@@ -19,18 +19,18 @@ services:
       timeout: 5s
       retries: 5
 
-  # Backend Rust API
-  backend:
+  # Pathfinder Application (Frontend + Backend)
+  app:
     build:
-      context: ./src/api
+      context: .
       dockerfile: Dockerfile
-    container_name: pathfinder-backend
+    container_name: pathfinder-app
     environment:
       DATABASE_URL: postgresql://pathfinder:pathfinder_pass@postgres:5432/pathfinder
       SERVER_HOST: 0.0.0.0
-      HTTP_PORT: 3001
+      HTTP_PORT: 8080
       RUST_LOG: info
-      ALLOWED_ORIGINS: http://localhost:3000,http://frontend
+      ALLOWED_ORIGINS: http://localhost:8080
       RATE_LIMIT_SESSION: 10
       RATE_LIMIT_READ: 200
       RATE_LIMIT_WRITE: 50
@@ -42,25 +42,10 @@ services:
       HSTS_MAX_AGE: 31536000
       CORS_MAX_AGE: 300
     ports:
-      - "3001:3001"
+      - "8080:8080"
     depends_on:
       postgres:
         condition: service_healthy
-    volumes:
-      - ./src/api/wordlist:/app/wordlist:ro
-
-  # Frontend React App
-  frontend:
-    build:
-      context: .
-      dockerfile: src/web/Dockerfile
-    container_name: pathfinder-frontend
-    ports:
-      - "3000:80"
-    depends_on:
-      - backend
-    environment:
-      - NODE_ENV=production
 
 volumes:
   postgres_data:
