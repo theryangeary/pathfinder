@@ -319,7 +319,7 @@ impl Repository {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use sqlx::SqlitePool;
+    // No database imports needed for disabled tests
 
     // Commented out SQLite test setup for PostgreSQL migration
     // async fn setup_test_db() -> Repository {
