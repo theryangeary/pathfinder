@@ -32,7 +32,17 @@
       "Bash(docker compose:*)",
       "Bash(rustc --version)",
       "Bash(npm test:*)",
-      "WebFetch(domain:fly.io)"
+      "WebFetch(domain:fly.io)",
+      "Bash(ps:*)",
+      "Bash(DATABASE_URL=\"sqlite:game.db\" RUST_LOG=debug cargo run)",
+      "Bash(RUST_LOG=info cargo run --bin memory_test)",
+      "Bash(RUST_LOG=info cargo run --bin game_generation_memory_test)",
+      "Bash(RUST_LOG=info ./target/release/optimized_memory_test)",
+      "Bash(RUST_LOG=info ./target/release/game_generation_memory_test)",
+      "Bash(RUST_LOG=info cargo run)",
+      "Bash(RUST_LOG=info cargo run --bin word-game-backend)",
+      "Bash(RUST_LOG=info cargo run --bin http_memory_test)",
+      "Bash(diff:*)"
     ],
     "deny": []
   }
