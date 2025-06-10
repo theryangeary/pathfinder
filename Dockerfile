@@ -38,6 +38,10 @@ COPY --from=frontend-builder /app/src/web/dist ./static
 COPY --from=backend-builder /app/wordlist ./wordlist
 COPY --from=backend-builder /app/migrations ./migrations
 
+# Set environment variables for container deployment
+ENV HTTP_PORT=8080
+ENV SERVER_HOST=0.0.0.0
+
 EXPOSE 8080
 
 CMD ["./word-game-backend"]

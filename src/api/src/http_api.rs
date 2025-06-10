@@ -7,7 +7,7 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use tower_http::{cors::CorsLayer, timeout::TimeoutLayer, limit::RequestBodyLimitLayer};
+use tower_http::{cors::CorsLayer, timeout::TimeoutLayer, limit::RequestBodyLimitLayer, services::ServeDir};
 use moka::future::Cache;
 use tower::ServiceBuilder;
 
@@ -139,6 +139,7 @@ pub fn create_router(state: ApiState) -> Router {
         .route("/api/submit", post(submit_answers))
         .route("/api/user", post(create_user))
         .route("/api/game-entry/:game_id", get(get_game_entry))
+        .nest_service("/", ServeDir::new("static"))
         .layer(
             CorsLayer::new()
                 .allow_origin(tower_http::cors::Any)
@@ -157,6 +158,7 @@ pub fn create_secure_router(state: ApiState, config: SecurityConfig) -> Router {
         .route("/api/user", post(create_user))
         .route("/api/game-entry/:game_id", get(get_game_entry))
         .route("/health", get(health_check))
+        .nest_service("/", ServeDir::new("static"))
         .layer(RequestBodyLimitLayer::new(config.max_request_size))
         .layer(TimeoutLayer::new(config.request_timeout))
         .layer(RateLimitLayer::new(config.clone()))
@@ -1120,6 +1122,15 @@ mod tests {
         // L E * D  <- wildcard at (2,2)  
         // S E E O
         r#"{"rows":[{"tiles":[{"letter":"h","points":3,"is_wildcard":false,"row":0,"col":0},{"letter":"i","points":1,"is_wildcard":false,"row":0,"col":1},{"letter":"s","points":1,"is_wildcard":false,"row":0,"col":2},{"letter":"s","points":1,"is_wildcard":false,"row":0,"col":3}]},{"tiles":[{"letter":"c","points":2,"is_wildcard":false,"row":1,"col":0},{"letter":"*","points":0,"is_wildcard":true,"row":1,"col":1},{"letter":"l","points":2,"is_wildcard":false,"row":1,"col":2},{"letter":"o","points":1,"is_wildcard":false,"row":1,"col":3}]},{"tiles":[{"letter":"l","points":2,"is_wildcard":false,"row":2,"col":0},{"letter":"e","points":1,"is_wildcard":false,"row":2,"col":1},{"letter":"*","points":0,"is_wildcard":true,"row":2,"col":2},{"letter":"d","points":2,"is_wildcard":false,"row":2,"col":3}]},{"tiles":[{"letter":"s","points":1,"is_wildcard":false,"row":3,"col":0},{"letter":"e","points":1,"is_wildcard":false,"row":3,"col":1},{"letter":"e","points":1,"is_wildcard":false,"row":3,"col":2},{"letter":"o","points":1,"is_wildcard":false,"row":3,"col":3}]}]}"#.to_string()
+    }
+
+    fn create_puzzle9_board_data() -> String {
+        // JSON representation of the puzzle #9 board from user screenshot
+        // T M I T
+        // C * O T  <- wildcard at (1,1)
+        // S A * I  <- wildcard at (2,2)
+        // I N A L
+        r#"{"rows":[{"tiles":[{"letter":"t","points":1,"is_wildcard":false,"row":0,"col":0},{"letter":"m","points":3,"is_wildcard":false,"row":0,"col":1},{"letter":"i","points":1,"is_wildcard":false,"row":0,"col":2},{"letter":"t","points":1,"is_wildcard":false,"row":0,"col":3}]},{"tiles":[{"letter":"c","points":2,"is_wildcard":false,"row":1,"col":0},{"letter":"*","points":0,"is_wildcard":true,"row":1,"col":1},{"letter":"o","points":1,"is_wildcard":false,"row":1,"col":2},{"letter":"t","points":1,"is_wildcard":false,"row":1,"col":3}]},{"tiles":[{"letter":"s","points":1,"is_wildcard":false,"row":2,"col":0},{"letter":"a","points":1,"is_wildcard":false,"row":2,"col":1},{"letter":"*","points":0,"is_wildcard":true,"row":2,"col":2},{"letter":"i","points":1,"is_wildcard":false,"row":2,"col":3}]},{"tiles":[{"letter":"i","points":1,"is_wildcard":false,"row":3,"col":0},{"letter":"n","points":1,"is_wildcard":false,"row":3,"col":1},{"letter":"a","points":1,"is_wildcard":false,"row":3,"col":2},{"letter":"l","points":2,"is_wildcard":false,"row":3,"col":3}]}]}"#.to_string()
     }
 
     #[tokio::test]
