@@ -212,7 +212,7 @@ mod tests {
 
     async fn create_test_game_generator_without_db() -> (GameEngine, NamedTempFile) {
         let temp_file = create_test_wordlist();
-        let game_engine = GameEngine::new(temp_file.path()).await.unwrap();
+        let game_engine = GameEngine::new(temp_file.path().to_path_buf());
         (game_engine, temp_file)
     }
 

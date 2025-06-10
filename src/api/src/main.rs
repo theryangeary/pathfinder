@@ -51,7 +51,7 @@ async fn main() -> Result<()> {
 
     // Setup game engine
     info!("Initializing game engine");
-    let game_engine = GameEngine::new("wordlist").await?;
+    let game_engine = GameEngine::new(std::path::PathBuf::from("wordlist"));
     memory_profiler.log_memory("after_game_engine_init");
 
     // Setup security configuration

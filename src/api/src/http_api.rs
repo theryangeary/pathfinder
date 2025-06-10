@@ -672,7 +672,7 @@ mod tests {
         temp_file.write_all("test\nword\nhello\nworld\nvalid".as_bytes()).unwrap();
         let temp_path = temp_file.path();
         
-        let game_engine = GameEngine::new(temp_path).await.unwrap();
+        let game_engine = GameEngine::new(temp_path.to_path_buf());
         
         let state = ApiState::new(repository, game_engine);
         let app = create_router(state.clone());
@@ -1132,7 +1132,7 @@ mod tests {
         temp_file.write_all("sed\ntest\nword\nsilo\nseed\nsold\ndoes".as_bytes()).unwrap();
         let temp_path = temp_file.path();
         
-        let game_engine = GameEngine::new(temp_path).await.unwrap();
+        let game_engine = GameEngine::new(temp_path.to_path_buf());
         
         // Create the exact board from puzzle #8
         let serializable_board: SerializableBoard = 

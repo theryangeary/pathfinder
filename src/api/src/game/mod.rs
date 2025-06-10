@@ -104,12 +104,12 @@ pub struct GameEngine {
 }
 
 impl GameEngine {
-    pub async fn new<P: AsRef<Path>>(wordlist_path: P) -> Result<Self> {
-        let word_trie = Arc::new(Trie::from_file(wordlist_path.as_ref().to_path_buf())?);
-        Ok(Self {
+    pub fn new<T: Into<Trie>>(trie_source: T) -> Self {
+        let word_trie = Arc::new(trie_source.into());
+        Self {
             word_trie,
             scorer: Scorer::new(),
-        })
+        }
     }
 
     pub fn validate_word(&self, word: &str) -> bool {
@@ -431,10 +431,7 @@ mod tests {
     #[tokio::test]
     async fn test_game_engine_new() {
         let temp_file = create_test_wordlist();
-        let engine = GameEngine::new(temp_file.path()).await;
-        
-        assert!(engine.is_ok());
-        let engine = engine.unwrap();
+        let engine = GameEngine::new(temp_file.path().to_path_buf());
         
         // Test that the engine was initialized properly
         assert!(engine.validate_word("cat"));
@@ -445,7 +442,7 @@ mod tests {
     #[tokio::test]
     async fn test_game_engine_validate_word() {
         let temp_file = create_test_wordlist();
-        let engine = GameEngine::new(temp_file.path()).await.unwrap();
+        let engine = GameEngine::new(temp_file.path().to_path_buf());
         
         // Test valid words
         assert!(engine.validate_word("cat"));
@@ -461,7 +458,7 @@ mod tests {
     #[tokio::test]
     async fn test_game_engine_score_word() {
         let temp_file = create_test_wordlist();
-        let engine = GameEngine::new(temp_file.path()).await.unwrap();
+        let engine = GameEngine::new(temp_file.path().to_path_buf());
         
         let cat_score = engine.score_word("cat");
         let dog_score = engine.score_word("dog");
@@ -477,7 +474,7 @@ mod tests {
     #[tokio::test]
     async fn test_game_engine_find_word_paths() {
         let temp_file = create_test_wordlist();
-        let engine = GameEngine::new(temp_file.path()).await.unwrap();
+        let engine = GameEngine::new(temp_file.path().to_path_buf());
         let board = create_test_board();
         
         // Test finding paths for "cat" (should exist: c-a-t at positions (0,0)-(0,1)-(0,2))
@@ -493,7 +490,7 @@ mod tests {
     #[tokio::test]
     async fn test_game_engine_validate_answer_valid() {
         let temp_file = create_test_wordlist();
-        let engine = GameEngine::new(temp_file.path()).await.unwrap();
+        let engine = GameEngine::new(temp_file.path().to_path_buf());
         let board = create_test_board();
         
         // Test valid answer
@@ -508,7 +505,7 @@ mod tests {
     #[tokio::test]
     async fn test_game_engine_validate_answer_invalid_word() {
         let temp_file = create_test_wordlist();
-        let engine = GameEngine::new(temp_file.path()).await.unwrap();
+        let engine = GameEngine::new(temp_file.path().to_path_buf());
         let board = create_test_board();
         
         // Test invalid word (not in dictionary)
@@ -520,7 +517,7 @@ mod tests {
     #[tokio::test]
     async fn test_game_engine_validate_answer_no_path() {
         let temp_file = create_test_wordlist();
-        let engine = GameEngine::new(temp_file.path()).await.unwrap();
+        let engine = GameEngine::new(temp_file.path().to_path_buf());
         let board = create_test_board();
         
         // Test word that exists in dictionary but can't be formed on board
@@ -532,7 +529,7 @@ mod tests {
     #[tokio::test]
     async fn test_game_engine_validate_answer_with_constraints() {
         let temp_file = create_test_wordlist();
-        let engine = GameEngine::new(temp_file.path()).await.unwrap();
+        let engine = GameEngine::new(temp_file.path().to_path_buf());
         let board = create_test_board();
         
         // Test with empty constraints
@@ -547,7 +544,7 @@ mod tests {
     #[tokio::test]
     async fn test_game_engine_validate_word_with_constraints_valid() {
         let temp_file = create_test_wordlist();
-        let engine = GameEngine::new(temp_file.path()).await.unwrap();
+        let engine = GameEngine::new(temp_file.path().to_path_buf());
         let board = create_test_board();
         
         // Test with empty constraints
@@ -563,7 +560,7 @@ mod tests {
     #[tokio::test]
     async fn test_game_engine_validate_word_with_constraints_invalid_word() {
         let temp_file = create_test_wordlist();
-        let engine = GameEngine::new(temp_file.path()).await.unwrap();
+        let engine = GameEngine::new(temp_file.path().to_path_buf());
         let board = create_test_board();
         
         // Test invalid word
@@ -576,7 +573,7 @@ mod tests {
     #[tokio::test]
     async fn test_game_engine_validate_word_with_constraints_no_path() {
         let temp_file = create_test_wordlist();
-        let engine = GameEngine::new(temp_file.path()).await.unwrap();
+        let engine = GameEngine::new(temp_file.path().to_path_buf());
         let board = create_test_board();
         
         // Test word that can't be formed on board
@@ -589,7 +586,7 @@ mod tests {
     #[tokio::test]
     async fn test_find_all_valid_words() {
         let temp_file = create_test_wordlist();
-        let engine = GameEngine::new(temp_file.path()).await.unwrap();
+        let engine = GameEngine::new(temp_file.path().to_path_buf());
         let board = create_test_board();
         
         let result = engine.find_all_valid_words(&board).await;
@@ -616,7 +613,7 @@ mod tests {
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async {
             let temp_file = create_test_wordlist();
-            let engine = GameEngine::new(temp_file.path()).await.unwrap();
+            let engine = GameEngine::new(temp_file.path().to_path_buf());
             let board = create_test_board();
             
             // This should complete quickly without hanging
@@ -637,7 +634,7 @@ mod tests {
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async {
             let temp_file = create_test_wordlist();
-            let engine = GameEngine::new(temp_file.path()).await.unwrap();
+            let engine = GameEngine::new(temp_file.path().to_path_buf());
             let board = create_test_board();
             
             // Should complete without panicking (testing bounds checking)
@@ -651,7 +648,7 @@ mod tests {
         // Test the core cumulative constraint validation that was fixed
         // This tests that validate_answer_with_constraints properly considers existing constraints
         let temp_file = create_test_wordlist_with_constraints();
-        let engine = GameEngine::new(temp_file.path()).await.unwrap();
+        let engine = GameEngine::new(temp_file.path().to_path_buf());
         let board = create_constraint_test_board();
         
         // Test scenario: first word uses wildcard as 'A', second word needs same wildcard as 'A'
@@ -683,7 +680,7 @@ mod tests {
     async fn test_validate_answer_without_cumulative_constraints_fails() {
         // Test that demonstrates the bug would fail without the fix
         let temp_file = create_test_wordlist_with_diode_scenario();
-        let engine = GameEngine::new(temp_file.path()).await.unwrap();
+        let engine = GameEngine::new(temp_file.path().to_path_buf());
         let board = create_diode_scenario_board();
         
         // Try to validate "diode" without any prior constraints (the old behavior)
@@ -748,7 +745,7 @@ mod tests {
     async fn test_wildcard_constraint_progression() {
         // Test that validates the progression of wildcard constraints through multiple answers
         let temp_file = create_test_wordlist_with_constraints();
-        let engine = GameEngine::new(temp_file.path()).await.unwrap();
+        let engine = GameEngine::new(temp_file.path().to_path_buf());
         let board = create_constraint_test_board();
         
         let mut validated_answers = Vec::new();
