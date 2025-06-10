@@ -89,6 +89,17 @@ impl From<Vec<&str>> for Trie {
     }
 }
 
+impl From<Vec<String>> for Trie {
+    fn from(words: Vec<String>) -> Self {
+        let mut result = Trie::new();
+        for word in words {
+            result.insert(&word)
+        }
+
+        result
+    }
+}
+
 impl From<PathBuf> for Trie {
     fn from(value: PathBuf) -> Self {
         let mut result = Trie::new();
@@ -108,19 +119,6 @@ impl From<String> for Trie {
             result.insert(word);
         }
         result
-    }
-}
-
-impl Trie {
-    pub fn from_file(path: PathBuf) -> Result<Self> {
-        let mut result = Trie::new();
-        let file = File::open(path)?;
-        let buf = BufReader::new(file);
-        for line in buf.lines() {
-            let word = line?;
-            result.insert(&word);
-        }
-        Ok(result)
     }
 }
 
@@ -178,6 +176,32 @@ mod tests {
     fn test_from_string() {
         let wordlist = "apple\nbanana\ncherry\nhappy".to_string();
         let t = Trie::from(wordlist);
+        
+        assert!(t.search("apple"));
+        assert!(t.search("banana"));
+        assert!(t.search("cherry"));
+        assert!(t.search("happy"));
+        assert!(!t.search("grape"));
+        assert!(!t.search("sad"));
+    }
+
+    #[test]
+    fn test_from_vec_string() {
+        let words = vec!["apple".to_string(), "banana".to_string(), "cherry".to_string(), "happy".to_string()];
+        let t = Trie::from(words);
+        
+        assert!(t.search("apple"));
+        assert!(t.search("banana"));
+        assert!(t.search("cherry"));
+        assert!(t.search("happy"));
+        assert!(!t.search("grape"));
+        assert!(!t.search("sad"));
+    }
+
+    #[test]
+    fn test_from_vec_str() {
+        let words = vec!["apple", "banana", "cherry", "happy"];
+        let t = Trie::from(words);
         
         assert!(t.search("apple"));
         assert!(t.search("banana"));

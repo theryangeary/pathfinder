@@ -657,22 +657,14 @@ mod tests {
     use tower::util::ServiceExt;
     use crate::game::GameEngine;
     use crate::db::models::NewGame;
-    use tempfile::NamedTempFile;
-    use sqlx::{pool, Pool, Postgres};
 
 
     async fn setup_app(pool: sqlx::Pool<sqlx::Postgres>) -> (ApiState, Router) {
         let repository = crate::db::Repository::new(pool);
         
-        // Create a minimal game engine for testing with a temporary wordlist
-        use std::io::Write;
-        use tempfile::NamedTempFile;
-        
-        let mut temp_file = NamedTempFile::new().unwrap();
-        temp_file.write_all("test\nword\nhello\nworld\nvalid".as_bytes()).unwrap();
-        let temp_path = temp_file.path();
-        
-        let game_engine = GameEngine::new(temp_path.to_path_buf());
+        // Create a minimal game engine for testing with a word vector
+        let words = vec!["test", "word", "hello", "world", "valid"];
+        let game_engine = GameEngine::new(words);
         
         let state = ApiState::new(repository, game_engine);
         let app = create_router(state.clone());
@@ -1121,18 +1113,13 @@ mod tests {
         r#"{"rows":[{"tiles":[{"letter":"t","points":1,"is_wildcard":false,"row":0,"col":0},{"letter":"m","points":3,"is_wildcard":false,"row":0,"col":1},{"letter":"i","points":1,"is_wildcard":false,"row":0,"col":2},{"letter":"t","points":1,"is_wildcard":false,"row":0,"col":3}]},{"tiles":[{"letter":"c","points":2,"is_wildcard":false,"row":1,"col":0},{"letter":"*","points":0,"is_wildcard":true,"row":1,"col":1},{"letter":"o","points":1,"is_wildcard":false,"row":1,"col":2},{"letter":"t","points":1,"is_wildcard":false,"row":1,"col":3}]},{"tiles":[{"letter":"s","points":1,"is_wildcard":false,"row":2,"col":0},{"letter":"a","points":1,"is_wildcard":false,"row":2,"col":1},{"letter":"*","points":0,"is_wildcard":true,"row":2,"col":2},{"letter":"i","points":1,"is_wildcard":false,"row":2,"col":3}]},{"tiles":[{"letter":"i","points":1,"is_wildcard":false,"row":3,"col":0},{"letter":"n","points":1,"is_wildcard":false,"row":3,"col":1},{"letter":"a","points":1,"is_wildcard":false,"row":3,"col":2},{"letter":"l","points":2,"is_wildcard":false,"row":3,"col":3}]}]}"#.to_string()
     }
 
-    #[sqlx::test]
-    async fn test_wildcard_pathfinding_fix(pool: sqlx::Pool<sqlx::Postgres>) {
+    #[tokio::test]
+    async fn test_wildcard_pathfinding_fix() {
         // Test that wildcard pathfinding works correctly after the fix
-        use std::io::Write;
-        use tempfile::NamedTempFile;
         
         // Create a minimal wordlist for testing
-        let mut temp_file = NamedTempFile::new().unwrap();
-        temp_file.write_all("sed\ntest\nword\nsilo\nseed\nsold\ndoes".as_bytes()).unwrap();
-        let temp_path = temp_file.path();
-        
-        let game_engine = GameEngine::new(temp_path.to_path_buf());
+        let words = vec!["sed", "test", "word", "silo", "seed", "sold", "does"];
+        let game_engine = GameEngine::new(words);
         
         // Create the exact board from puzzle #8
         let serializable_board: SerializableBoard = 
@@ -1148,7 +1135,7 @@ mod tests {
         assert_eq!(answer.word, "sed");
         
         // Also test other words from the puzzle #8 scenario
-        let test_words = ["silo", "seed", "sold", "does"];
+        let test_words = ["silo", "seed", "sed", "sold", "does"];
         for word in test_words {
             let answer = game_engine.validate_answer(&board, word);
             assert!(answer.is_ok(), "Word '{}' should be valid: {:?}", word, answer.err());
