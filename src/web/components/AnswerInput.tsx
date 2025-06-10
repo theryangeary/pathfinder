@@ -55,7 +55,7 @@ const AnswerInput = forwardRef<AnswerInputHandle, AnswerInputProps>(function Ans
         ref={inputRef}
         type="text"
         value={value}
-        onChange={(e) => onChange(index, e.target.value)}
+        onChange={(e) => onChange(index, e.target.value.toLowerCase())}
         onKeyDown={handleKeyDown}
         onFocus={() => onFocus && onFocus(index)}
         disabled={!isEnabled}
