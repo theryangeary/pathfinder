@@ -24,6 +24,7 @@ Thumbs.db
 .gitignore
 
 # Backend files not needed for frontend
+target
 src/api/target
 src/api/.env*
 src/api/*.log
