@@ -101,6 +101,16 @@ impl From<PathBuf> for Trie {
     }
 }
 
+impl From<String> for Trie {
+    fn from(text: String) -> Self {
+        let mut result = Trie::new();
+        for word in text.lines() {
+            result.insert(word);
+        }
+        result
+    }
+}
+
 impl Trie {
     pub fn from_file(path: PathBuf) -> Result<Self> {
         let mut result = Trie::new();
@@ -162,5 +172,18 @@ mod tests {
         assert!(t.has_prefix("apple"));
         assert!(t.has_prefix("app"));
         assert!(t.has_prefix("happy"));
+    }
+
+    #[test]
+    fn test_from_string() {
+        let wordlist = "apple\nbanana\ncherry\nhappy".to_string();
+        let t = Trie::from(wordlist);
+        
+        assert!(t.search("apple"));
+        assert!(t.search("banana"));
+        assert!(t.search("cherry"));
+        assert!(t.search("happy"));
+        assert!(!t.search("grape"));
+        assert!(!t.search("sad"));
     }
 }
