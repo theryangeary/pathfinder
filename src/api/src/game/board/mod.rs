@@ -196,6 +196,7 @@ impl Board {
     }
 
     fn filter_minimal_wildcard_paths(paths: Vec<path::Path>) -> Vec<path::Path> {
+        // TODO i don't think we really want this, but instead we want to filter to non-wildcard paths if they exist
         if paths.is_empty() {
             return paths;
         }
@@ -218,22 +219,6 @@ impl Board {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn display(answer: &answer::Answer) -> String {
-        let mut result = String::new();
-        for path in &answer.paths {
-            let mut letters = String::new();
-            let mut locations = String::new();
-            for tile in &path.tiles {
-                letters.push(tile.letter.chars().next().unwrap_or('*'));
-                locations += &format!(",({},{})", tile.row, tile.col);
-            }
-            result += &letters;
-            result += &format!("[{}],", locations);
-            result.push('\n');
-        }
-        return result;
-    }
 
     fn test_board() -> Board {
         return Board {
@@ -387,6 +372,7 @@ mod tests {
 
     #[test]
     fn test_wildcard_constraint_resolution() {
+        // TODO this test is buggy, doing a double loop over answers and checking any two specific answers satisfies can_coexist_with is not enough to validate that all answers can coexist.
         // Test our constraint resolution logic with a focused board scenario
         let board = create_puzzle9_test_board();
         
