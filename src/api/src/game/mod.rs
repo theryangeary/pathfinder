@@ -1,13 +1,13 @@
-pub mod trie;
-pub mod scoring;
-pub mod directions;
 pub mod board;
 pub mod conversion;
+pub mod directions;
+pub mod scoring;
+pub mod trie;
 
-pub use trie::Trie;
-pub use scoring::Scorer;
 pub use board::Board;
 pub use conversion::*;
+pub use scoring::Scorer;
+pub use trie::Trie;
 
 // BoardGenerator for game generation
 pub struct BoardGenerator {
@@ -48,8 +48,8 @@ impl BoardGenerator {
     }
 
     pub fn generate_board<R: rand::Rng>(&self, rng: &mut R) -> Board {
-        use rand::seq::SliceRandom;
         use rand::distributions::{Distribution, WeightedIndex};
+        use rand::seq::SliceRandom;
 
         // Create weighted distribution for letter selection
         let letters: Vec<char> = self.letter_frequencies.keys().cloned().collect();
@@ -60,13 +60,14 @@ impl BoardGenerator {
 
         // Generate 4x4 board
         let mut board = Board::new();
-        
+
         for row in 0..4 {
             for col in 0..4 {
                 // Choose random letter based on frequency
                 let letter = self.weighted_choice(&letters, &weights, rng);
-                let points = crate::game::scoring::points_for_letter(letter, &self.letter_frequencies);
-                
+                let points =
+                    crate::game::scoring::points_for_letter(letter, &self.letter_frequencies);
+
                 board.set_tile(row, col, letter, points, false);
             }
         }
@@ -85,16 +86,19 @@ impl BoardGenerator {
         rng: &mut R,
     ) -> char {
         use rand::distributions::{Distribution, WeightedIndex};
-        
+
         let dist = WeightedIndex::new(weights).unwrap();
         letters[dist.sample(rng)]
     }
 }
 
-use std::path::{PathBuf, Path};
-use std::collections::HashMap;
-use std::sync::Arc;
 use anyhow::Result;
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+
+use crate::game::board::constraints::AnswerGroupConstraintSet;
+use crate::http_api::ApiAnswer;
 
 /// Main game engine that combines all the game logic components
 #[derive(Clone)]
@@ -112,6 +116,37 @@ impl GameEngine {
         }
     }
 
+    pub fn validate_api_answer_group(&self, board: &Board, answers: Vec<ApiAnswer>) -> Result<(), String> {
+                // Sanitize input
+        let mut sanitized_answers: Vec<ApiAnswer> = Vec::new();
+        for i in 0..answers.len() {
+            sanitized_answers.push(answers[i].clone().sanitize());
+        }
+        self.validate_answer_group(board, sanitized_answers.iter().map(|m| m.word.to_string()).collect())
+    }
+
+    fn validate_answer_group(&self, board: &Board, answers: Vec<String>) -> Result<(), String> {
+        // First validate that all words exist in the dictionary
+        for answer in &answers {
+            if !self.is_valid_word_in_dictionary(&answer) {
+                return Err(format!("Word '{}' is not in the dictionary", answer));
+            }
+        }
+
+        // Get all paths for each word
+        let mut answers_with_all_paths = Vec::new();
+        for answer in &answers {
+            answers_with_all_paths.push(board.paths_for(&answer));
+        }
+
+        // Ensure constraints can be satisfied
+        if AnswerGroupConstraintSet::is_valid_set(answers_with_all_paths) {
+            return Ok(());
+        } else {
+            return Err("Some answers have conflicting wildcard constraints".to_string());
+        }
+    }
+
     pub fn is_valid_word_in_dictionary(&self, word: &str) -> bool {
         self.word_trie.search(word)
     }
@@ -124,7 +159,11 @@ impl GameEngine {
         board.paths_for(word)
     }
 
-    pub fn validate_answer(&self, board: &Board, word: &str) -> Result<board::answer::Answer, String> {
+    pub fn validate_answer(
+        &self,
+        board: &Board,
+        word: &str,
+    ) -> Result<board::answer::Answer, String> {
         // First check if the word is in our dictionary
         if !self.is_valid_word_in_dictionary(word) {
             return Err(format!("Word '{}' not found in dictionary", word));
@@ -132,7 +171,7 @@ impl GameEngine {
 
         // Find all possible paths for this word on the board
         let answer = self.find_word_paths(board, word);
-        
+
         if answer.paths.is_empty() {
             return Err(format!("Word '{}' cannot be formed on this board", word));
         }
@@ -141,19 +180,19 @@ impl GameEngine {
     }
 
     pub fn validate_answer_with_constraints(
-        &self, 
-        board: &Board, 
-        word: &str, 
-        existing_answers: &[board::answer::Answer]
+        &self,
+        board: &Board,
+        word: &str,
+        existing_answers: &[board::answer::Answer],
     ) -> Result<board::answer::Answer, String> {
         let answer = self.validate_answer(board, word)?;
-        
+
         // Check wildcard constraint consistency
         let mut all_answers = existing_answers.iter().collect::<Vec<_>>();
         all_answers.push(&answer);
-        
+
         // Wildcard constraint validation moved to application layer
-        
+
         Ok(answer)
     }
 
@@ -170,14 +209,14 @@ impl GameEngine {
 
     //     // Find all possible paths for this word on the board
     //     let answer = self.find_word_paths(board, word);
-        
+
     //     if answer.paths.is_empty() {
     //         return Ok(None);
     //     }
 
     //     // Apply constraint filtering based on existing constraints
     //     let filtered_answer = answer.filter_paths_by_constraints(previous_constraints);
-        
+
     //     if filtered_answer.paths.is_empty() {
     //         return Ok(None);
     //     }
@@ -187,18 +226,25 @@ impl GameEngine {
 
     pub async fn find_all_valid_words(&self, board: &Board) -> Result<Vec<board::answer::Answer>> {
         let mut valid_answers = Vec::new();
-        
+
         // Generate all possible words from the board using DFS
         let mut found_words = std::collections::HashSet::new();
-        
+
         // Start from each position on the board
         for row in 0..4 {
             for col in 0..4 {
                 let mut visited = std::collections::HashSet::new();
-                self.find_words_from_position(board, row, col, String::new(), &mut visited, &mut found_words);
+                self.find_words_from_position(
+                    board,
+                    row,
+                    col,
+                    String::new(),
+                    &mut visited,
+                    &mut found_words,
+                );
             }
         }
-        
+
         // Validate found words against our dictionary and create answers
         for word in found_words {
             if word.len() >= 3 && self.is_valid_word_in_dictionary(&word) {
@@ -209,7 +255,7 @@ impl GameEngine {
                 }
             }
         }
-        
+
         Ok(valid_answers)
     }
 
@@ -229,26 +275,26 @@ impl GameEngine {
 
         // Mark current position as visited
         visited.insert((row, col));
-        
+
         // Get current tile
         let tile = board.get_tile(row, col);
-        
+
         if tile.is_wildcard {
             // For wildcards, try all possible letters
             for letter in 'a'..='z' {
                 let mut new_word = current_word.clone();
                 new_word.push(letter);
-                
+
                 // Early termination: if this prefix can't lead to any valid words, skip
                 if !self.word_trie.has_prefix(&new_word) {
                     continue;
                 }
-                
+
                 // If word is long enough and valid, add it to found words
                 if new_word.len() >= 3 && self.word_trie.search(&new_word) {
                     found_words.insert(new_word.clone());
                 }
-                
+
                 // Explore adjacent positions with this wildcard letter choice
                 self.explore_adjacent_positions(board, row, col, new_word, visited, found_words);
             }
@@ -256,22 +302,22 @@ impl GameEngine {
             // For regular tiles, add the letter
             let mut new_word = current_word;
             new_word.push_str(&tile.letter);
-            
+
             // Early termination: if this prefix can't lead to any valid words, stop
             if !self.word_trie.has_prefix(&new_word) {
                 visited.remove(&(row, col));
                 return;
             }
-            
+
             // If word is long enough and valid, add it to found words
             if new_word.len() >= 3 && self.word_trie.search(&new_word) {
                 found_words.insert(new_word.clone());
             }
-            
+
             // Explore adjacent positions
             self.explore_adjacent_positions(board, row, col, new_word, visited, found_words);
         }
-        
+
         // Unmark position for other paths
         visited.remove(&(row, col));
     }
@@ -286,21 +332,33 @@ impl GameEngine {
         found_words: &mut std::collections::HashSet<String>,
     ) {
         let directions = [
-            (-1, -1), (-1, 0), (-1, 1),
-            (0, -1),           (0, 1),
-            (1, -1),  (1, 0),  (1, 1),
+            (-1, -1),
+            (-1, 0),
+            (-1, 1),
+            (0, -1),
+            (0, 1),
+            (1, -1),
+            (1, 0),
+            (1, 1),
         ];
-        
+
         for (dr, dc) in directions {
             let new_row = row as i32 + dr;
             let new_col = col as i32 + dc;
-            
+
             if new_row >= 0 && new_row < 4 && new_col >= 0 && new_col < 4 {
                 let new_row = new_row as usize;
                 let new_col = new_col as usize;
-                
+
                 if !visited.contains(&(new_row, new_col)) {
-                    self.find_words_from_position(board, new_row, new_col, current_word.clone(), visited, found_words);
+                    self.find_words_from_position(
+                        board,
+                        new_row,
+                        new_col,
+                        current_word.clone(),
+                        visited,
+                        found_words,
+                    );
                 }
             }
         }
@@ -312,50 +370,52 @@ mod tests {
     use super::*;
     use rand::SeedableRng;
     fn create_test_wordlist() -> Vec<&'static str> {
-        vec!["cat", "dog", "test", "word", "game", "path", "tile", "board"]
+        vec![
+            "cat", "dog", "test", "word", "game", "path", "tile", "board",
+        ]
     }
 
     fn create_test_board() -> Board {
         let mut board = Board::new();
-        
+
         // Create a simple board for testing
         // c a t e
         // o m p l
         // * s e *  (wildcards at 2,0 and 2,3)
         // r n d g
-        
+
         board.set_tile(0, 0, 'c', 2, false);
         board.set_tile(0, 1, 'a', 1, false);
         board.set_tile(0, 2, 't', 1, false);
         board.set_tile(0, 3, 'e', 1, false);
-        
+
         board.set_tile(1, 0, 'o', 1, false);
         board.set_tile(1, 1, 'm', 2, false);
         board.set_tile(1, 2, 'p', 2, false);
         board.set_tile(1, 3, 'l', 1, false);
-        
-        board.set_tile(2, 0, '*', 0, true);  // wildcard
+
+        board.set_tile(2, 0, '*', 0, true); // wildcard
         board.set_tile(2, 1, 's', 1, false);
         board.set_tile(2, 2, 'e', 1, false);
-        board.set_tile(2, 3, '*', 0, true);  // wildcard
-        
+        board.set_tile(2, 3, '*', 0, true); // wildcard
+
         board.set_tile(3, 0, 'r', 1, false);
         board.set_tile(3, 1, 'n', 1, false);
         board.set_tile(3, 2, 'd', 1, false);
         board.set_tile(3, 3, 'g', 2, false);
-        
+
         board
     }
 
     #[test]
     fn test_board_generator_new() {
         let generator = BoardGenerator::new();
-        
+
         // Check that all expected letters are in the frequency map
         assert_eq!(generator.letter_frequencies.len(), 26);
         assert!(generator.letter_frequencies.contains_key(&'a'));
         assert!(generator.letter_frequencies.contains_key(&'z'));
-        
+
         // Check specific frequency values
         assert_eq!(generator.letter_frequencies[&'e'], 0.11);
         assert_eq!(generator.letter_frequencies[&'q'], 0.0019);
@@ -365,9 +425,9 @@ mod tests {
     fn test_board_generator_generate_board() {
         let generator = BoardGenerator::new();
         let mut rng = rand::rngs::StdRng::seed_from_u64(42);
-        
+
         let board = generator.generate_board(&mut rng);
-        
+
         // Check that wildcards are placed correctly
         assert!(board.get_tile(1, 1).is_wildcard);
         assert!(board.get_tile(2, 2).is_wildcard);
@@ -375,11 +435,11 @@ mod tests {
         assert_eq!(board.get_tile(2, 2).letter, "*");
         assert_eq!(board.get_tile(1, 1).points, 0);
         assert_eq!(board.get_tile(2, 2).points, 0);
-        
+
         // Check that other tiles are not wildcards
         assert!(!board.get_tile(0, 0).is_wildcard);
         assert!(!board.get_tile(3, 3).is_wildcard);
-        
+
         // Check that regular tiles have valid letters and points
         for row in 0..4 {
             for col in 0..4 {
@@ -398,18 +458,18 @@ mod tests {
         let letters = vec!['a', 'e', 'z'];
         let weights = vec![0.078, 0.11, 0.0044]; // e is most frequent
         let mut rng = rand::rngs::StdRng::seed_from_u64(42);
-        
+
         // Run multiple times to check distribution
         let mut e_count = 0;
         let total = 1000;
-        
+
         for _ in 0..total {
             let choice = generator.weighted_choice(&letters, &weights, &mut rng);
             if choice == 'e' {
                 e_count += 1;
             }
         }
-        
+
         // E should be chosen more often than other letters (roughly proportional to weight)
         // This is probabilistic, so we use a reasonable range
         assert!(e_count > total / 10); // Should be much more than 1/3
@@ -419,7 +479,7 @@ mod tests {
     async fn test_game_engine_new() {
         let words = create_test_wordlist();
         let engine = GameEngine::new(words);
-        
+
         // Test that the engine was initialized properly
         assert!(engine.is_valid_word_in_dictionary("cat"));
         assert!(engine.is_valid_word_in_dictionary("dog"));
@@ -430,12 +490,12 @@ mod tests {
     async fn test_game_engine_validate_word() {
         let words = create_test_wordlist();
         let engine = GameEngine::new(words);
-        
+
         // Test valid words
         assert!(engine.is_valid_word_in_dictionary("cat"));
         assert!(engine.is_valid_word_in_dictionary("dog"));
         assert!(engine.is_valid_word_in_dictionary("test"));
-        
+
         // Test invalid words
         assert!(!engine.is_valid_word_in_dictionary("xyz"));
         assert!(!engine.is_valid_word_in_dictionary(""));
@@ -446,14 +506,14 @@ mod tests {
     async fn test_game_engine_score_word() {
         let words = create_test_wordlist();
         let engine = GameEngine::new(words);
-        
+
         let cat_score = engine.score_word("cat");
         let dog_score = engine.score_word("dog");
-        
+
         // Both should be positive scores
         assert!(cat_score > 0);
         assert!(dog_score > 0);
-        
+
         // Empty string should score 0
         assert_eq!(engine.score_word(""), 0);
     }
@@ -463,12 +523,12 @@ mod tests {
         let words = create_test_wordlist();
         let engine = GameEngine::new(words);
         let board = create_test_board();
-        
+
         // Test finding paths for "cat" (should exist: c-a-t at positions (0,0)-(0,1)-(0,2))
         let answer = engine.find_word_paths(&board, "cat");
         assert!(!answer.paths.is_empty());
         assert_eq!(answer.word, "cat");
-        
+
         // Test finding paths for non-existent word formation
         let answer = engine.find_word_paths(&board, "xyz");
         assert!(answer.paths.is_empty());
@@ -479,11 +539,11 @@ mod tests {
         let words = create_test_wordlist();
         let engine = GameEngine::new(words);
         let board = create_test_board();
-        
+
         // Test valid answer
         let result = engine.validate_answer(&board, "cat");
         assert!(result.is_ok());
-        
+
         let answer = result.unwrap();
         assert_eq!(answer.word, "cat");
         assert!(!answer.paths.is_empty());
@@ -494,7 +554,7 @@ mod tests {
         let words = create_test_wordlist();
         let engine = GameEngine::new(words);
         let board = create_test_board();
-        
+
         // Test invalid word (not in dictionary)
         let result = engine.validate_answer(&board, "xyz");
         assert!(result.is_err());
@@ -506,11 +566,13 @@ mod tests {
         let words = create_test_wordlist();
         let engine = GameEngine::new(words);
         let board = create_test_board();
-        
+
         // Test word that exists in dictionary but can't be formed on board
         let result = engine.validate_answer(&board, "game");
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("cannot be formed on this board"));
+        assert!(result
+            .unwrap_err()
+            .contains("cannot be formed on this board"));
     }
 
     #[tokio::test]
@@ -518,12 +580,12 @@ mod tests {
         let words = create_test_wordlist();
         let engine = GameEngine::new(words);
         let board = create_test_board();
-        
+
         // Test with empty constraints
         let existing_answers = vec![];
         let result = engine.validate_answer_with_constraints(&board, "cat", &existing_answers);
         assert!(result.is_ok());
-        
+
         let answer = result.unwrap();
         assert_eq!(answer.word, "cat");
     }
@@ -533,12 +595,12 @@ mod tests {
     //     let words = create_test_wordlist();
     //     let engine = GameEngine::new(words);
     //     let board = create_test_board();
-        
+
     //     // Test with empty constraints
     //     let constraints = HashMap::new();
     //     let result = engine.validate_word_with_constraints(&board, "cat", &constraints).await;
     //     assert!(result.is_ok());
-        
+
     //     let answer = result.unwrap();
     //     assert!(answer.is_some());
     //     assert_eq!(answer.unwrap().word, "cat");
@@ -549,7 +611,7 @@ mod tests {
     //     let words = create_test_wordlist();
     //     let engine = GameEngine::new(words);
     //     let board = create_test_board();
-        
+
     //     // Test invalid word
     //     let constraints = HashMap::new();
     //     let result = engine.validate_word_with_constraints(&board, "xyz", &constraints).await;
@@ -562,7 +624,7 @@ mod tests {
     //     let words = create_test_wordlist();
     //     let engine = GameEngine::new(words);
     //     let board = create_test_board();
-        
+
     //     // Test word that can't be formed on board
     //     let constraints = HashMap::new();
     //     let result = engine.validate_word_with_constraints(&board, "game", &constraints).await;
@@ -575,16 +637,16 @@ mod tests {
         let words = create_test_wordlist();
         let engine = GameEngine::new(words);
         let board = create_test_board();
-        
+
         let result = engine.find_all_valid_words(&board).await;
         assert!(result.is_ok());
-        
+
         let valid_answers = result.unwrap();
-        
+
         // Should find at least "cat" since we know it exists on the board
         let cat_found = valid_answers.iter().any(|answer| answer.word == "cat");
         assert!(cat_found);
-        
+
         // All found words should be at least 3 characters long
         for answer in &valid_answers {
             assert!(answer.word.len() >= 3);
@@ -596,18 +658,18 @@ mod tests {
     fn test_find_words_from_position_length_limit() {
         // This is harder to test without access to private methods, so we'll test behavior indirectly
         // through find_all_valid_words ensuring it doesn't hang with very long word generation
-        
+
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async {
             let words = create_test_wordlist();
             let engine = GameEngine::new(words);
             let board = create_test_board();
-            
+
             // This should complete quickly without hanging
             let start = std::time::Instant::now();
             let result = engine.find_all_valid_words(&board).await;
             let duration = start.elapsed();
-            
+
             assert!(result.is_ok());
             // Should complete in reasonable time (much less than 1 second for this simple board)
             assert!(duration < std::time::Duration::from_secs(1));
@@ -623,7 +685,7 @@ mod tests {
             let words = create_test_wordlist();
             let engine = GameEngine::new(words);
             let board = create_test_board();
-            
+
             // Should complete without panicking (testing bounds checking)
             let result = engine.find_all_valid_words(&board).await;
             assert!(result.is_ok());
@@ -637,84 +699,103 @@ mod tests {
         let words = create_test_wordlist_with_constraints();
         let engine = GameEngine::new(words);
         let board = create_constraint_test_board();
-        
+
         // Test scenario: first word uses wildcard as 'A', second word needs same wildcard as 'A'
         let mut validated_answers = Vec::new();
-        
-        // First answer: "cat" - should use wildcard at (2,0) as 'C' 
+
+        // First answer: "cat" - should use wildcard at (2,0) as 'C'
         let cat_result = engine.validate_answer_with_constraints(&board, "cat", &validated_answers);
-        assert!(cat_result.is_ok(), "Failed to validate 'cat': {:?}", cat_result.err());
+        assert!(
+            cat_result.is_ok(),
+            "Failed to validate 'cat': {:?}",
+            cat_result.err()
+        );
         validated_answers.push(cat_result.unwrap());
-        
+
         // Second answer: "cam" - should work if wildcard at (2,0) can be 'C' for both words
         let cam_result = engine.validate_answer_with_constraints(&board, "cam", &validated_answers);
-        assert!(cam_result.is_ok(), "Failed to validate 'cam' with cumulative constraints: {:?}", cam_result.err());
+        assert!(
+            cam_result.is_ok(),
+            "Failed to validate 'cam' with cumulative constraints: {:?}",
+            cam_result.err()
+        );
         let cam_answer = cam_result.unwrap();
-        
+
         // Verify that cam found a valid path considering the existing constraints
         assert!(!cam_answer.paths.is_empty(), "cam should have valid paths");
-        
+
         // Test that this demonstrates the difference from validate_answer (without constraints)
         // If we used validate_answer instead, it might choose a different wildcard constraint
         let cam_no_constraints = engine.validate_answer(&board, "cam");
-        assert!(cam_no_constraints.is_ok(), "cam should be valid without constraints too");
-        
+        assert!(
+            cam_no_constraints.is_ok(),
+            "cam should be valid without constraints too"
+        );
+
         // The key is that with cumulative constraints, wildcard usage is coordinated
         // across multiple answers, which is what the bug fix addressed
     }
-    
+
     #[tokio::test]
     async fn test_validate_answer_without_cumulative_constraints() {
         // Test that demonstrates the bug is gone
         let words = create_test_wordlist_with_diode_scenario();
         let engine = GameEngine::new(words);
         let board = create_diode_scenario_board();
-        
+
         // Try to validate "diode" without any prior constraints (the old behavior)
         let diode_result = engine.validate_answer(&board, "diode");
-        
+
         // This should fail because "diode" can't be formed without wildcard constraints
-        assert!(diode_result.is_ok(), "diode should not fail validation, the wildcard allows it");
+        assert!(
+            diode_result.is_ok(),
+            "diode should not fail validation, the wildcard allows it"
+        );
     }
 
     fn create_test_wordlist_with_constraints() -> Vec<&'static str> {
-        vec!["cat", "cam", "mat", "map", "test", "word", "hello", "world", "valid"]
+        vec![
+            "cat", "cam", "mat", "map", "test", "word", "hello", "world", "valid",
+        ]
     }
 
     fn create_constraint_test_board() -> Board {
         let mut board = Board::new();
-        
+
         // Create a simple test board for constraint testing:
         // c a t e
         // o m p l
         // * s e *  (wildcards at 2,0 and 2,3)
         // r n d g
-        
+
         board.set_tile(0, 0, 'c', 2, false);
         board.set_tile(0, 1, 'a', 1, false);
         board.set_tile(0, 2, 't', 1, false);
         board.set_tile(0, 3, 'e', 1, false);
-        
+
         board.set_tile(1, 0, 'o', 1, false);
         board.set_tile(1, 1, 'm', 2, false);
         board.set_tile(1, 2, 'p', 2, false);
         board.set_tile(1, 3, 'l', 1, false);
-        
-        board.set_tile(2, 0, '*', 0, true);  // wildcard 
+
+        board.set_tile(2, 0, '*', 0, true); // wildcard
         board.set_tile(2, 1, 's', 1, false);
         board.set_tile(2, 2, 'e', 1, false);
-        board.set_tile(2, 3, '*', 0, true);  // wildcard
-        
+        board.set_tile(2, 3, '*', 0, true); // wildcard
+
         board.set_tile(3, 0, 'r', 1, false);
         board.set_tile(3, 1, 'n', 1, false);
         board.set_tile(3, 2, 'd', 1, false);
         board.set_tile(3, 3, 'g', 2, false);
-        
+
         board
     }
 
     fn create_test_wordlist_with_diode_scenario() -> Vec<&'static str> {
-        vec!["ran", "rod", "diode", "best", "test", "redo", "bet", "door", "ore", "do", "od", "re", "to", "ar", "or", "an", "no", "it", "id", "di", "io", "oi"]
+        vec![
+            "ran", "rod", "diode", "best", "test", "redo", "bet", "door", "ore", "do", "od", "re",
+            "to", "ar", "or", "an", "no", "it", "id", "di", "io", "oi",
+        ]
     }
 
     #[tokio::test]
@@ -723,28 +804,36 @@ mod tests {
         let words = create_test_wordlist_with_constraints();
         let engine = GameEngine::new(words);
         let board = create_constraint_test_board();
-        
+
         let mut validated_answers = Vec::new();
-        
+
         // Test each answer in sequence, verifying the system can handle cumulative constraints
-        
+
         // 1. First word that might use wildcards
         let cat_result = engine.validate_answer_with_constraints(&board, "cat", &validated_answers);
         assert!(cat_result.is_ok());
         validated_answers.push(cat_result.unwrap());
-        
+
         // 2. Second word that should be compatible with the first
         let cam_result = engine.validate_answer_with_constraints(&board, "cam", &validated_answers);
         assert!(cam_result.is_ok());
         validated_answers.push(cam_result.unwrap());
-        
+
         // 3. The key test: validate_answer_with_constraints was used throughout
         // This ensures the fix is working - cumulative constraints are considered
-        assert_eq!(validated_answers.len(), 2, "Should have 2 validated answers");
+        assert_eq!(
+            validated_answers.len(),
+            2,
+            "Should have 2 validated answers"
+        );
         for answer in &validated_answers {
-            assert!(!answer.paths.is_empty(), "Answer '{}' should have valid paths", answer.word);
+            assert!(
+                !answer.paths.is_empty(),
+                "Answer '{}' should have valid paths",
+                answer.word
+            );
         }
-        
+
         // This test demonstrates that the validation system can handle multiple
         // answers with potential wildcard constraints in a cumulative manner,
         // which is exactly what the bug fix addressed
@@ -752,33 +841,33 @@ mod tests {
 
     fn create_diode_scenario_board() -> Board {
         let mut board = Board::new();
-        
+
         // Create the board from puzzle #4 (2025-06-04) that caused the bug:
         // I A R O
-        // O * N H   <- wildcard at (1,1) that gets constrained to 'D' 
+        // O * N H   <- wildcard at (1,1) that gets constrained to 'D'
         // D O * T   <- wildcard at (2,2)
         // E R B E
-        
+
         board.set_tile(0, 0, 'i', 1, false);
         board.set_tile(0, 1, 'a', 1, false);
         board.set_tile(0, 2, 'r', 1, false);
         board.set_tile(0, 3, 'o', 1, false);
-        
+
         board.set_tile(1, 0, 'o', 1, false);
-        board.set_tile(1, 1, '*', 0, true);  // wildcard that becomes 'd'
+        board.set_tile(1, 1, '*', 0, true); // wildcard that becomes 'd'
         board.set_tile(1, 2, 'n', 1, false);
         board.set_tile(1, 3, 'h', 3, false);
-        
+
         board.set_tile(2, 0, 'd', 2, false);
         board.set_tile(2, 1, 'o', 1, false);
-        board.set_tile(2, 2, '*', 0, true);  // wildcard 
+        board.set_tile(2, 2, '*', 0, true); // wildcard
         board.set_tile(2, 3, 't', 1, false);
-        
+
         board.set_tile(3, 0, 'e', 1, false);
         board.set_tile(3, 1, 'r', 1, false);
         board.set_tile(3, 2, 'b', 3, false);
         board.set_tile(3, 3, 'e', 1, false);
-        
+
         board
     }
 }
