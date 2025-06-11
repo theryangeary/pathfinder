@@ -3,7 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const WORDLIST_SOURCE = path.join(__dirname, '../src/api/wordlist');
+const WORDLIST_SOURCE = path.join(__dirname, '../wordlist');
 const FRONTEND_OUTPUT = path.join(__dirname, '../src/web/data/wordList.ts');
 
 function generateWordlist() {
