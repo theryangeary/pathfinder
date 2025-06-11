@@ -51,6 +51,7 @@ nonzero = "0.2"
 
 # Game logic dependencies (reuse from word-game)
 log = "0.4"
+phf = { version = "0.11", features = ["macros"] }
 
 # Memory profiling
 sysinfo = "0.30"

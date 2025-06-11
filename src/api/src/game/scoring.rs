@@ -1,40 +1,38 @@
 use std::collections::HashMap;
+use phf::phf_map;
 
-const FREQUENCY_A: f32 = 0.078;
-const FREQUENCY_B: f32 = 0.02;
-const FREQUENCY_C: f32 = 0.04;
-const FREQUENCY_D: f32 = 0.038;
-const FREQUENCY_E: f32 = 0.11;
-const FREQUENCY_F: f32 = 0.014;
-const FREQUENCY_G: f32 = 0.03;
-const FREQUENCY_H: f32 = 0.023;
-const FREQUENCY_I: f32 = 0.086;
-const FREQUENCY_J: f32 = 0.0021;
-const FREQUENCY_K: f32 = 0.0097;
-const FREQUENCY_L: f32 = 0.053;
-const FREQUENCY_M: f32 = 0.027;
-const FREQUENCY_N: f32 = 0.072;
-const FREQUENCY_O: f32 = 0.061;
-const FREQUENCY_P: f32 = 0.028;
-const FREQUENCY_Q: f32 = 0.0019;
-const FREQUENCY_R: f32 = 0.073;
-const FREQUENCY_S: f32 = 0.087;
-const FREQUENCY_T: f32 = 0.067;
-const FREQUENCY_U: f32 = 0.033;
-const FREQUENCY_V: f32 = 0.01;
-const FREQUENCY_W: f32 = 0.0091;
-const FREQUENCY_X: f32 = 0.0027;
-const FREQUENCY_Y: f32 = 0.016;
-const FREQUENCY_Z: f32 = 0.0044;
+static LETTER_FREQUENCIES: phf::Map<char, f64> = phf_map! {
+    'a' => 0.078,
+    'b' => 0.02,
+    'c' => 0.04,
+    'd' => 0.038,
+    'e' => 0.11,
+    'f' => 0.014,
+    'g' => 0.03,
+    'h' => 0.023,
+    'i' => 0.086,
+    'j' => 0.0021,
+    'k' => 0.0097,
+    'l' => 0.053,
+    'm' => 0.027,
+    'n' => 0.072,
+    'o' => 0.061,
+    'p' => 0.028,
+    'q' => 0.0019,
+    'r' => 0.073,
+    's' => 0.087,
+    't' => 0.067,
+    'u' => 0.033,
+    'v' => 0.01,
+    'w' => 0.0091,
+    'x' => 0.0027,
+    'y' => 0.016,
+    'z' => 0.0044,
+};
 
-#[derive(Clone)]
-pub struct Scorer {
-    letter_points: HashMap<char, u32>,
-}
-
-pub fn points_for_letter(letter: char, letter_frequencies: &std::collections::HashMap<char, f64>) -> i32 {
-    let e_freq = letter_frequencies.get(&'e').unwrap_or(&0.11);
-    let letter_freq = letter_frequencies.get(&letter.to_ascii_lowercase()).unwrap_or(&0.01);
+pub fn points_for_letter(letter: char) -> i32 {
+    let e_freq = LETTER_FREQUENCIES.get(&'e').unwrap_or(&0.11);
+    let letter_freq = LETTER_FREQUENCIES.get(&letter.to_ascii_lowercase()).unwrap_or(&0.01);
     
     ((e_freq / letter_freq).log2().floor() as i32) + 1
 }
@@ -45,14 +43,9 @@ mod tests {
 
     #[test]
     fn test_points_for_letter_function() {
-        let mut frequencies = HashMap::new();
-        frequencies.insert('e', 0.11);
-        frequencies.insert('a', 0.078);
-        frequencies.insert('q', 0.0019);
-        
-        let e_points = points_for_letter('e', &frequencies);
-        let a_points = points_for_letter('a', &frequencies);
-        let q_points = points_for_letter('q', &frequencies);
+        let e_points = points_for_letter('e');
+        let a_points = points_for_letter('a');
+        let q_points = points_for_letter('q');
         
         assert_eq!(e_points, 1); // E should be 1 point (e_freq / e_freq = 1, log2(1) = 0, floor(0) + 1 = 1)
         assert!(a_points >= e_points); // A is less frequent than E, so should be worth same or more
@@ -64,23 +57,18 @@ mod tests {
     }
 
     #[test]
-    fn test_points_for_letter_missing_e_frequency() {
-        let mut frequencies = HashMap::new();
-        frequencies.insert('a', 0.078);
+    fn test_points_for_letter_uses_static_frequencies() {
+        let a_points = points_for_letter('a');
         
-        let a_points = points_for_letter('a', &frequencies);
-        
-        // Should use default E frequency of 0.11
+        // Should use static frequency map
         let expected = ((0.11f64 / 0.078f64).log2().floor() as i32) + 1;
         assert_eq!(a_points, expected);
     }
 
     #[test]
-    fn test_points_for_letter_missing_letter_frequency() {
-        let mut frequencies = HashMap::new();
-        frequencies.insert('e', 0.11);
-        
-        let unknown_points = points_for_letter('x', &frequencies);
+    fn test_points_for_letter_unknown_letter_fallback() {
+        // Test with a character not in our frequency map
+        let unknown_points = points_for_letter('🙂');
         
         // Should use default letter frequency of 0.01
         let expected = ((0.11f64 / 0.01f64).log2().floor() as i32) + 1;
@@ -89,29 +77,30 @@ mod tests {
 
     #[test]
     fn test_points_for_letter_case_insensitive() {
-        let mut frequencies = HashMap::new();
-        frequencies.insert('e', 0.11);
-        frequencies.insert('a', 0.078);
-        
-        let lowercase_points = points_for_letter('a', &frequencies);
-        let uppercase_points = points_for_letter('A', &frequencies);
+        let lowercase_points = points_for_letter('a');
+        let uppercase_points = points_for_letter('A');
         
         assert_eq!(lowercase_points, uppercase_points);
     }
 
     #[test]
-    fn test_frequency_constants() {
-        // Verify that the frequency constants are reasonable
-        assert!(FREQUENCY_E > 0.0 && FREQUENCY_E < 1.0);
-        assert!(FREQUENCY_Q > 0.0 && FREQUENCY_Q < 1.0);
+    fn test_letter_frequencies() {
+        // Verify that the frequency map contains reasonable values
+        let e_freq = LETTER_FREQUENCIES.get(&'e').unwrap();
+        let q_freq = LETTER_FREQUENCIES.get(&'q').unwrap();
+        let a_freq = LETTER_FREQUENCIES.get(&'a').unwrap();
+        let z_freq = LETTER_FREQUENCIES.get(&'z').unwrap();
+        
+        assert!(*e_freq > 0.0 && *e_freq < 1.0);
+        assert!(*q_freq > 0.0 && *q_freq < 1.0);
         
         // E should be the most frequent letter
-        assert!(FREQUENCY_E > FREQUENCY_A);
-        assert!(FREQUENCY_E > FREQUENCY_Q);
-        assert!(FREQUENCY_E > FREQUENCY_Z);
+        assert!(*e_freq > *a_freq);
+        assert!(*e_freq > *q_freq);
+        assert!(*e_freq > *z_freq);
         
         // Q and Z should be among the least frequent
-        assert!(FREQUENCY_Q < FREQUENCY_A);
-        assert!(FREQUENCY_Z < FREQUENCY_A);
+        assert!(*q_freq < *a_freq);
+        assert!(*z_freq < *a_freq);
     }
 }

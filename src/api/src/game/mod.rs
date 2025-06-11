@@ -61,7 +61,7 @@ impl BoardGenerator {
                 // Choose random letter based on frequency
                 let letter = self.weighted_choice(&letters, &weights, rng);
                 let points =
-                    crate::game::scoring::points_for_letter(letter, &self.letter_frequencies);
+                    crate::game::scoring::points_for_letter(letter);
 
                 board.set_tile(row, col, letter, points, false);
             }
