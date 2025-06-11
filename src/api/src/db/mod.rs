@@ -5,7 +5,7 @@ pub mod conversions;
 
 pub use repository_simple::Repository;
 
-use sqlx::{postgres::PgPool, Postgres};
+use sqlx::postgres::PgPool;
 use anyhow::Result;
 
 pub async fn setup_database(database_url: &str) -> Result<PgPool> {

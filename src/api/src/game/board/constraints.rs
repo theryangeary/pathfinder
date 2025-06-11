@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::game::board::{answer::Answer, constraints};
+use crate::game::board::answer::Answer;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct UnsatisfiableConstraint;

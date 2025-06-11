@@ -167,33 +167,6 @@ mod tests {
     use chrono::NaiveDate;
     use tokio_test;
 
-    // Mock repository for testing
-    struct MockRepository {
-        existing_games: std::collections::HashMap<String, bool>,
-        should_fail_create: bool,
-    }
-
-    impl MockRepository {
-        fn new() -> Self {
-            Self {
-                existing_games: std::collections::HashMap::new(),
-                should_fail_create: false,
-            }
-        }
-
-        fn with_existing_game(mut self, date: &str) -> Self {
-            self.existing_games.insert(date.to_string(), true);
-            self
-        }
-
-        fn with_create_failure(mut self) -> Self {
-            self.should_fail_create = true;
-            self
-        }
-    }
-
-    // Mock implementation would go here in a real scenario, but for this test we'll focus on the testable pure functions
-
     fn create_test_wordlist() -> NamedTempFile {
         let mut temp_file = NamedTempFile::new().unwrap();
         writeln!(temp_file, "cat").unwrap();

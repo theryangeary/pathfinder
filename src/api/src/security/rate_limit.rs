@@ -3,10 +3,6 @@ use axum::{
     http::{HeaderMap, StatusCode, Uri},
     response::Response,
 };
-use governor::{
-    clock::{DefaultClock, Clock},
-    Quota, RateLimiter,
-};
 use std::{
     collections::HashMap,
     convert::Infallible,
@@ -19,7 +15,6 @@ use std::{
 };
 use tower::{Layer, Service};
 use tracing::{debug, warn};
-use std::num::NonZeroU32;
 
 use crate::security::{SecurityConfig, utils::extract_client_ip};
 

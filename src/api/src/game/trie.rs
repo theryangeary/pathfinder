@@ -4,7 +4,6 @@ use std::{
     path::PathBuf,
     str::Chars,
 };
-use anyhow::Result;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Trie {

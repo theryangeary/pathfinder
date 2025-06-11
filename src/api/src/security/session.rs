@@ -165,7 +165,7 @@ mod tests {
     use super::*;
     use axum::http::{Request, StatusCode};
     use tower::ServiceExt;
-    use tower_cookies::cookie::Cookie;
+    
 
     async fn test_service() -> Response {
         Response::builder()

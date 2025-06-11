@@ -1,13 +1,13 @@
 #[cfg(test)]
 pub mod test_utils {
     use crate::db::models::*;
-    use crate::game::{Board, BoardGenerator, GameEngine, Scorer, SerializableBoard, Trie};
+    use crate::game::{Board, BoardGenerator, GameEngine, Scorer, conversion::SerializableBoard, Trie};
     use crate::http_api::{create_router, ApiState};
-    use crate::security::SecurityConfig;
+    
     use axum::Router;
-    use chrono::{DateTime, Utc};
-    use std::collections::HashMap;
-    use std::path::PathBuf;
+    use chrono::Utc;
+    
+    
     use tempfile::NamedTempFile;
     use uuid::Uuid;
 
@@ -31,7 +31,7 @@ pub mod test_utils {
     /// Creates a test game with default values
     pub fn create_test_game() -> DbGame {
         let board = create_default_test_board();
-        let serializable: crate::game::conversion::SerializableBoard = (&board).into();
+        let serializable: SerializableBoard = (&board).into();
         DbGame {
             id: Uuid::new_v4().to_string(),
             date: "2024-01-01".to_string(),

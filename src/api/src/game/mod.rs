@@ -5,7 +5,6 @@ pub mod scoring;
 pub mod trie;
 
 pub use board::Board;
-pub use conversion::*;
 pub use scoring::Scorer;
 pub use trie::Trie;
 
@@ -48,9 +47,6 @@ impl BoardGenerator {
     }
 
     pub fn generate_board<R: rand::Rng>(&self, rng: &mut R) -> Board {
-        use rand::distributions::{Distribution, WeightedIndex};
-        use rand::seq::SliceRandom;
-
         // Create weighted distribution for letter selection
         let letters: Vec<char> = self.letter_frequencies.keys().cloned().collect();
         let weights: Vec<f64> = letters
@@ -93,8 +89,6 @@ impl BoardGenerator {
 }
 
 use anyhow::Result;
-use std::collections::HashMap;
-use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use crate::game::board::constraints::AnswerGroupConstraintSet;
@@ -150,7 +144,7 @@ impl GameEngine {
         for word in &answers {
             let answer = board.new_answer(word);
             if answer.paths.is_empty() {
-                return Err(format!("Word '{}' has no possible path on board", word))
+                return Err(format!("Word '{}' has no possible path on board", word));
             }
             answers_with_all_paths.push(answer);
         }
@@ -656,7 +650,8 @@ mod tests {
     fn create_test_wordlist_with_biscuit() -> Vec<&'static str> {
         vec![
             "biscuit", "biscuits", "bis", "cut", "suit", "sits", "bit", "its", "cut", "sue", "use",
-            "sit", "is", "it", "us", "bi", "sc", "cu", "ui", "ic", "ci", "is", "si", "it", "ti", "pas", "seer", "nil", "bit",
+            "sit", "is", "it", "us", "bi", "sc", "cu", "ui", "ic", "ci", "is", "si", "it", "ti",
+            "pas", "seer", "nil", "bit",
         ]
     }
 

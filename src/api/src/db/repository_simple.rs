@@ -1,7 +1,6 @@
 use anyhow::Result;
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use sqlx::{PgPool, Row};
-use uuid::Uuid;
 
 use super::models::{DbUser, DbGame, DbGameEntry, NewUser, NewGame, NewGameEntry};
 

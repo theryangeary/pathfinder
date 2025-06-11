@@ -1,10 +1,8 @@
 use core::fmt::Display;
-use std::collections::HashMap;
 use std::fmt::Debug;
 
-use crate::game::board::constraints::{AnswerGroupConstraintSet, ConstraintsSet};
+use crate::game::board::constraints::AnswerGroupConstraintSet;
 
-use super::constraints;
 use super::path::Path;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -15,11 +13,6 @@ pub struct Answer {
 }
 
 impl Answer {
-    pub fn best_path(&self) -> &Path {
-        // Return the first path if available, or the one with least wildcards
-        self.paths.first().unwrap()
-    }
-
     pub fn score(&self) -> i32 {
         if let Some(path) = self.paths.first() {
             path.tiles.iter().map(|tile| tile.points).sum()
@@ -43,7 +36,7 @@ mod tests {
         path::{GameTile, Path},
     };
 
-    use std::collections::VecDeque;
+    use std::collections::{HashMap, VecDeque};
 
     fn create_test_tile(row: i32, col: i32, letter: char, points: i32) -> GameTile {
         GameTile {
@@ -74,45 +67,6 @@ mod tests {
             tiles: tile_deque,
             constraints: PathConstraintSet::Unconstrainted,
         }
-    }
-
-    #[test]
-    fn test_answer_best_path() {
-        let tile1 = create_test_tile(0, 0, 'c', 2);
-        let tile2 = create_test_tile(0, 1, 'a', 1);
-        let tile3 = create_test_tile(0, 2, 't', 1);
-
-        let path1 = create_test_path(
-            vec![tile1.clone(), tile2.clone(), tile3.clone()],
-            HashMap::new(),
-        );
-        let path2 = create_test_path(vec![tile1, tile2, tile3], HashMap::new());
-
-        let answer = Answer {
-            word: "cat".to_string(),
-            paths: vec![path1.clone(), path2],
-            constraints_set: AnswerGroupConstraintSet {
-                path_constraint_sets: vec![],
-            },
-        };
-
-        // Should return the first path
-        assert_eq!(answer.best_path(), &path1);
-    }
-
-    #[test]
-    #[should_panic]
-    fn test_answer_best_path_empty() {
-        let answer = Answer {
-            word: "empty".to_string(),
-            paths: vec![],
-            constraints_set: AnswerGroupConstraintSet {
-                path_constraint_sets: vec![],
-            },
-        };
-
-        // Should panic when no paths are available
-        answer.best_path();
     }
 
     #[test]

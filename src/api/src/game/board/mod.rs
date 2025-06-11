@@ -3,7 +3,7 @@ use crate::game::{
     directions,
 };
 use core::fmt;
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashSet, VecDeque};
 
 pub mod answer;
 pub mod constraints;
