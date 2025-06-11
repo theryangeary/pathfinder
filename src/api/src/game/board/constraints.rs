@@ -6,7 +6,7 @@ use crate::game::board::constraints;
 pub struct UnsatisfiableConstraint;
 
 /// PathConstraintSet represents the constraints imposed upon all wildcard tiles on the board for a particular Path
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum PathConstraintSet {
     // Unconstrainted means that the wildcard tile is unused and therefore could represent any letter
     Unconstrainted,
@@ -113,7 +113,23 @@ impl AnswerGroupConstraintSet {
         &self,
         other: AnswerGroupConstraintSet,
     ) -> Result<AnswerGroupConstraintSet, UnsatisfiableConstraint> {
-        todo!();
+        let mut result_sets = Vec::new();
+        
+        for self_constraint in &self.path_constraint_sets {
+            for other_constraint in &other.path_constraint_sets {
+                if let Ok(merged) = self_constraint.merge(*other_constraint) {
+                    result_sets.push(merged);
+                }
+            }
+        }
+        
+        if result_sets.is_empty() {
+            Err(UnsatisfiableConstraint)
+        } else {
+            Ok(AnswerGroupConstraintSet {
+                path_constraint_sets: result_sets,
+            })
+        }
     }
 }
 
@@ -1067,6 +1083,330 @@ mod tests {
                 "Failed test case: {}",
                 test_case.name
             );
+        }
+    }
+
+    struct AnswerGroupConstraintSetTestCase {
+        name: &'static str,
+        set1: AnswerGroupConstraintSet,
+        set2: AnswerGroupConstraintSet,
+        expected_error: bool,
+        expected_result_count: Option<usize>,
+        expected_result_set: AnswerGroupConstraintSet,
+    }
+
+    fn answer_group_from(constraints: Vec<PathConstraintSet>) -> AnswerGroupConstraintSet {
+        AnswerGroupConstraintSet {
+            path_constraint_sets: constraints,
+        }
+    }
+
+    fn create_answer_group_constraint_set_test_cases() -> Vec<AnswerGroupConstraintSetTestCase> {
+        vec![
+            // === Empty sets ===
+            AnswerGroupConstraintSetTestCase {
+                name: "Empty sets",
+                set1: answer_group_from(vec![]),
+                set2: answer_group_from(vec![]),
+                expected_error: true,
+                expected_result_count: None,
+                expected_result_set: answer_group_from(vec![]),
+            },
+            AnswerGroupConstraintSetTestCase {
+                name: "Empty vs non-empty",
+                set1: answer_group_from(vec![]),
+                set2: answer_group_from(vec![PathConstraintSet::Unconstrainted]),
+                expected_error: true,
+                expected_result_count: None,
+                expected_result_set: answer_group_from(vec![]),
+            },
+            AnswerGroupConstraintSetTestCase {
+                name: "Non-empty vs empty",
+                set1: answer_group_from(vec![PathConstraintSet::FirstDecided('a')]),
+                set2: answer_group_from(vec![]),
+                expected_error: true,
+                expected_result_count: None,
+                expected_result_set: answer_group_from(vec![]),
+            },
+
+            // === Single constraint sets ===
+            AnswerGroupConstraintSetTestCase {
+                name: "Single Unconstrainted + Single Unconstrainted",
+                set1: answer_group_from(vec![PathConstraintSet::Unconstrainted]),
+                set2: answer_group_from(vec![PathConstraintSet::Unconstrainted]),
+                expected_error: false,
+                expected_result_count: Some(1),
+                expected_result_set: answer_group_from(vec![PathConstraintSet::Unconstrainted]),
+            },
+            AnswerGroupConstraintSetTestCase {
+                name: "Single Unconstrainted + Single FirstDecided",
+                set1: answer_group_from(vec![PathConstraintSet::Unconstrainted]),
+                set2: answer_group_from(vec![PathConstraintSet::FirstDecided('a')]),
+                expected_error: false,
+                expected_result_count: Some(1),
+                expected_result_set: answer_group_from(vec![PathConstraintSet::FirstDecided('a')]),
+            },
+            AnswerGroupConstraintSetTestCase {
+                name: "Single FirstDecided + Single SecondDecided",
+                set1: answer_group_from(vec![PathConstraintSet::FirstDecided('a')]),
+                set2: answer_group_from(vec![PathConstraintSet::SecondDecided('b')]),
+                expected_error: false,
+                expected_result_count: Some(1),
+                expected_result_set: answer_group_from(vec![PathConstraintSet::BothDecided('a', 'b')]),
+            },
+            AnswerGroupConstraintSetTestCase {
+                name: "Single FirstDecided + Single FirstDecided (same)",
+                set1: answer_group_from(vec![PathConstraintSet::FirstDecided('a')]),
+                set2: answer_group_from(vec![PathConstraintSet::FirstDecided('a')]),
+                expected_error: false,
+                expected_result_count: Some(1),
+                expected_result_set: answer_group_from(vec![PathConstraintSet::FirstDecided('a')]),
+            },
+            AnswerGroupConstraintSetTestCase {
+                name: "Single FirstDecided + Single FirstDecided (different)",
+                set1: answer_group_from(vec![PathConstraintSet::FirstDecided('a')]),
+                set2: answer_group_from(vec![PathConstraintSet::FirstDecided('b')]),
+                expected_error: true,
+                expected_result_count: None,
+                expected_result_set: answer_group_from(vec![]),
+            },
+            AnswerGroupConstraintSetTestCase {
+                name: "Single BothDecided + Single FirstDecided (compatible)",
+                set1: answer_group_from(vec![PathConstraintSet::BothDecided('a', 'b')]),
+                set2: answer_group_from(vec![PathConstraintSet::FirstDecided('a')]),
+                expected_error: false,
+                expected_result_count: Some(1),
+                expected_result_set: answer_group_from(vec![PathConstraintSet::BothDecided('a', 'b')]),
+            },
+            AnswerGroupConstraintSetTestCase {
+                name: "Single BothDecided + Single FirstDecided (incompatible)",
+                set1: answer_group_from(vec![PathConstraintSet::BothDecided('a', 'b')]),
+                set2: answer_group_from(vec![PathConstraintSet::FirstDecided('c')]),
+                expected_error: true,
+                expected_result_count: None,
+                expected_result_set: answer_group_from(vec![]),
+            },
+
+            // === Multiple constraint sets ===
+            AnswerGroupConstraintSetTestCase {
+                name: "Multiple compatible constraints (2x2 = 4)",
+                set1: answer_group_from(vec![
+                    PathConstraintSet::Unconstrainted,
+                    PathConstraintSet::FirstDecided('a'),
+                ]),
+                set2: answer_group_from(vec![
+                    PathConstraintSet::Unconstrainted,
+                    PathConstraintSet::SecondDecided('b'),
+                ]),
+                expected_error: false,
+                expected_result_count: Some(4), // All 4 combinations should work
+                expected_result_set: answer_group_from(vec![
+                    PathConstraintSet::Unconstrainted,
+                    PathConstraintSet::SecondDecided('b'),
+                    PathConstraintSet::FirstDecided('a'),
+                    PathConstraintSet::BothDecided('a', 'b'),
+                ]),
+            },
+            AnswerGroupConstraintSetTestCase {
+                name: "Multiple mixed constraints (2x2 = 3 valid)",
+                set1: answer_group_from(vec![
+                    PathConstraintSet::FirstDecided('a'),
+                    PathConstraintSet::SecondDecided('b'),
+                ]),
+                set2: answer_group_from(vec![
+                    PathConstraintSet::FirstDecided('a'), // Works with first
+                    PathConstraintSet::FirstDecided('c'), // Doesn't work with first, but works with second
+                ]),
+                expected_error: false,
+                expected_result_count: Some(3), // FirstDecided('a')+FirstDecided('a'), SecondDecided('b')+FirstDecided('a'), SecondDecided('b')+FirstDecided('c')
+                expected_result_set: answer_group_from(vec![
+                    PathConstraintSet::FirstDecided('a'),
+                    PathConstraintSet::BothDecided('a', 'b'),
+                    PathConstraintSet::BothDecided('c', 'b'),
+                ]),
+            },
+            AnswerGroupConstraintSetTestCase {
+                name: "Multiple incompatible constraints",
+                set1: answer_group_from(vec![
+                    PathConstraintSet::FirstDecided('a'),
+                    PathConstraintSet::FirstDecided('b'),
+                ]),
+                set2: answer_group_from(vec![
+                    PathConstraintSet::FirstDecided('c'),
+                    PathConstraintSet::FirstDecided('d'),
+                ]),
+                expected_error: true,
+                expected_result_count: None,
+                expected_result_set: answer_group_from(vec![]),
+            },
+            AnswerGroupConstraintSetTestCase {
+                name: "Single vs multiple (partial compatibility)",
+                set1: answer_group_from(vec![PathConstraintSet::FirstDecided('a')]),
+                set2: answer_group_from(vec![
+                    PathConstraintSet::FirstDecided('a'), // Compatible
+                    PathConstraintSet::FirstDecided('b'), // Incompatible
+                    PathConstraintSet::Unconstrainted,    // Compatible
+                ]),
+                expected_error: false,
+                expected_result_count: Some(2), // 2 out of 3 combinations work
+                expected_result_set: answer_group_from(vec![
+                    PathConstraintSet::FirstDecided('a'),
+                    PathConstraintSet::FirstDecided('a'),
+                ]),
+            },
+            AnswerGroupConstraintSetTestCase {
+                name: "Complex BothDecided scenarios",
+                set1: answer_group_from(vec![
+                    PathConstraintSet::BothDecided('a', 'b'),
+                    PathConstraintSet::FirstDecided('x'),
+                ]),
+                set2: answer_group_from(vec![
+                    PathConstraintSet::FirstDecided('a'),  // Works with BothDecided
+                    PathConstraintSet::SecondDecided('b'), // Works with BothDecided
+                    PathConstraintSet::FirstDecided('x'),  // Works with FirstDecided('x'), also combines with FirstDecided('x') for SecondDecided
+                ]),
+                expected_error: false,
+                expected_result_count: Some(4), // 4 valid combinations
+                expected_result_set: answer_group_from(vec![
+                    PathConstraintSet::BothDecided('a', 'b'),
+                    PathConstraintSet::BothDecided('a', 'b'),
+                    PathConstraintSet::BothDecided('x', 'b'),
+                    PathConstraintSet::FirstDecided('x'),
+                ]),
+            },
+
+            // === Edge cases ===
+            AnswerGroupConstraintSetTestCase {
+                name: "Large set with many Unconstrainted",
+                set1: answer_group_from(vec![
+                    PathConstraintSet::Unconstrainted,
+                    PathConstraintSet::Unconstrainted,
+                    PathConstraintSet::Unconstrainted,
+                ]),
+                set2: answer_group_from(vec![
+                    PathConstraintSet::Unconstrainted,
+                    PathConstraintSet::FirstDecided('a'),
+                ]),
+                expected_error: false,
+                expected_result_count: Some(6), // 3 * 2 = 6 combinations
+                expected_result_set: answer_group_from(vec![
+                    PathConstraintSet::Unconstrainted,
+                    PathConstraintSet::FirstDecided('a'),
+                    PathConstraintSet::Unconstrainted,
+                    PathConstraintSet::FirstDecided('a'),
+                    PathConstraintSet::Unconstrainted,
+                    PathConstraintSet::FirstDecided('a'),
+                ]),
+            },
+            AnswerGroupConstraintSetTestCase {
+                name: "Duplicate constraints in same set",
+                set1: answer_group_from(vec![
+                    PathConstraintSet::FirstDecided('a'),
+                    PathConstraintSet::FirstDecided('a'), // Duplicate
+                ]),
+                set2: answer_group_from(vec![PathConstraintSet::FirstDecided('a')]),
+                expected_error: false,
+                expected_result_count: Some(2), // Both duplicates create valid merges
+                expected_result_set: answer_group_from(vec![
+                    PathConstraintSet::FirstDecided('a'),
+                    PathConstraintSet::FirstDecided('a'),
+                ]),
+            },
+            AnswerGroupConstraintSetTestCase {
+                name: "Mix of same letters different positions",
+                set1: answer_group_from(vec![
+                    PathConstraintSet::FirstDecided('z'),
+                    PathConstraintSet::SecondDecided('z'),
+                ]),
+                set2: answer_group_from(vec![
+                    PathConstraintSet::BothDecided('z', 'z'),
+                ]),
+                expected_error: false,
+                expected_result_count: Some(2), // Both should work with BothDecided('z', 'z')
+                expected_result_set: answer_group_from(vec![
+                    PathConstraintSet::BothDecided('z', 'z'),
+                    PathConstraintSet::BothDecided('z', 'z'),
+                ]),
+            },
+        ]
+    }
+
+    #[test]
+    fn test_answer_group_constraint_set_intersection() {
+        let test_cases = create_answer_group_constraint_set_test_cases();
+
+        for test_case in test_cases {
+            let result = test_case.set1.intersection(test_case.set2.clone());
+
+            if test_case.expected_error {
+                // If we expect an error, intersection should return UnsatisfiableConstraint
+                assert!(
+                    result.is_err(),
+                    "Failed test case: {} - expected intersection error but got Ok({:?})",
+                    test_case.name,
+                    result.unwrap().path_constraint_sets
+                );
+            } else {
+                // If we don't expect an error, intersection should succeed
+                assert!(
+                    result.is_ok(),
+                    "Failed test case: {} - expected intersection success but got Err",
+                    test_case.name
+                );
+
+                let intersection = result.unwrap();
+
+                // Check the expected result count if specified
+                if let Some(expected_count) = test_case.expected_result_count {
+                    assert_eq!(
+                        intersection.path_constraint_sets.len(),
+                        expected_count,
+                        "Failed test case: {} - expected {} results but got {}",
+                        test_case.name,
+                        expected_count,
+                        intersection.path_constraint_sets.len()
+                    );
+                }
+
+                // Check the expected result set - order doesn't matter, so we compare as sets
+                use std::collections::HashSet;
+                let actual_set: HashSet<PathConstraintSet> = intersection.path_constraint_sets.iter().cloned().collect();
+                let expected_set: HashSet<PathConstraintSet> = test_case.expected_result_set.path_constraint_sets.iter().cloned().collect();
+                assert_eq!(
+                    actual_set,
+                    expected_set,
+                    "Failed test case: {} - expected result set {:?} but got {:?}",
+                    test_case.name,
+                    expected_set,
+                    actual_set
+                );
+
+                // Verify all results are valid by checking they don't produce empty intersections
+                // when intersected with the original sets
+                for constraint in &intersection.path_constraint_sets {
+                    // Each result should be derivable from merging constraints from both sets
+                    let mut found_origin = false;
+                    for set1_constraint in &test_case.set1.path_constraint_sets {
+                        for set2_constraint in &test_case.set2.path_constraint_sets {
+                            if let Ok(merged) = set1_constraint.merge(*set2_constraint) {
+                                if merged == *constraint {
+                                    found_origin = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if found_origin {
+                            break;
+                        }
+                    }
+                    assert!(
+                        found_origin,
+                        "Failed test case: {} - result constraint {:?} not derivable from input sets",
+                        test_case.name,
+                        constraint
+                    );
+                }
+            }
         }
     }
 }
