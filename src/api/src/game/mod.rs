@@ -5,7 +5,6 @@ pub mod scoring;
 pub mod trie;
 
 pub use board::Board;
-pub use scoring::Scorer;
 pub use trie::Trie;
 
 // BoardGenerator for game generation
@@ -98,7 +97,6 @@ use crate::http_api::ApiAnswer;
 #[derive(Clone)]
 pub struct GameEngine {
     word_trie: Arc<Trie>,
-    scorer: Scorer,
 }
 
 impl GameEngine {
@@ -106,7 +104,6 @@ impl GameEngine {
         let word_trie = Arc::new(trie_source.into());
         Self {
             word_trie,
-            scorer: Scorer::new(),
         }
     }
 
@@ -162,7 +159,8 @@ impl GameEngine {
     }
 
     pub fn score_word(&self, word: &str) -> u32 {
-        self.scorer.score(word)
+        // TODO
+        1
     }
 
     pub fn find_word_paths(&self, board: &Board, word: &str) -> board::answer::Answer {

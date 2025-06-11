@@ -1,7 +1,7 @@
 #[cfg(test)]
 pub mod test_utils {
     use crate::db::models::*;
-    use crate::game::{Board, BoardGenerator, GameEngine, Scorer, conversion::SerializableBoard, Trie};
+    use crate::game::{Board, BoardGenerator, GameEngine, conversion::SerializableBoard, Trie};
     use crate::http_api::{create_router, ApiState};
     
     use axum::Router;
@@ -153,11 +153,6 @@ pub mod test_utils {
         let wordlist_file = create_test_wordlist();
         let game_engine = GameEngine::new(wordlist_file.path().to_path_buf());
         (game_engine, wordlist_file)
-    }
-
-    /// Creates a test scorer
-    pub fn create_test_scorer() -> Scorer {
-        Scorer::new()
     }
 
     /// Creates a test trie with common words
