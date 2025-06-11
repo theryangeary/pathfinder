@@ -105,3 +105,4 @@ src/web/data/wordList.ts
 # the rest
 todo
 .secrets
+tarpaulin-report.html
