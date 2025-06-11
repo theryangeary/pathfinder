@@ -133,18 +133,14 @@ impl Board {
     }
 
     pub fn paths_for(&self, word: &str) -> answer::Answer {
-        dbg!("start");
         let mut paths = vec![];
         for row in 0..self.rows.len() {
-            dbg!(row);
             for column in 0..self.rows[row].tiles.len() {
-                dbg!(column);
                 let mut new_paths =
                     self.paths_for_word_from_position(word, row, column, &mut HashSet::new());
                 paths.append(&mut new_paths);
             }
         }
-        dbg!(paths.clone());
 
         let answer_group_constraint_set_for_this_one_answer =
             AnswerGroupConstraintSet::from(paths.iter().map(|m| m.constraints).collect::<Vec<PathConstraintSet>>());
@@ -175,14 +171,12 @@ impl Board {
         let current_char = current_word_char.unwrap();
         let current_location = &self.rows[row_number].tiles[column_number];
         let current_location_letter = current_location.letter.chars().next();
-        dbg!(current_char, current_location);
 
         if current_location_letter != Some(current_char) && !current_location.is_wildcard {
             return result;
         }
 
         if word.len() == 1 {
-            dbg!("recursed fully", current_char, current_location);
             let mut tiles = VecDeque::new();
             tiles.push_back(GameTile::from(current_location));
             let path = path::Path {
@@ -193,8 +187,8 @@ impl Board {
             return result;
         }
 
+        visited.insert((row_number, column_number));
         for direction in directions::DIRECTIONS {
-            visited.insert((row_number, column_number));
             let next_row_number = row_number.checked_add_signed(direction.0);
             let next_column_number = column_number.checked_add_signed(direction.1);
             if next_row_number.is_none()
@@ -222,8 +216,8 @@ impl Board {
                     result.push(path.clone());
                 }
             }
-            visited.remove(&(row_number, column_number));
         }
+        visited.remove(&(row_number, column_number));
         return result;
     }
 
