@@ -17,7 +17,7 @@ WORKDIR /app
 COPY src/api/Cargo.toml src/api/Cargo.lock ./
 COPY src/api/src ./src
 COPY src/api/migrations ./migrations
-COPY src/api/wordlist ./wordlist
+COPY ./wordlist ./wordlist
 RUN touch src/main.rs
 RUN cargo build --release
 
