@@ -1,4 +1,3 @@
-
 use std::collections::{HashMap, HashSet};
 
 use crate::game::board::constraints;
@@ -6,7 +5,64 @@ use crate::game::board::constraints;
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct UnsatisfiableConstraint;
 
-// Constraint represents the constraint imposed upon a single wildcard tile.
+/// PathConstraintSet represents the constraints imposed upon all wildcard tiles on the board for a particular Path
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum PathConstraintSet {
+    // Unconstrainted means that the wildcard tile is unused and therefore could represent any letter
+    Unconstrainted,
+    // FirstDecided means that the first wildcard must be a particular letter and cannot be any other letter. The second wildcard is unconstrainted.
+    FirstDecided(char),
+    // SecondDecided means that the second wildcard must be a particular letter and cannot be any other letter. The first wildcard is unconstrained.
+    SecondDecided(char),
+    // BothDecided means that both wildcards must respectively be a single, specific letter and cannot be any other letter
+    BothDecided(char, char),
+}
+
+impl PathConstraintSet {
+    pub fn merge(
+        &self,
+        other: PathConstraintSet,
+    ) -> Result<PathConstraintSet, UnsatisfiableConstraint> {
+        match self {
+            PathConstraintSet::Unconstrainted => Ok(other),
+            // TODO
+            PathConstraintSet::FirstDecided(first) => match other {
+                PathConstraintSet::Unconstrainted => todo!(),
+                PathConstraintSet::FirstDecided(_) => todo!(),
+                PathConstraintSet::SecondDecided(_) => todo!(),
+                PathConstraintSet::BothDecided(_, _) => todo!(),
+            },
+            PathConstraintSet::SecondDecided(_) => todo!(),
+            PathConstraintSet::BothDecided(_, _) => todo!(),
+        }
+    }
+}
+
+/// AnswerGroupConstraintSet represents the constraints which, if one of them is satisfied, allows a set of words to exist on the board
+#[derive(Debug, Clone, PartialEq)]
+pub struct AnswerGroupConstraintSet {
+    pub path_constraint_sets: Vec<PathConstraintSet>,
+}
+
+impl From<Vec<PathConstraintSet>> for AnswerGroupConstraintSet {
+    fn from(path_constraint_sets: Vec<PathConstraintSet>) -> Self {
+        Self{
+            path_constraint_sets
+        }
+    }
+}
+
+impl AnswerGroupConstraintSet {
+    /// intersection iterates through the path_constraint_sets from self and other, nested, and finds any PathConstraintSets which can validly merge
+    pub fn intersection(
+        &self,
+        other: AnswerGroupConstraintSet,
+    ) -> Result<AnswerGroupConstraintSet, UnsatisfiableConstraint> {
+        todo!();
+    }
+}
+
+/// Constraint represents the constraint imposed upon a single wildcard tile.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Constraint {
     // Unconstrainted means that the wildcard tile is unused and therefore could represent any letter
@@ -30,25 +86,25 @@ impl Constraint {
                         Err(UnsatisfiableConstraint)
                     }
                 }
-                Constraint::AnyOf(options) => {
-                    Constraint::merge_decided_with_any_of(*c, options)
-                }
+                Constraint::AnyOf(options) => Constraint::merge_decided_with_any_of(*c, options),
             },
             Constraint::AnyOf(options) => match other {
                 Constraint::Unconstrainted => Ok(Constraint::AnyOf(options.clone())),
-                Constraint::Decided(decided) => Constraint::merge_decided_with_any_of(decided, options.clone()),
+                Constraint::Decided(decided) => {
+                    Constraint::merge_decided_with_any_of(decided, options.clone())
+                }
                 Constraint::AnyOf(options2) => {
-                    let h1:HashSet<char> = options.iter().cloned().collect();
-                    let h2:HashSet<char> = options2.iter().cloned().collect();
-                    let v:Vec<char> = h1.intersection(&h2).cloned().collect();
+                    let h1: HashSet<char> = options.iter().cloned().collect();
+                    let h2: HashSet<char> = options2.iter().cloned().collect();
+                    let v: Vec<char> = h1.intersection(&h2).cloned().collect();
                     if v.len() == 0 {
                         return Err(UnsatisfiableConstraint);
                     } else if v.len() == 1 {
                         return Ok(Constraint::Decided(v[0]));
                     } else {
-                        return Ok(Constraint::AnyOf(v))
+                        return Ok(Constraint::AnyOf(v));
                     }
-                },
+                }
             },
         }
     }
@@ -85,9 +141,12 @@ impl ConstraintsSet {
         false
     }
 
-    pub fn intersection(&self, other: &ConstraintsSet) -> Result<ConstraintsSet, UnsatisfiableConstraint> {
+    pub fn intersection(
+        &self,
+        other: &ConstraintsSet,
+    ) -> Result<ConstraintsSet, UnsatisfiableConstraint> {
         let mut result = self.0.clone();
-        
+
         for (key, other_constraint) in &other.0 {
             if let Some(self_constraint) = self.0.get(key) {
                 // Both sets have this key, merge the constraints
@@ -98,7 +157,7 @@ impl ConstraintsSet {
                 result.insert(key.clone(), other_constraint.clone());
             }
         }
-        
+
         Ok(ConstraintsSet(result))
     }
 }
@@ -170,7 +229,6 @@ mod tests {
                 c2: Constraint::AnyOf(vec![]),
                 expected: Ok(Constraint::AnyOf(vec![])),
             },
-
             // === Decided + X cases ===
             TestCase {
                 name: "Decided + Unconstrainted",
@@ -221,7 +279,6 @@ mod tests {
                 c2: Constraint::AnyOf(vec![]),
                 expected: Err(UnsatisfiableConstraint),
             },
-
             // === AnyOf + X cases ===
             TestCase {
                 name: "AnyOf + Unconstrainted",
@@ -248,7 +305,6 @@ mod tests {
                 c2: Constraint::Decided('a'),
                 expected: Err(UnsatisfiableConstraint),
             },
-
             // === AnyOf + AnyOf cases ===
             TestCase {
                 name: "AnyOf + AnyOf (full overlap)",
@@ -310,7 +366,6 @@ mod tests {
                 c2: Constraint::AnyOf(vec!['b', 'c', 'd']),
                 expected: Err(UnsatisfiableConstraint),
             },
-
             // === Edge cases with duplicate characters ===
             TestCase {
                 name: "AnyOf + AnyOf (with duplicates)",
@@ -331,12 +386,22 @@ mod tests {
             match (&result, &test_case.expected) {
                 (Ok(Constraint::AnyOf(actual)), Ok(Constraint::AnyOf(expected))) => {
                     // For AnyOf constraints, we need to compare sets since order doesn't matter
-                    let actual_set: std::collections::HashSet<char> = actual.iter().cloned().collect();
-                    let expected_set: std::collections::HashSet<char> = expected.iter().cloned().collect();
-                    assert_eq!(actual_set, expected_set, "Failed test case: {}", test_case.name);
+                    let actual_set: std::collections::HashSet<char> =
+                        actual.iter().cloned().collect();
+                    let expected_set: std::collections::HashSet<char> =
+                        expected.iter().cloned().collect();
+                    assert_eq!(
+                        actual_set, expected_set,
+                        "Failed test case: {}",
+                        test_case.name
+                    );
                 }
                 _ => {
-                    assert_eq!(result, test_case.expected, "Failed test case: {}", test_case.name);
+                    assert_eq!(
+                        result, test_case.expected,
+                        "Failed test case: {}",
+                        test_case.name
+                    );
                 }
             }
         }
@@ -349,22 +414,22 @@ mod tests {
             Constraint::merge_decided_with_any_of('a', vec!['a', 'b', 'c']),
             Ok(Constraint::Decided('a'))
         );
-        
+
         assert_eq!(
             Constraint::merge_decided_with_any_of('d', vec!['a', 'b', 'c']),
             Err(UnsatisfiableConstraint)
         );
-        
+
         assert_eq!(
             Constraint::merge_decided_with_any_of('a', vec![]),
             Err(UnsatisfiableConstraint)
         );
-        
+
         assert_eq!(
             Constraint::merge_decided_with_any_of('a', vec!['a']),
             Ok(Constraint::Decided('a'))
         );
-        
+
         // Test with duplicates
         assert_eq!(
             Constraint::merge_decided_with_any_of('a', vec!['a', 'b', 'a']),
@@ -408,7 +473,6 @@ mod tests {
                 set2: constraints_set_from(vec![]),
                 expected_collision: false,
             },
-
             // === Non-overlapping keys ===
             ConstraintsSetTestCase {
                 name: "Different keys - no collision",
@@ -420,15 +484,14 @@ mod tests {
                 name: "Multiple different keys - no collision",
                 set1: constraints_set_from(vec![
                     ("w1", Constraint::Decided('a')),
-                    ("w2", Constraint::AnyOf(vec!['x', 'y']))
+                    ("w2", Constraint::AnyOf(vec!['x', 'y'])),
                 ]),
                 set2: constraints_set_from(vec![
                     ("w3", Constraint::Decided('b')),
-                    ("w4", Constraint::Unconstrainted)
+                    ("w4", Constraint::Unconstrainted),
                 ]),
                 expected_collision: false,
             },
-
             // === Same keys, compatible constraints ===
             ConstraintsSetTestCase {
                 name: "Unconstrainted + Unconstrainted",
@@ -490,7 +553,6 @@ mod tests {
                 set2: constraints_set_from(vec![("w1", Constraint::AnyOf(vec!['a', 'b']))]),
                 expected_collision: false,
             },
-
             // === Same keys, incompatible constraints ===
             ConstraintsSetTestCase {
                 name: "Decided + Decided (different)",
@@ -534,17 +596,16 @@ mod tests {
                 set2: constraints_set_from(vec![("w1", Constraint::AnyOf(vec![]))]),
                 expected_collision: true,
             },
-
             // === Multiple keys with mixed scenarios ===
             ConstraintsSetTestCase {
                 name: "Mixed keys - one collision",
                 set1: constraints_set_from(vec![
                     ("w1", Constraint::Decided('a')),
-                    ("w2", Constraint::Unconstrainted)
+                    ("w2", Constraint::Unconstrainted),
                 ]),
                 set2: constraints_set_from(vec![
                     ("w1", Constraint::Decided('b')), // collision here
-                    ("w2", Constraint::Decided('x'))  // no collision
+                    ("w2", Constraint::Decided('x')), // no collision
                 ]),
                 expected_collision: true,
             },
@@ -552,11 +613,11 @@ mod tests {
                 name: "Mixed keys - no collisions",
                 set1: constraints_set_from(vec![
                     ("w1", Constraint::Decided('a')),
-                    ("w2", Constraint::AnyOf(vec!['x', 'y']))
+                    ("w2", Constraint::AnyOf(vec!['x', 'y'])),
                 ]),
                 set2: constraints_set_from(vec![
                     ("w1", Constraint::Decided('a')),     // no collision
-                    ("w2", Constraint::AnyOf(vec!['x']))  // no collision (subset)
+                    ("w2", Constraint::AnyOf(vec!['x'])), // no collision (subset)
                 ]),
                 expected_collision: false,
             },
@@ -564,11 +625,11 @@ mod tests {
                 name: "Partial key overlap - compatible",
                 set1: constraints_set_from(vec![
                     ("w1", Constraint::Decided('a')),
-                    ("w2", Constraint::AnyOf(vec!['x', 'y']))
+                    ("w2", Constraint::AnyOf(vec!['x', 'y'])),
                 ]),
                 set2: constraints_set_from(vec![
                     ("w1", Constraint::Unconstrainted), // no collision
-                    ("w3", Constraint::Decided('z'))    // different key
+                    ("w3", Constraint::Decided('z')),   // different key
                 ]),
                 expected_collision: false,
             },
@@ -576,27 +637,26 @@ mod tests {
                 name: "Partial key overlap - incompatible",
                 set1: constraints_set_from(vec![
                     ("w1", Constraint::Decided('a')),
-                    ("w2", Constraint::AnyOf(vec!['x', 'y']))
+                    ("w2", Constraint::AnyOf(vec!['x', 'y'])),
                 ]),
                 set2: constraints_set_from(vec![
-                    ("w1", Constraint::Decided('b')),   // collision here
-                    ("w3", Constraint::Decided('z'))    // different key
+                    ("w1", Constraint::Decided('b')), // collision here
+                    ("w3", Constraint::Decided('z')), // different key
                 ]),
                 expected_collision: true,
             },
-
             // === Complex multi-wildcard scenarios ===
             ConstraintsSetTestCase {
                 name: "Multiple wildcards - all compatible",
                 set1: constraints_set_from(vec![
                     ("w1", Constraint::Decided('a')),
                     ("w2", Constraint::AnyOf(vec!['x', 'y', 'z'])),
-                    ("w3", Constraint::Unconstrainted)
+                    ("w3", Constraint::Unconstrainted),
                 ]),
                 set2: constraints_set_from(vec![
                     ("w1", Constraint::AnyOf(vec!['a', 'b'])),
                     ("w2", Constraint::Decided('y')),
-                    ("w3", Constraint::AnyOf(vec!['p', 'q']))
+                    ("w3", Constraint::AnyOf(vec!['p', 'q'])),
                 ]),
                 expected_collision: false,
             },
@@ -605,16 +665,15 @@ mod tests {
                 set1: constraints_set_from(vec![
                     ("w1", Constraint::Decided('a')),
                     ("w2", Constraint::AnyOf(vec!['x', 'y', 'z'])),
-                    ("w3", Constraint::Unconstrainted)
+                    ("w3", Constraint::Unconstrainted),
                 ]),
                 set2: constraints_set_from(vec![
                     ("w1", Constraint::AnyOf(vec!['a', 'b'])),
-                    ("w2", Constraint::Decided('w')),  // collision here
-                    ("w3", Constraint::AnyOf(vec!['p', 'q']))
+                    ("w2", Constraint::Decided('w')), // collision here
+                    ("w3", Constraint::AnyOf(vec!['p', 'q'])),
                 ]),
                 expected_collision: true,
             },
-
             // === Edge cases ===
             ConstraintsSetTestCase {
                 name: "Single char AnyOf collision",
@@ -644,12 +703,9 @@ mod tests {
         for test_case in test_cases {
             let result = test_case.set1.has_collision_with(&test_case.set2);
             assert_eq!(
-                result, 
-                test_case.expected_collision,
+                result, test_case.expected_collision,
                 "Failed test case: {} - expected collision: {}, got: {}",
-                test_case.name,
-                test_case.expected_collision,
-                result
+                test_case.name, test_case.expected_collision, result
             );
         }
     }
@@ -660,7 +716,7 @@ mod tests {
 
         for test_case in test_cases {
             let result = test_case.set1.intersection(&test_case.set2);
-            
+
             if test_case.expected_collision {
                 // If there's a collision, intersection should return an error
                 assert!(
@@ -675,7 +731,7 @@ mod tests {
                     "Failed test case: {} - expected intersection success but got Err",
                     test_case.name
                 );
-                
+
                 // Verify the result makes sense by checking it doesn't have collision with either input
                 let intersection = result.unwrap();
                 assert!(

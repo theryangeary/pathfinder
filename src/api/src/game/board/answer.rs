@@ -2,7 +2,7 @@ use core::fmt::Display;
 use std::fmt::Debug;
 use std::collections::HashMap;
 
-use crate::game::board::constraints::ConstraintsSet;
+use crate::game::board::constraints::{AnswerGroupConstraintSet, ConstraintsSet};
 
 use super::path::Path;
 use super::constraints;
@@ -11,7 +11,7 @@ use super::constraints;
 pub struct Answer {
     pub word: String,
     pub paths: Vec<Path>,
-        // pub constraints_set: ConstraintsSet,
+    pub constraints_set: AnswerGroupConstraintSet,
 }
 
 impl Answer {
@@ -50,16 +50,16 @@ impl Answer {
     //     }
     // }
 
-    pub fn can_coexist_with(&self, other: &Answer) -> bool {
-        for path in self.paths.iter() {
-            for other_path in other.paths.iter() {
-                if !path.constraints.has_collision_with(&other_path.constraints) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
+    // pub fn can_coexist_with(&self, other: &Answer) -> bool {
+    //     for path in self.paths.iter() {
+    //         for other_path in other.paths.iter() {
+    //             if !path.constraints.has_collision_with(&other_path.constraints) {
+    //                 return true;
+    //             }
+    //         }
+    //     }
+    //     return false;
+    // }
 
     // pub fn constraints_intersections(&self, other: &Answer) -> Vec<constraints::ConstraintsSet> {
     //     let mut constraints = vec![];
@@ -86,7 +86,7 @@ impl Display for Answer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::game::board::{constraints::Constraint, path::{GameTile, Path}};
+    use crate::game::board::{constraints::{Constraint, PathConstraintSet}, path::{GameTile, Path}};
     use super::constraints::ConstraintsSet;
     use std::collections::VecDeque;
 
@@ -117,7 +117,7 @@ mod tests {
         }
         Path {
             tiles: tile_deque,
-            constraints: ConstraintsSet(constraints),
+            constraints: PathConstraintSet::Unconstrainted,
         }
     }
 
@@ -133,6 +133,7 @@ mod tests {
         let answer = Answer {
             word: "cat".to_string(),
             paths: vec![path1.clone(), path2],
+            constraints_set: AnswerGroupConstraintSet{path_constraint_sets:vec![]},
         };
 
         // Should return the first path
@@ -145,6 +146,7 @@ mod tests {
         let answer = Answer {
             word: "empty".to_string(),
             paths: vec![],
+            constraints_set: AnswerGroupConstraintSet{path_constraint_sets:vec![]},
         };
 
         // Should panic when no paths are available
@@ -162,6 +164,7 @@ mod tests {
         let answer = Answer {
             word: "cat".to_string(),
             paths: vec![path],
+            constraints_set: AnswerGroupConstraintSet{path_constraint_sets:vec![]},
         };
 
         // Score should be sum of tile points: 2 + 1 + 1 = 4
@@ -173,6 +176,7 @@ mod tests {
         let answer = Answer {
             word: "empty".to_string(),
             paths: vec![],
+            constraints_set: AnswerGroupConstraintSet{path_constraint_sets:vec![]},
         };
 
         // Score should be 0 when no paths exist
@@ -190,6 +194,7 @@ mod tests {
         let answer = Answer {
             word: "cat".to_string(),
             paths: vec![path],
+            constraints_set: AnswerGroupConstraintSet{path_constraint_sets:vec![]},
         };
 
         // Score should be 2 + 0 + 1 = 3 (wildcard contributes 0)
@@ -440,6 +445,7 @@ mod tests {
         let answer = Answer {
             word: "test".to_string(),
             paths: vec![],
+            constraints_set: AnswerGroupConstraintSet{path_constraint_sets:vec![]},
         };
 
         assert_eq!(format!("{}", answer), "test");
@@ -450,6 +456,7 @@ mod tests {
         let answer = Answer {
             word: "test".to_string(),
             paths: vec![],
+            constraints_set: AnswerGroupConstraintSet{path_constraint_sets:vec![]},
         };
 
         let debug_string = format!("{:?}", answer);
@@ -465,6 +472,7 @@ mod tests {
         let answer1 = Answer {
             word: "cat".to_string(),
             paths: vec![path.clone()],
+            constraints_set: AnswerGroupConstraintSet{path_constraint_sets:vec![]},
         };
 
         let answer2 = answer1.clone();
@@ -473,6 +481,7 @@ mod tests {
         let answer3 = Answer {
             word: "dog".to_string(),
             paths: vec![path],
+            constraints_set: AnswerGroupConstraintSet{path_constraint_sets:vec![]},
         };
 
         assert_ne!(answer1, answer3);

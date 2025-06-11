@@ -536,135 +536,124 @@ async fn validate_submitted_answers(
     }
 
     // For any word that does not require wildcards, filter to non-wildcard paths
+    // N.B. this may be optional because there is an Unconstrained constraint option
 
     // For words that do require wildcards, ensure constraints can be satisfied
-    
-    // Find all possible answers (with all their paths) for each word
-    let mut all_possible_answers = Vec::new();
-    for api_answer in submitted_answers {
-        let answer = state.game_engine.validate_answer(&board, &api_answer.word)
-            .map_err(|e| format!("Invalid answer for word '{}': {}", api_answer.word, e))?;
-        all_possible_answers.push(answer);
-    }
-    
-    // Use sophisticated constraint resolution to find a compatible set of paths
-    if !find_compatible_answer_set(&all_possible_answers) {
-        // Try to identify which specific answers are conflicting for better error messages
-        let conflicting_pair = find_conflicting_answer_pair(&all_possible_answers);
-        if let Some((word1, word2)) = conflicting_pair {
-            return Err(format!(
-                "Answers '{}' and '{}' have conflicting wildcard constraints",
-                word1, word2
-            ));
-        } else {
-            return Err("Some answers have conflicting wildcard constraints".to_string());
+    let mut cummulative_answer_group_constraints = None;
+    for answer in answers_with_all_paths {
+        match cummulative_answer_group_constraints {
+            None => cummulative_answer_group_constraints = Some(answer.constraints_set),
+            Some(existing_constraints_set) => match existing_constraints_set.intersection(answer.constraints_set) {
+                Ok(new_constraints_set) => cummulative_answer_group_constraints = Some(new_constraints_set),
+                Err(_) => return Err("Some answers have conflicting wildcard constraints".to_string()),
+            },
         }
     }
-    
+
     Ok(())
 }
 
-fn answers_are_compatible(
-    answer1: &crate::game::board::answer::Answer,
-    answer2: &crate::game::board::answer::Answer,
-) -> bool {
-    // Use the built-in method to check if two answers can coexist
-    answer1.can_coexist_with(answer2)
-}
+// fn answers_are_compatible(
+//     answer1: &crate::game::board::answer::Answer,
+//     answer2: &crate::game::board::answer::Answer,
+// ) -> bool {
+//     // Use the built-in method to check if two answers can coexist
+//     answer1.can_coexist_with(answer2)
+// }
 
 /// Find a compatible set of answer paths using constraint satisfaction
-fn find_compatible_answer_set(answers: &[crate::game::board::answer::Answer]) -> bool {
-    if answers.is_empty() {
-        return true;
-    }
+// fn find_compatible_answer_set(answers: &[crate::game::board::answer::Answer]) -> bool {
+//     if answers.is_empty() {
+//         return true;
+//     }
     
-    // Use backtracking to find a compatible combination of paths
-    let mut selected_paths = vec![0; answers.len()]; // Index of selected path for each answer
-    find_compatible_paths_recursive(answers, &mut selected_paths, 0)
-}
+//     // Use backtracking to find a compatible combination of paths
+//     let mut selected_paths = vec![0; answers.len()]; // Index of selected path for each answer
+//     find_compatible_paths_recursive(answers, &mut selected_paths, 0)
+// }
 
 /// Recursive backtracking to find compatible path combinations
-fn find_compatible_paths_recursive(
-    answers: &[crate::game::board::answer::Answer],
-    selected_paths: &mut [usize],
-    answer_index: usize,
-) -> bool {
-    if answer_index >= answers.len() {
-        // We've selected paths for all answers - check if they're all compatible
-        return validate_all_selected_paths_compatible(answers, selected_paths);
-    }
+// fn find_compatible_paths_recursive(
+//     answers: &[crate::game::board::answer::Answer],
+//     selected_paths: &mut [usize],
+//     answer_index: usize,
+// ) -> bool {
+//     if answer_index >= answers.len() {
+//         // We've selected paths for all answers - check if they're all compatible
+//         return validate_all_selected_paths_compatible(answers, selected_paths);
+//     }
     
-    let current_answer = &answers[answer_index];
+//     let current_answer = &answers[answer_index];
     
-    // Try each path for the current answer
-    for path_index in 0..current_answer.paths.len() {
-        selected_paths[answer_index] = path_index;
+//     // Try each path for the current answer
+//     for path_index in 0..current_answer.paths.len() {
+//         selected_paths[answer_index] = path_index;
         
-        // Check if this path is compatible with all previously selected paths
-        if is_path_compatible_with_previous(answers, selected_paths, answer_index) {
-            // Recursively try to find compatible paths for remaining answers
-            if find_compatible_paths_recursive(answers, selected_paths, answer_index + 1) {
-                return true;
-            }
-        }
-    }
+//         // Check if this path is compatible with all previously selected paths
+//         if is_path_compatible_with_previous(answers, selected_paths, answer_index) {
+//             // Recursively try to find compatible paths for remaining answers
+//             if find_compatible_paths_recursive(answers, selected_paths, answer_index + 1) {
+//                 return true;
+//             }
+//         }
+//     }
     
-    false
-}
+//     false
+// }
 
 /// Check if the currently selected path is compatible with all previously selected paths
-fn is_path_compatible_with_previous(
-    answers: &[crate::game::board::answer::Answer],
-    selected_paths: &[usize],
-    current_index: usize,
-) -> bool {
-    let current_answer = &answers[current_index];
-    let current_path = &current_answer.paths[selected_paths[current_index]];
+// fn is_path_compatible_with_previous(
+//     answers: &[crate::game::board::answer::Answer],
+//     selected_paths: &[usize],
+//     current_index: usize,
+// ) -> bool {
+//     let current_answer = &answers[current_index];
+//     let current_path = &current_answer.paths[selected_paths[current_index]];
     
-    for prev_index in 0..current_index {
-        let prev_answer = &answers[prev_index];
-        let prev_path = &prev_answer.paths[selected_paths[prev_index]];
+//     for prev_index in 0..current_index {
+//         let prev_answer = &answers[prev_index];
+//         let prev_path = &prev_answer.paths[selected_paths[prev_index]];
         
-        // Check if the constraints of these two paths are compatible
-        if current_path.constraints.has_collision_with(&prev_path.constraints) {
-            return false;
-        }
-    }
+//         // Check if the constraints of these two paths are compatible
+//         if current_path.constraints.has_collision_with(&prev_path.constraints) {
+//             return false;
+//         }
+//     }
     
-    true
-}
+//     true
+// }
 
 /// Validate that all selected paths are mutually compatible
-fn validate_all_selected_paths_compatible(
-    answers: &[crate::game::board::answer::Answer],
-    selected_paths: &[usize],
-) -> bool {
-    for i in 0..answers.len() {
-        for j in (i + 1)..answers.len() {
-            let path1 = &answers[i].paths[selected_paths[i]];
-            let path2 = &answers[j].paths[selected_paths[j]];
+// fn validate_all_selected_paths_compatible(
+//     answers: &[crate::game::board::answer::Answer],
+//     selected_paths: &[usize],
+// ) -> bool {
+//     for i in 0..answers.len() {
+//         for j in (i + 1)..answers.len() {
+//             let path1 = &answers[i].paths[selected_paths[i]];
+//             let path2 = &answers[j].paths[selected_paths[j]];
             
-            if path1.constraints.has_collision_with(&path2.constraints) {
-                return false;
-            }
-        }
-    }
-    true
-}
+//             if path1.constraints.has_collision_with(&path2.constraints) {
+//                 return false;
+//             }
+//         }
+//     }
+//     true
+// }
 
 /// Find a pair of answers that cannot coexist for error reporting
-fn find_conflicting_answer_pair(
-    answers: &[crate::game::board::answer::Answer],
-) -> Option<(String, String)> {
-    for i in 0..answers.len() {
-        for j in (i + 1)..answers.len() {
-            if !answers[i].can_coexist_with(&answers[j]) {
-                return Some((answers[i].word.clone(), answers[j].word.clone()));
-            }
-        }
-    }
-    None
-}
+// fn find_conflicting_answer_pair(
+//     answers: &[crate::game::board::answer::Answer],
+// ) -> Option<(String, String)> {
+//     for i in 0..answers.len() {
+//         for j in (i + 1)..answers.len() {
+//             if !answers[i].can_coexist_with(&answers[j]) {
+//                 return Some((answers[i].word.clone(), answers[j].word.clone()));
+//             }
+//         }
+//     }
+//     None
+// }
 
 async fn health_check() -> Result<Json<serde_json::Value>, StatusCode> {
     Ok(Json(serde_json::json!({
@@ -1096,10 +1085,10 @@ mod tests {
     }
 
     // Helper function to expose answers_are_compatible for testing
-    pub fn answers_are_compatible_test(
-        answer1: &crate::game::board::answer::Answer,
-        answer2: &crate::game::board::answer::Answer,
-    ) -> bool {
-        super::answers_are_compatible(answer1, answer2)
-    }
+    // pub fn answers_are_compatible_test(
+    //     answer1: &crate::game::board::answer::Answer,
+    //     answer2: &crate::game::board::answer::Answer,
+    // ) -> bool {
+    //     super::answers_are_compatible(answer1, answer2)
+    // }
 }
