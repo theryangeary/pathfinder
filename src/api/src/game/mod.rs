@@ -147,8 +147,12 @@ impl GameEngine {
 
         // Get all paths for each word
         let mut answers_with_all_paths = Vec::new();
-        for answer in &answers {
-            answers_with_all_paths.push(board.paths_for(&answer));
+        for word in &answers {
+            let answer = board.new_answer(word);
+            if answer.paths.is_empty() {
+                return Err(format!("Word '{}' has no possible path on board", word))
+            }
+            answers_with_all_paths.push(answer);
         }
 
         // Ensure constraints can be satisfied
@@ -650,7 +654,7 @@ mod tests {
     fn create_test_wordlist_with_biscuit() -> Vec<&'static str> {
         vec![
             "biscuit", "biscuits", "bis", "cut", "suit", "sits", "bit", "its", "cut", "sue", "use",
-            "sit", "is", "it", "us", "bi", "sc", "cu", "ui", "ic", "ci", "is", "si", "it", "ti",
+            "sit", "is", "it", "us", "bi", "sc", "cu", "ui", "ic", "ci", "is", "si", "it", "ti", "pas", "seer", "nil", "bit",
         ]
     }
 
@@ -658,30 +662,30 @@ mod tests {
         let mut board = Board::new();
 
         // Create a board that can form 'biscuit':
-        // B I S C
-        // U * U I  <- wildcard at (1,1)
-        // I T * T  <- wildcard at (2,2)
-        // S C I T
+        // E B N L
+        // P * I C <- wildcard at (1,1)
+        // A I * S  <- wildcard at (2,2)
+        // S E E R
 
-        board.set_tile(0, 0, 'b', 3, false);
-        board.set_tile(0, 1, 'i', 1, false);
-        board.set_tile(0, 2, 's', 1, false);
-        board.set_tile(0, 3, 'c', 2, false);
+        board.set_tile(0, 0, 'e', 3, false);
+        board.set_tile(0, 1, 'b', 1, false);
+        board.set_tile(0, 2, 'n', 1, false);
+        board.set_tile(0, 3, 'l', 2, false);
 
-        board.set_tile(1, 0, 'u', 2, false);
+        board.set_tile(1, 0, 'p', 2, false);
         board.set_tile(1, 1, '*', 0, true); // wildcard
-        board.set_tile(1, 2, 'u', 2, false);
-        board.set_tile(1, 3, 'i', 1, false);
+        board.set_tile(1, 2, 'i', 2, false);
+        board.set_tile(1, 3, 'c', 1, false);
 
-        board.set_tile(2, 0, 'i', 1, false);
-        board.set_tile(2, 1, 't', 1, false);
+        board.set_tile(2, 0, 'a', 1, false);
+        board.set_tile(2, 1, 'i', 1, false);
         board.set_tile(2, 2, '*', 0, true); // wildcard
-        board.set_tile(2, 3, 't', 1, false);
+        board.set_tile(2, 3, 's', 1, false);
 
         board.set_tile(3, 0, 's', 1, false);
-        board.set_tile(3, 1, 'c', 2, false);
-        board.set_tile(3, 2, 'i', 1, false);
-        board.set_tile(3, 3, 't', 1, false);
+        board.set_tile(3, 1, 'e', 2, false);
+        board.set_tile(3, 2, 'e', 1, false);
+        board.set_tile(3, 3, 'r', 1, false);
 
         board
     }
