@@ -142,8 +142,12 @@ impl Board {
             }
         }
 
-        let answer_group_constraint_set_for_this_one_answer =
-            AnswerGroupConstraintSet::from(paths.iter().map(|m| m.constraints).collect::<Vec<PathConstraintSet>>());
+        let answer_group_constraint_set_for_this_one_answer = AnswerGroupConstraintSet::from(
+            paths
+                .iter()
+                .map(|m| m.constraints)
+                .collect::<Vec<PathConstraintSet>>(),
+        );
 
         return answer::Answer {
             paths: paths,
@@ -254,138 +258,7 @@ mod tests {
     use super::*;
 
     fn test_board() -> Board {
-        return Board {
-            rows: vec![
-                Row {
-                    tiles: vec![
-                        Tile {
-                            letter: "a".into(),
-                            points: 1,
-                            is_wildcard: false,
-                            row: 0,
-                            col: 0,
-                        },
-                        Tile {
-                            letter: "b".into(),
-                            points: 2,
-                            is_wildcard: false,
-                            row: 0,
-                            col: 1,
-                        },
-                        Tile {
-                            letter: "c".into(),
-                            points: 3,
-                            is_wildcard: false,
-                            row: 0,
-                            col: 2,
-                        },
-                        Tile {
-                            letter: "d".into(),
-                            points: 4,
-                            is_wildcard: false,
-                            row: 0,
-                            col: 3,
-                        },
-                    ],
-                },
-                Row {
-                    tiles: vec![
-                        Tile {
-                            letter: "a".into(),
-                            points: 1,
-                            is_wildcard: false,
-                            row: 1,
-                            col: 0,
-                        },
-                        Tile {
-                            letter: "b".into(),
-                            points: 2,
-                            is_wildcard: false,
-                            row: 1,
-                            col: 1,
-                        },
-                        Tile {
-                            letter: "c".into(),
-                            points: 3,
-                            is_wildcard: false,
-                            row: 1,
-                            col: 2,
-                        },
-                        Tile {
-                            letter: "d".into(),
-                            points: 4,
-                            is_wildcard: false,
-                            row: 1,
-                            col: 3,
-                        },
-                    ],
-                },
-                Row {
-                    tiles: vec![
-                        Tile {
-                            letter: "a".into(),
-                            points: 1,
-                            is_wildcard: false,
-                            row: 2,
-                            col: 0,
-                        },
-                        Tile {
-                            letter: "b".into(),
-                            points: 2,
-                            is_wildcard: false,
-                            row: 2,
-                            col: 1,
-                        },
-                        Tile {
-                            letter: "".into(),
-                            points: 0,
-                            is_wildcard: true,
-                            row: 2,
-                            col: 2,
-                        },
-                        Tile {
-                            letter: "d".into(),
-                            points: 4,
-                            is_wildcard: false,
-                            row: 2,
-                            col: 3,
-                        },
-                    ],
-                },
-                Row {
-                    tiles: vec![
-                        Tile {
-                            letter: "a".into(),
-                            points: 1,
-                            is_wildcard: false,
-                            row: 3,
-                            col: 0,
-                        },
-                        Tile {
-                            letter: "p".into(),
-                            points: 2,
-                            is_wildcard: false,
-                            row: 3,
-                            col: 1,
-                        },
-                        Tile {
-                            letter: "p".into(),
-                            points: 3,
-                            is_wildcard: false,
-                            row: 3,
-                            col: 2,
-                        },
-                        Tile {
-                            letter: "d".into(),
-                            points: 4,
-                            is_wildcard: false,
-                            row: 3,
-                            col: 3,
-                        },
-                    ],
-                },
-            ],
-        };
+        test_utils::create_test_board("abcdabcdab*dappd")
     }
 
     #[test]
@@ -406,143 +279,27 @@ mod tests {
         );
     }
 
-    fn create_puzzle9_test_board() -> Board {
+    #[test]
+    fn test_random_board() {
         // Create the exact puzzle #9 board for testing
         // T M I T
         // C * O T  <- wildcard at (1,1)
         // S A * I  <- wildcard at (2,2)
         // I N A L
-        Board {
-            rows: vec![
-                Row {
-                    tiles: vec![
-                        Tile {
-                            letter: "t".into(),
-                            points: 1,
-                            is_wildcard: false,
-                            row: 0,
-                            col: 0,
-                        },
-                        Tile {
-                            letter: "m".into(),
-                            points: 3,
-                            is_wildcard: false,
-                            row: 0,
-                            col: 1,
-                        },
-                        Tile {
-                            letter: "i".into(),
-                            points: 1,
-                            is_wildcard: false,
-                            row: 0,
-                            col: 2,
-                        },
-                        Tile {
-                            letter: "t".into(),
-                            points: 1,
-                            is_wildcard: false,
-                            row: 0,
-                            col: 3,
-                        },
-                    ],
-                },
-                Row {
-                    tiles: vec![
-                        Tile {
-                            letter: "c".into(),
-                            points: 2,
-                            is_wildcard: false,
-                            row: 1,
-                            col: 0,
-                        },
-                        Tile {
-                            letter: "*".into(),
-                            points: 0,
-                            is_wildcard: true,
-                            row: 1,
-                            col: 1,
-                        },
-                        Tile {
-                            letter: "o".into(),
-                            points: 1,
-                            is_wildcard: false,
-                            row: 1,
-                            col: 2,
-                        },
-                        Tile {
-                            letter: "t".into(),
-                            points: 1,
-                            is_wildcard: false,
-                            row: 1,
-                            col: 3,
-                        },
-                    ],
-                },
-                Row {
-                    tiles: vec![
-                        Tile {
-                            letter: "s".into(),
-                            points: 1,
-                            is_wildcard: false,
-                            row: 2,
-                            col: 0,
-                        },
-                        Tile {
-                            letter: "a".into(),
-                            points: 1,
-                            is_wildcard: false,
-                            row: 2,
-                            col: 1,
-                        },
-                        Tile {
-                            letter: "*".into(),
-                            points: 0,
-                            is_wildcard: true,
-                            row: 2,
-                            col: 2,
-                        },
-                        Tile {
-                            letter: "i".into(),
-                            points: 1,
-                            is_wildcard: false,
-                            row: 2,
-                            col: 3,
-                        },
-                    ],
-                },
-                Row {
-                    tiles: vec![
-                        Tile {
-                            letter: "i".into(),
-                            points: 1,
-                            is_wildcard: false,
-                            row: 3,
-                            col: 0,
-                        },
-                        Tile {
-                            letter: "n".into(),
-                            points: 1,
-                            is_wildcard: false,
-                            row: 3,
-                            col: 1,
-                        },
-                        Tile {
-                            letter: "a".into(),
-                            points: 1,
-                            is_wildcard: false,
-                            row: 3,
-                            col: 2,
-                        },
-                        Tile {
-                            letter: "l".into(),
-                            points: 2,
-                            is_wildcard: false,
-                            row: 3,
-                            col: 3,
-                        },
-                    ],
-                },
-            ],
+        let board = test_utils::create_test_board("tmitc*otsa*iinal");
+        for word in vec!["tmit", "crot", "sani", "inal", "tmittotcsarilani"] {
+            assert!(
+                board.paths_for(word).paths.len() > 0,
+                "Should find paths for {} on this board",
+                word
+            );
+        }
+        for bad_word in vec!["abcd", "zzzz", "icgz"] {
+            assert!(
+                board.paths_for(bad_word).paths.len() == 0,
+                "Should find paths for {} on this board",
+                bad_word
+            );
         }
     }
 

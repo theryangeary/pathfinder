@@ -1,8 +1,6 @@
 use std::collections::VecDeque;
 use std::fmt::Debug;
 
-use crate::game::board::constraints::PathConstraintSet;
-
 use super::constraints;
 
 // Since we're using protobuf, we'll work with the generated Tile type
