@@ -11,7 +11,7 @@ use tower_http::{cors::CorsLayer, timeout::TimeoutLayer, limit::RequestBodyLimit
 use moka::future::Cache;
 use tower::ServiceBuilder;
 
-use crate::db::{Repository, conversions::AnswerStorage};
+use crate::{db::{conversions::AnswerStorage, Repository}, game::board::constraints::AnswerGroupConstraintSet};
 use crate::game::GameEngine;
 use crate::game_generator::GameGenerator;
 use crate::game::conversion::SerializableBoard;
@@ -539,18 +539,11 @@ async fn validate_submitted_answers(
     // N.B. this may be optional because there is an Unconstrained constraint option
 
     // For words that do require wildcards, ensure constraints can be satisfied
-    let mut cummulative_answer_group_constraints = None;
-    for answer in answers_with_all_paths {
-        match cummulative_answer_group_constraints {
-            None => cummulative_answer_group_constraints = Some(answer.constraints_set),
-            Some(existing_constraints_set) => match existing_constraints_set.intersection(answer.constraints_set) {
-                Ok(new_constraints_set) => cummulative_answer_group_constraints = Some(new_constraints_set),
-                Err(_) => return Err("Some answers have conflicting wildcard constraints".to_string()),
-            },
-        }
+    if AnswerGroupConstraintSet::is_valid_set(answers_with_all_paths) {
+        return Ok(())
+    } else {
+        return Err("Some answers have conflicting wildcard constraints".to_string())
     }
-
-    Ok(())
 }
 
 // fn answers_are_compatible(
