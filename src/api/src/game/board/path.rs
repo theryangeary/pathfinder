@@ -14,12 +14,6 @@ pub struct GameTile {
     pub col: i32,
 }
 
-impl GameTile {
-    pub fn id(&self) -> String {
-        format!("{}_{}", self.row, self.col)
-    }
-}
-
 #[derive(Clone, Debug, PartialEq)]
 pub struct Path {
     pub tiles: VecDeque<GameTile>,

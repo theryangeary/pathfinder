@@ -67,12 +67,6 @@ impl fmt::Display for Board {
     }
 }
 
-impl Tile {
-    fn id(&self) -> String {
-        format!("{}_{}", self.row, self.col)
-    }
-}
-
 // Convert protobuf Tile to GameTile for internal use
 impl From<&Tile> for GameTile {
     fn from(tile: &Tile) -> Self {
@@ -224,31 +218,6 @@ impl Board {
         visited.remove(&(row_number, column_number));
         return result;
     }
-
-    // fn filter_minimal_wildcard_paths(paths: Vec<path::Path>) -> Vec<path::Path> {
-    //     // TODO i don't think we really want this, but instead we want to filter to non-wildcard paths if they exist
-    //     if paths.is_empty() {
-    //         return paths;
-    //     }
-
-    //     // Group paths by number of wildcards used
-    //     let mut paths_by_wildcard_count: HashMap<usize, Vec<path::Path>> = HashMap::new();
-    //     for path in paths {
-    //         let wildcard_count = path.constraints.0.len();
-    //         paths_by_wildcard_count
-    //             .entry(wildcard_count)
-    //             .or_default()
-    //             .push(path);
-    //     }
-
-    //     // Find the minimum number of wildcards used
-    //     let min_wildcard_count = *paths_by_wildcard_count.keys().min().unwrap();
-
-    //     // Return only paths that use the minimum number of wildcards
-    //     paths_by_wildcard_count
-    //         .remove(&min_wildcard_count)
-    //         .unwrap_or_default()
-    // }
 }
 
 #[cfg(test)]
