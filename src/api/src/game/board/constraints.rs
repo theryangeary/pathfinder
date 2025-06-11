@@ -25,15 +25,70 @@ impl PathConstraintSet {
     ) -> Result<PathConstraintSet, UnsatisfiableConstraint> {
         match self {
             PathConstraintSet::Unconstrainted => Ok(other),
-            // TODO
             PathConstraintSet::FirstDecided(first) => match other {
-                PathConstraintSet::Unconstrainted => todo!(),
-                PathConstraintSet::FirstDecided(_) => todo!(),
-                PathConstraintSet::SecondDecided(_) => todo!(),
-                PathConstraintSet::BothDecided(_, _) => todo!(),
+                PathConstraintSet::Unconstrainted => Ok(PathConstraintSet::FirstDecided(*first)),
+                PathConstraintSet::FirstDecided(other_first) => {
+                    if *first == other_first {
+                        Ok(PathConstraintSet::FirstDecided(*first))
+                    } else {
+                        Err(UnsatisfiableConstraint)
+                    }
+                }
+                PathConstraintSet::SecondDecided(second) => {
+                    Ok(PathConstraintSet::BothDecided(*first, second))
+                }
+                PathConstraintSet::BothDecided(other_first, other_second) => {
+                    if *first == other_first {
+                        Ok(PathConstraintSet::BothDecided(*first, other_second))
+                    } else {
+                        Err(UnsatisfiableConstraint)
+                    }
+                }
             },
-            PathConstraintSet::SecondDecided(_) => todo!(),
-            PathConstraintSet::BothDecided(_, _) => todo!(),
+            PathConstraintSet::SecondDecided(second) => match other {
+                PathConstraintSet::Unconstrainted => Ok(PathConstraintSet::SecondDecided(*second)),
+                PathConstraintSet::FirstDecided(first) => {
+                    Ok(PathConstraintSet::BothDecided(first, *second))
+                }
+                PathConstraintSet::SecondDecided(other_second) => {
+                    if *second == other_second {
+                        Ok(PathConstraintSet::SecondDecided(*second))
+                    } else {
+                        Err(UnsatisfiableConstraint)
+                    }
+                }
+                PathConstraintSet::BothDecided(other_first, other_second) => {
+                    if *second == other_second {
+                        Ok(PathConstraintSet::BothDecided(other_first, *second))
+                    } else {
+                        Err(UnsatisfiableConstraint)
+                    }
+                }
+            },
+            PathConstraintSet::BothDecided(first, second) => match other {
+                PathConstraintSet::Unconstrainted => Ok(PathConstraintSet::BothDecided(*first, *second)),
+                PathConstraintSet::FirstDecided(other_first) => {
+                    if *first == other_first {
+                        Ok(PathConstraintSet::BothDecided(*first, *second))
+                    } else {
+                        Err(UnsatisfiableConstraint)
+                    }
+                }
+                PathConstraintSet::SecondDecided(other_second) => {
+                    if *second == other_second {
+                        Ok(PathConstraintSet::BothDecided(*first, *second))
+                    } else {
+                        Err(UnsatisfiableConstraint)
+                    }
+                }
+                PathConstraintSet::BothDecided(other_first, other_second) => {
+                    if *first == other_first && *second == other_second {
+                        Ok(PathConstraintSet::BothDecided(*first, *second))
+                    } else {
+                        Err(UnsatisfiableConstraint)
+                    }
+                }
+            },
         }
     }
 }
@@ -745,6 +800,273 @@ mod tests {
                     test_case.name
                 );
             }
+        }
+    }
+
+    struct PathConstraintSetTestCase {
+        name: &'static str,
+        pcs1: PathConstraintSet,
+        pcs2: PathConstraintSet,
+        expected: Result<PathConstraintSet, UnsatisfiableConstraint>,
+    }
+
+    fn create_path_constraint_set_test_cases() -> Vec<PathConstraintSetTestCase> {
+        vec![
+            // === Unconstrainted + X cases ===
+            PathConstraintSetTestCase {
+                name: "Unconstrainted + Unconstrainted",
+                pcs1: PathConstraintSet::Unconstrainted,
+                pcs2: PathConstraintSet::Unconstrainted,
+                expected: Ok(PathConstraintSet::Unconstrainted),
+            },
+            PathConstraintSetTestCase {
+                name: "Unconstrainted + FirstDecided",
+                pcs1: PathConstraintSet::Unconstrainted,
+                pcs2: PathConstraintSet::FirstDecided('a'),
+                expected: Ok(PathConstraintSet::FirstDecided('a')),
+            },
+            PathConstraintSetTestCase {
+                name: "Unconstrainted + SecondDecided",
+                pcs1: PathConstraintSet::Unconstrainted,
+                pcs2: PathConstraintSet::SecondDecided('b'),
+                expected: Ok(PathConstraintSet::SecondDecided('b')),
+            },
+            PathConstraintSetTestCase {
+                name: "Unconstrainted + BothDecided",
+                pcs1: PathConstraintSet::Unconstrainted,
+                pcs2: PathConstraintSet::BothDecided('a', 'b'),
+                expected: Ok(PathConstraintSet::BothDecided('a', 'b')),
+            },
+            
+            // === FirstDecided + X cases ===
+            PathConstraintSetTestCase {
+                name: "FirstDecided + Unconstrainted",
+                pcs1: PathConstraintSet::FirstDecided('a'),
+                pcs2: PathConstraintSet::Unconstrainted,
+                expected: Ok(PathConstraintSet::FirstDecided('a')),
+            },
+            PathConstraintSetTestCase {
+                name: "FirstDecided + FirstDecided (same)",
+                pcs1: PathConstraintSet::FirstDecided('a'),
+                pcs2: PathConstraintSet::FirstDecided('a'),
+                expected: Ok(PathConstraintSet::FirstDecided('a')),
+            },
+            PathConstraintSetTestCase {
+                name: "FirstDecided + FirstDecided (different)",
+                pcs1: PathConstraintSet::FirstDecided('a'),
+                pcs2: PathConstraintSet::FirstDecided('b'),
+                expected: Err(UnsatisfiableConstraint),
+            },
+            PathConstraintSetTestCase {
+                name: "FirstDecided + SecondDecided",
+                pcs1: PathConstraintSet::FirstDecided('a'),
+                pcs2: PathConstraintSet::SecondDecided('b'),
+                expected: Ok(PathConstraintSet::BothDecided('a', 'b')),
+            },
+            PathConstraintSetTestCase {
+                name: "FirstDecided + BothDecided (compatible)",
+                pcs1: PathConstraintSet::FirstDecided('a'),
+                pcs2: PathConstraintSet::BothDecided('a', 'b'),
+                expected: Ok(PathConstraintSet::BothDecided('a', 'b')),
+            },
+            PathConstraintSetTestCase {
+                name: "FirstDecided + BothDecided (incompatible)",
+                pcs1: PathConstraintSet::FirstDecided('x'),
+                pcs2: PathConstraintSet::BothDecided('a', 'b'),
+                expected: Err(UnsatisfiableConstraint),
+            },
+            
+            // === SecondDecided + X cases ===
+            PathConstraintSetTestCase {
+                name: "SecondDecided + Unconstrainted",
+                pcs1: PathConstraintSet::SecondDecided('b'),
+                pcs2: PathConstraintSet::Unconstrainted,
+                expected: Ok(PathConstraintSet::SecondDecided('b')),
+            },
+            PathConstraintSetTestCase {
+                name: "SecondDecided + FirstDecided",
+                pcs1: PathConstraintSet::SecondDecided('b'),
+                pcs2: PathConstraintSet::FirstDecided('a'),
+                expected: Ok(PathConstraintSet::BothDecided('a', 'b')),
+            },
+            PathConstraintSetTestCase {
+                name: "SecondDecided + SecondDecided (same)",
+                pcs1: PathConstraintSet::SecondDecided('b'),
+                pcs2: PathConstraintSet::SecondDecided('b'),
+                expected: Ok(PathConstraintSet::SecondDecided('b')),
+            },
+            PathConstraintSetTestCase {
+                name: "SecondDecided + SecondDecided (different)",
+                pcs1: PathConstraintSet::SecondDecided('b'),
+                pcs2: PathConstraintSet::SecondDecided('c'),
+                expected: Err(UnsatisfiableConstraint),
+            },
+            PathConstraintSetTestCase {
+                name: "SecondDecided + BothDecided (compatible)",
+                pcs1: PathConstraintSet::SecondDecided('b'),
+                pcs2: PathConstraintSet::BothDecided('a', 'b'),
+                expected: Ok(PathConstraintSet::BothDecided('a', 'b')),
+            },
+            PathConstraintSetTestCase {
+                name: "SecondDecided + BothDecided (incompatible)",
+                pcs1: PathConstraintSet::SecondDecided('x'),
+                pcs2: PathConstraintSet::BothDecided('a', 'b'),
+                expected: Err(UnsatisfiableConstraint),
+            },
+            
+            // === BothDecided + X cases ===
+            PathConstraintSetTestCase {
+                name: "BothDecided + Unconstrainted",
+                pcs1: PathConstraintSet::BothDecided('a', 'b'),
+                pcs2: PathConstraintSet::Unconstrainted,
+                expected: Ok(PathConstraintSet::BothDecided('a', 'b')),
+            },
+            PathConstraintSetTestCase {
+                name: "BothDecided + FirstDecided (compatible)",
+                pcs1: PathConstraintSet::BothDecided('a', 'b'),
+                pcs2: PathConstraintSet::FirstDecided('a'),
+                expected: Ok(PathConstraintSet::BothDecided('a', 'b')),
+            },
+            PathConstraintSetTestCase {
+                name: "BothDecided + FirstDecided (incompatible)",
+                pcs1: PathConstraintSet::BothDecided('a', 'b'),
+                pcs2: PathConstraintSet::FirstDecided('x'),
+                expected: Err(UnsatisfiableConstraint),
+            },
+            PathConstraintSetTestCase {
+                name: "BothDecided + SecondDecided (compatible)",
+                pcs1: PathConstraintSet::BothDecided('a', 'b'),
+                pcs2: PathConstraintSet::SecondDecided('b'),
+                expected: Ok(PathConstraintSet::BothDecided('a', 'b')),
+            },
+            PathConstraintSetTestCase {
+                name: "BothDecided + SecondDecided (incompatible)",
+                pcs1: PathConstraintSet::BothDecided('a', 'b'),
+                pcs2: PathConstraintSet::SecondDecided('x'),
+                expected: Err(UnsatisfiableConstraint),
+            },
+            PathConstraintSetTestCase {
+                name: "BothDecided + BothDecided (same)",
+                pcs1: PathConstraintSet::BothDecided('a', 'b'),
+                pcs2: PathConstraintSet::BothDecided('a', 'b'),
+                expected: Ok(PathConstraintSet::BothDecided('a', 'b')),
+            },
+            PathConstraintSetTestCase {
+                name: "BothDecided + BothDecided (first different)",
+                pcs1: PathConstraintSet::BothDecided('a', 'b'),
+                pcs2: PathConstraintSet::BothDecided('x', 'b'),
+                expected: Err(UnsatisfiableConstraint),
+            },
+            PathConstraintSetTestCase {
+                name: "BothDecided + BothDecided (second different)",
+                pcs1: PathConstraintSet::BothDecided('a', 'b'),
+                pcs2: PathConstraintSet::BothDecided('a', 'x'),
+                expected: Err(UnsatisfiableConstraint),
+            },
+            PathConstraintSetTestCase {
+                name: "BothDecided + BothDecided (both different)",
+                pcs1: PathConstraintSet::BothDecided('a', 'b'),
+                pcs2: PathConstraintSet::BothDecided('x', 'y'),
+                expected: Err(UnsatisfiableConstraint),
+            },
+            
+            // === Edge cases with same letters ===
+            PathConstraintSetTestCase {
+                name: "FirstDecided + SecondDecided (same letter)",
+                pcs1: PathConstraintSet::FirstDecided('a'),
+                pcs2: PathConstraintSet::SecondDecided('a'),
+                expected: Ok(PathConstraintSet::BothDecided('a', 'a')),
+            },
+            PathConstraintSetTestCase {
+                name: "SecondDecided + FirstDecided (same letter)",
+                pcs1: PathConstraintSet::SecondDecided('a'),
+                pcs2: PathConstraintSet::FirstDecided('a'),
+                expected: Ok(PathConstraintSet::BothDecided('a', 'a')),
+            },
+            PathConstraintSetTestCase {
+                name: "BothDecided same letter both positions",
+                pcs1: PathConstraintSet::BothDecided('a', 'a'),
+                pcs2: PathConstraintSet::FirstDecided('a'),
+                expected: Ok(PathConstraintSet::BothDecided('a', 'a')),
+            },
+            PathConstraintSetTestCase {
+                name: "FirstDecided same as BothDecided same letter",
+                pcs1: PathConstraintSet::FirstDecided('z'),
+                pcs2: PathConstraintSet::BothDecided('z', 'z'),
+                expected: Ok(PathConstraintSet::BothDecided('z', 'z')),
+            },
+            PathConstraintSetTestCase {
+                name: "SecondDecided same as BothDecided same letter",
+                pcs1: PathConstraintSet::SecondDecided('z'),
+                pcs2: PathConstraintSet::BothDecided('z', 'z'),
+                expected: Ok(PathConstraintSet::BothDecided('z', 'z')),
+            },
+            
+            // === Additional comprehensive coverage ===
+            PathConstraintSetTestCase {
+                name: "FirstDecided + BothDecided (first matches, different letters)",
+                pcs1: PathConstraintSet::FirstDecided('x'),
+                pcs2: PathConstraintSet::BothDecided('x', 'y'),
+                expected: Ok(PathConstraintSet::BothDecided('x', 'y')),
+            },
+            PathConstraintSetTestCase {
+                name: "SecondDecided + BothDecided (second matches, different letters)",
+                pcs1: PathConstraintSet::SecondDecided('y'),
+                pcs2: PathConstraintSet::BothDecided('x', 'y'),
+                expected: Ok(PathConstraintSet::BothDecided('x', 'y')),
+            },
+            PathConstraintSetTestCase {
+                name: "BothDecided + FirstDecided (first matches, same letters)",
+                pcs1: PathConstraintSet::BothDecided('m', 'm'),
+                pcs2: PathConstraintSet::FirstDecided('m'),
+                expected: Ok(PathConstraintSet::BothDecided('m', 'm')),
+            },
+            PathConstraintSetTestCase {
+                name: "BothDecided + SecondDecided (second matches, same letters)",
+                pcs1: PathConstraintSet::BothDecided('n', 'n'),
+                pcs2: PathConstraintSet::SecondDecided('n'),
+                expected: Ok(PathConstraintSet::BothDecided('n', 'n')),
+            },
+            
+            // === Symmetry tests ===
+            PathConstraintSetTestCase {
+                name: "Symmetry: FirstDecided('p') + SecondDecided('q')",
+                pcs1: PathConstraintSet::FirstDecided('p'),
+                pcs2: PathConstraintSet::SecondDecided('q'),
+                expected: Ok(PathConstraintSet::BothDecided('p', 'q')),
+            },
+            PathConstraintSetTestCase {
+                name: "Symmetry: SecondDecided('q') + FirstDecided('p')",
+                pcs1: PathConstraintSet::SecondDecided('q'),
+                pcs2: PathConstraintSet::FirstDecided('p'),
+                expected: Ok(PathConstraintSet::BothDecided('p', 'q')),
+            },
+            PathConstraintSetTestCase {
+                name: "Symmetry: BothDecided('r', 's') + Unconstrainted",
+                pcs1: PathConstraintSet::BothDecided('r', 's'),
+                pcs2: PathConstraintSet::Unconstrainted,
+                expected: Ok(PathConstraintSet::BothDecided('r', 's')),
+            },
+            PathConstraintSetTestCase {
+                name: "Symmetry: Unconstrainted + BothDecided('r', 's')",
+                pcs1: PathConstraintSet::Unconstrainted,
+                pcs2: PathConstraintSet::BothDecided('r', 's'),
+                expected: Ok(PathConstraintSet::BothDecided('r', 's')),
+            },
+        ]
+    }
+
+    #[test]
+    fn test_path_constraint_set_merge() {
+        let test_cases = create_path_constraint_set_test_cases();
+
+        for test_case in test_cases {
+            let result = test_case.pcs1.merge(test_case.pcs2);
+            assert_eq!(
+                result, test_case.expected,
+                "Failed test case: {}",
+                test_case.name
+            );
         }
     }
 }
