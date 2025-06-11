@@ -140,7 +140,7 @@ mod tests {
 
     #[test]
     fn test_happy_in_wordlist() {
-        let t = Trie::from(std::path::PathBuf::from("wordlist"));
+        let t = Trie::from(std::path::PathBuf::from("test_wordlist"));
         assert!(t.search("happy"), "The word 'happy' should be found in the wordlist");
     }
 
