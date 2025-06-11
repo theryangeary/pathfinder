@@ -338,6 +338,8 @@ impl GameEngine {
 
 #[cfg(test)]
 mod tests {
+    use crate::test_utils::test_utils;
+
     use super::*;
     use rand::SeedableRng;
     fn create_test_wordlist() -> Vec<&'static str> {
@@ -658,75 +660,15 @@ mod tests {
         ]
     }
 
-    fn create_biscuit_test_board() -> Board {
-        let mut board = Board::new();
-
-        // Create a board that can form 'biscuit':
-        // E B N L
-        // P * I C <- wildcard at (1,1)
-        // A I * S  <- wildcard at (2,2)
-        // S E E R
-
-        board.set_tile(0, 0, 'e', 3, false);
-        board.set_tile(0, 1, 'b', 1, false);
-        board.set_tile(0, 2, 'n', 1, false);
-        board.set_tile(0, 3, 'l', 2, false);
-
-        board.set_tile(1, 0, 'p', 2, false);
-        board.set_tile(1, 1, '*', 0, true); // wildcard
-        board.set_tile(1, 2, 'i', 2, false);
-        board.set_tile(1, 3, 'c', 1, false);
-
-        board.set_tile(2, 0, 'a', 1, false);
-        board.set_tile(2, 1, 'i', 1, false);
-        board.set_tile(2, 2, '*', 0, true); // wildcard
-        board.set_tile(2, 3, 's', 1, false);
-
-        board.set_tile(3, 0, 's', 1, false);
-        board.set_tile(3, 1, 'e', 2, false);
-        board.set_tile(3, 2, 'e', 1, false);
-        board.set_tile(3, 3, 'r', 1, false);
-
-        board
-    }
-
     fn create_diode_scenario_board() -> Board {
-        let mut board = Board::new();
-
-        // Create the board from puzzle #4 (2025-06-04) that caused the bug:
-        // I A R O
-        // O * N H   <- wildcard at (1,1) that gets constrained to 'D'
-        // D O * T   <- wildcard at (2,2)
-        // E R B E
-
-        board.set_tile(0, 0, 'i', 1, false);
-        board.set_tile(0, 1, 'a', 1, false);
-        board.set_tile(0, 2, 'r', 1, false);
-        board.set_tile(0, 3, 'o', 1, false);
-
-        board.set_tile(1, 0, 'o', 1, false);
-        board.set_tile(1, 1, '*', 0, true); // wildcard that becomes 'd'
-        board.set_tile(1, 2, 'n', 1, false);
-        board.set_tile(1, 3, 'h', 3, false);
-
-        board.set_tile(2, 0, 'd', 2, false);
-        board.set_tile(2, 1, 'o', 1, false);
-        board.set_tile(2, 2, '*', 0, true); // wildcard
-        board.set_tile(2, 3, 't', 1, false);
-
-        board.set_tile(3, 0, 'e', 1, false);
-        board.set_tile(3, 1, 'r', 1, false);
-        board.set_tile(3, 2, 'b', 3, false);
-        board.set_tile(3, 3, 'e', 1, false);
-
-        board
+        test_utils::create_test_board("iaroo*nhdo*terbe")
     }
 
     #[tokio::test]
     async fn test_biscuit_validate_answer_group() {
         let words = create_test_wordlist_with_biscuit();
         let engine = GameEngine::new(words);
-        let board = create_biscuit_test_board();
+        let board = test_utils::create_test_board("ebnlp*icai*sseer");
 
         // Test that 'biscuit' passes validate_answer_group
         // Possible path: B(0,0) -> I(0,1) -> S(0,2) -> C(0,3) -> U(1,2) -> I(1,3) -> T(2,1)
