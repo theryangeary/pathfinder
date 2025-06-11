@@ -116,13 +116,23 @@ impl GameEngine {
         }
     }
 
-    pub fn validate_api_answer_group(&self, board: &Board, answers: Vec<ApiAnswer>) -> Result<(), String> {
-                // Sanitize input
+    pub fn validate_api_answer_group(
+        &self,
+        board: &Board,
+        answers: Vec<ApiAnswer>,
+    ) -> Result<(), String> {
+        // Sanitize input
         let mut sanitized_answers: Vec<ApiAnswer> = Vec::new();
         for i in 0..answers.len() {
             sanitized_answers.push(answers[i].clone().sanitize());
         }
-        self.validate_answer_group(board, sanitized_answers.iter().map(|m| m.word.to_string()).collect())
+        self.validate_answer_group(
+            board,
+            sanitized_answers
+                .iter()
+                .map(|m| m.word.to_string())
+                .collect(),
+        )
     }
 
     fn validate_answer_group(&self, board: &Board, answers: Vec<String>) -> Result<(), String> {
@@ -132,6 +142,8 @@ impl GameEngine {
                 return Err(format!("Word '{}' is not in the dictionary", answer));
             }
         }
+
+        // need a step here where we check a word actually has >1 paths, unless maybe is_valid_set is already handling that for us
 
         // Get all paths for each word
         let mut answers_with_all_paths = Vec::new();
@@ -635,6 +647,45 @@ mod tests {
         ]
     }
 
+    fn create_test_wordlist_with_biscuit() -> Vec<&'static str> {
+        vec![
+            "biscuit", "biscuits", "bis", "cut", "suit", "sits", "bit", "its", "cut", "sue", "use",
+            "sit", "is", "it", "us", "bi", "sc", "cu", "ui", "ic", "ci", "is", "si", "it", "ti",
+        ]
+    }
+
+    fn create_biscuit_test_board() -> Board {
+        let mut board = Board::new();
+
+        // Create a board that can form 'biscuit':
+        // B I S C
+        // U * U I  <- wildcard at (1,1)
+        // I T * T  <- wildcard at (2,2)
+        // S C I T
+
+        board.set_tile(0, 0, 'b', 3, false);
+        board.set_tile(0, 1, 'i', 1, false);
+        board.set_tile(0, 2, 's', 1, false);
+        board.set_tile(0, 3, 'c', 2, false);
+
+        board.set_tile(1, 0, 'u', 2, false);
+        board.set_tile(1, 1, '*', 0, true); // wildcard
+        board.set_tile(1, 2, 'u', 2, false);
+        board.set_tile(1, 3, 'i', 1, false);
+
+        board.set_tile(2, 0, 'i', 1, false);
+        board.set_tile(2, 1, 't', 1, false);
+        board.set_tile(2, 2, '*', 0, true); // wildcard
+        board.set_tile(2, 3, 't', 1, false);
+
+        board.set_tile(3, 0, 's', 1, false);
+        board.set_tile(3, 1, 'c', 2, false);
+        board.set_tile(3, 2, 'i', 1, false);
+        board.set_tile(3, 3, 't', 1, false);
+
+        board
+    }
+
     fn create_diode_scenario_board() -> Board {
         let mut board = Board::new();
 
@@ -665,5 +716,53 @@ mod tests {
         board.set_tile(3, 3, 'e', 1, false);
 
         board
+    }
+
+    #[tokio::test]
+    async fn test_biscuit_validate_answer_group() {
+        let words = create_test_wordlist_with_biscuit();
+        let engine = GameEngine::new(words);
+        let board = create_biscuit_test_board();
+
+        // Test that 'biscuit' passes validate_answer_group
+        // Possible path: B(0,0) -> I(0,1) -> S(0,2) -> C(0,3) -> U(1,2) -> I(1,3) -> T(2,1)
+        let result = engine.validate_answer_group(&board, vec!["biscuit".to_string()]);
+        assert!(
+            result.is_ok(),
+            "biscuit should be valid on the test board: {:?}",
+            result
+        );
+
+        // Test that 'biscuit' can coexist with a set of valid other words
+        let result = engine.validate_answer_group(
+            &board,
+            vec![
+                "biscuit".to_string(),
+                "pas".to_string(),
+                "seer".to_string(),
+                "nil".to_string(),
+                "bit".to_string(),
+            ],
+        );
+        assert!(
+            result.is_ok(),
+            "biscuit should be valid on the test board: {:?}",
+            result
+        );
+
+        // Also test that biscuit can be found as a valid word
+        let answer_result = engine.validate_answer(&board, "biscuit");
+        assert!(
+            answer_result.is_ok(),
+            "biscuit should be findable on the board: {:?}",
+            answer_result
+        );
+
+        let answer = answer_result.unwrap();
+        assert_eq!(answer.word, "biscuit");
+        assert!(
+            !answer.paths.is_empty(),
+            "biscuit should have at least one valid path"
+        );
     }
 }
