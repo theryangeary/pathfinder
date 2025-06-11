@@ -218,6 +218,7 @@ function App() {
       }
       
       // Try to find a valid path with current constraints
+      // TODO does this mean that we don't allow for a second possible wildcard-using path in the event 
       const path = findBestPath(board, word, cumulativeConstraints);
       if (!path) {
         continue;

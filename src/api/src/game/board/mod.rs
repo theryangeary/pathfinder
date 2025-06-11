@@ -133,14 +133,18 @@ impl Board {
     }
 
     pub fn paths_for(&self, word: &str) -> answer::Answer {
+        dbg!("start");
         let mut paths = vec![];
         for row in 0..self.rows.len() {
+            dbg!(row);
             for column in 0..self.rows[row].tiles.len() {
+                dbg!(column);
                 let mut new_paths =
                     self.paths_for_word_from_position(word, row, column, &mut HashSet::new());
                 paths.append(&mut new_paths);
             }
         }
+        dbg!(paths.clone());
 
         let answer_group_constraint_set_for_this_one_answer =
             AnswerGroupConstraintSet::from(paths.iter().map(|m| m.constraints).collect::<Vec<PathConstraintSet>>());
@@ -171,12 +175,14 @@ impl Board {
         let current_char = current_word_char.unwrap();
         let current_location = &self.rows[row_number].tiles[column_number];
         let current_location_letter = current_location.letter.chars().next();
+        dbg!(current_char, current_location);
 
         if current_location_letter != Some(current_char) && !current_location.is_wildcard {
             return result;
         }
 
         if word.len() == 1 {
+            dbg!("recursed fully", current_char, current_location);
             let mut tiles = VecDeque::new();
             tiles.push_back(GameTile::from(current_location));
             let path = path::Path {
@@ -249,6 +255,8 @@ impl Board {
 
 #[cfg(test)]
 mod tests {
+    use crate::test_utils::test_utils;
+
     use super::*;
 
     fn test_board() -> Board {
@@ -404,44 +412,6 @@ mod tests {
         );
     }
 
-    // #[test]
-    // fn test_wildcard_constraint_resolution() {
-    //     // TODO this test is buggy, doing a double loop over answers and checking any two specific answers satisfies can_coexist_with is not enough to validate that all answers can coexist.
-    //     // Test our constraint resolution logic with a focused board scenario
-    //     let board = create_puzzle9_test_board();
-
-    //     // Test that we can find answers for puzzle #9 words
-    //     let words = ["til", "moccasin", "moan", "tonal"];
-    //     let mut answers = Vec::new();
-
-    //     for word in words {
-    //         let answer = board.paths_for(word);
-    //         if !answer.paths.is_empty() {
-    //             answers.push(answer);
-    //         }
-    //     }
-
-    //     // All words should be findable on the board
-    //     assert_eq!(
-    //         answers.len(),
-    //         4,
-    //         "All test words should be findable on puzzle #9 board"
-    //     );
-
-    //     // Test constraint compatibility
-    //     for i in 0..answers.len() {
-    //         for j in (i + 1)..answers.len() {
-    //             let answer1 = &answers[i];
-    //             let answer2 = &answers[j];
-    //             let can_coexist = answer1.can_coexist_with(answer2);
-    //             println!(
-    //                 "Words '{}' and '{}' can coexist: {}",
-    //                 answer1.word, answer2.word, can_coexist
-    //             );
-    //         }
-    //     }
-    // }
-
     fn create_puzzle9_test_board() -> Board {
         // Create the exact puzzle #9 board for testing
         // T M I T
@@ -580,5 +550,12 @@ mod tests {
                 },
             ],
         }
+    }
+
+    #[test]
+    fn test_biscuit_on_biscuit_board() {
+        let board = test_utils::create_test_board("ebnlp*icai*sseer");
+        let answer = board.paths_for("biscuit");
+        assert!(answer.paths.len() > 0, "Should find biscuit on this board");
     }
 }
