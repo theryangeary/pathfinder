@@ -179,51 +179,6 @@ impl GameEngine {
         Ok(answer)
     }
 
-    pub fn validate_answer_with_constraints(
-        &self,
-        board: &Board,
-        word: &str,
-        existing_answers: &[board::answer::Answer],
-    ) -> Result<board::answer::Answer, String> {
-        let answer = self.validate_answer(board, word)?;
-
-        // Check wildcard constraint consistency
-        let mut all_answers = existing_answers.iter().collect::<Vec<_>>();
-        all_answers.push(&answer);
-
-        // Wildcard constraint validation moved to application layer
-
-        Ok(answer)
-    }
-
-    // pub async fn validate_word_with_constraints(
-    //     &self,
-    //     board: &Board,
-    //     word: &str,
-    //     previous_constraints: &HashMap<String, char>,
-    // ) -> Result<Option<board::answer::Answer>> {
-    //     // First check if the word is in our dictionary
-    //     if !self.is_valid_word_in_dictionary(word) {
-    //         return Ok(None);
-    //     }
-
-    //     // Find all possible paths for this word on the board
-    //     let answer = self.find_word_paths(board, word);
-
-    //     if answer.paths.is_empty() {
-    //         return Ok(None);
-    //     }
-
-    //     // Apply constraint filtering based on existing constraints
-    //     let filtered_answer = answer.filter_paths_by_constraints(previous_constraints);
-
-    //     if filtered_answer.paths.is_empty() {
-    //         return Ok(None);
-    //     }
-
-    //     Ok(Some(filtered_answer))
-    // }
-
     pub async fn find_all_valid_words(&self, board: &Board) -> Result<Vec<board::answer::Answer>> {
         let mut valid_answers = Vec::new();
 
@@ -576,63 +531,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_game_engine_validate_answer_with_constraints() {
-        let words = create_test_wordlist();
-        let engine = GameEngine::new(words);
-        let board = create_test_board();
-
-        // Test with empty constraints
-        let existing_answers = vec![];
-        let result = engine.validate_answer_with_constraints(&board, "cat", &existing_answers);
-        assert!(result.is_ok());
-
-        let answer = result.unwrap();
-        assert_eq!(answer.word, "cat");
-    }
-
-    // #[tokio::test]
-    // async fn test_game_engine_validate_word_with_constraints_valid() {
-    //     let words = create_test_wordlist();
-    //     let engine = GameEngine::new(words);
-    //     let board = create_test_board();
-
-    //     // Test with empty constraints
-    //     let constraints = HashMap::new();
-    //     let result = engine.validate_word_with_constraints(&board, "cat", &constraints).await;
-    //     assert!(result.is_ok());
-
-    //     let answer = result.unwrap();
-    //     assert!(answer.is_some());
-    //     assert_eq!(answer.unwrap().word, "cat");
-    // }
-
-    // #[tokio::test]
-    // async fn test_game_engine_validate_word_with_constraints_invalid_word() {
-    //     let words = create_test_wordlist();
-    //     let engine = GameEngine::new(words);
-    //     let board = create_test_board();
-
-    //     // Test invalid word
-    //     let constraints = HashMap::new();
-    //     let result = engine.validate_word_with_constraints(&board, "xyz", &constraints).await;
-    //     assert!(result.is_ok());
-    //     assert!(result.unwrap().is_none());
-    // }
-
-    // #[tokio::test]
-    // async fn test_game_engine_validate_word_with_constraints_no_path() {
-    //     let words = create_test_wordlist();
-    //     let engine = GameEngine::new(words);
-    //     let board = create_test_board();
-
-    //     // Test word that can't be formed on board
-    //     let constraints = HashMap::new();
-    //     let result = engine.validate_word_with_constraints(&board, "game", &constraints).await;
-    //     assert!(result.is_ok());
-    //     assert!(result.unwrap().is_none());
-    // }
-
-    #[tokio::test]
     async fn test_find_all_valid_words() {
         let words = create_test_wordlist();
         let engine = GameEngine::new(words);
@@ -692,67 +590,6 @@ mod tests {
         });
     }
 
-    #[tokio::test]
-    async fn test_validate_answer_with_cumulative_constraints() {
-        // Test the core cumulative constraint validation that was fixed
-        // This tests that validate_answer_with_constraints properly considers existing constraints
-        let words = create_test_wordlist_with_constraints();
-        let engine = GameEngine::new(words);
-        let board = create_constraint_test_board();
-
-        // Test scenario: first word uses wildcard as 'A', second word needs same wildcard as 'A'
-        let mut validated_answers = Vec::new();
-
-        // First answer: "cat" - should use wildcard at (2,0) as 'C'
-        let cat_result = engine.validate_answer_with_constraints(&board, "cat", &validated_answers);
-        assert!(
-            cat_result.is_ok(),
-            "Failed to validate 'cat': {:?}",
-            cat_result.err()
-        );
-        validated_answers.push(cat_result.unwrap());
-
-        // Second answer: "cam" - should work if wildcard at (2,0) can be 'C' for both words
-        let cam_result = engine.validate_answer_with_constraints(&board, "cam", &validated_answers);
-        assert!(
-            cam_result.is_ok(),
-            "Failed to validate 'cam' with cumulative constraints: {:?}",
-            cam_result.err()
-        );
-        let cam_answer = cam_result.unwrap();
-
-        // Verify that cam found a valid path considering the existing constraints
-        assert!(!cam_answer.paths.is_empty(), "cam should have valid paths");
-
-        // Test that this demonstrates the difference from validate_answer (without constraints)
-        // If we used validate_answer instead, it might choose a different wildcard constraint
-        let cam_no_constraints = engine.validate_answer(&board, "cam");
-        assert!(
-            cam_no_constraints.is_ok(),
-            "cam should be valid without constraints too"
-        );
-
-        // The key is that with cumulative constraints, wildcard usage is coordinated
-        // across multiple answers, which is what the bug fix addressed
-    }
-
-    #[tokio::test]
-    async fn test_validate_answer_without_cumulative_constraints() {
-        // Test that demonstrates the bug is gone
-        let words = create_test_wordlist_with_diode_scenario();
-        let engine = GameEngine::new(words);
-        let board = create_diode_scenario_board();
-
-        // Try to validate "diode" without any prior constraints (the old behavior)
-        let diode_result = engine.validate_answer(&board, "diode");
-
-        // This should fail because "diode" can't be formed without wildcard constraints
-        assert!(
-            diode_result.is_ok(),
-            "diode should not fail validation, the wildcard allows it"
-        );
-    }
-
     fn create_test_wordlist_with_constraints() -> Vec<&'static str> {
         vec![
             "cat", "cam", "mat", "map", "test", "word", "hello", "world", "valid",
@@ -796,47 +633,6 @@ mod tests {
             "ran", "rod", "diode", "best", "test", "redo", "bet", "door", "ore", "do", "od", "re",
             "to", "ar", "or", "an", "no", "it", "id", "di", "io", "oi",
         ]
-    }
-
-    #[tokio::test]
-    async fn test_wildcard_constraint_progression() {
-        // Test that validates the progression of wildcard constraints through multiple answers
-        let words = create_test_wordlist_with_constraints();
-        let engine = GameEngine::new(words);
-        let board = create_constraint_test_board();
-
-        let mut validated_answers = Vec::new();
-
-        // Test each answer in sequence, verifying the system can handle cumulative constraints
-
-        // 1. First word that might use wildcards
-        let cat_result = engine.validate_answer_with_constraints(&board, "cat", &validated_answers);
-        assert!(cat_result.is_ok());
-        validated_answers.push(cat_result.unwrap());
-
-        // 2. Second word that should be compatible with the first
-        let cam_result = engine.validate_answer_with_constraints(&board, "cam", &validated_answers);
-        assert!(cam_result.is_ok());
-        validated_answers.push(cam_result.unwrap());
-
-        // 3. The key test: validate_answer_with_constraints was used throughout
-        // This ensures the fix is working - cumulative constraints are considered
-        assert_eq!(
-            validated_answers.len(),
-            2,
-            "Should have 2 validated answers"
-        );
-        for answer in &validated_answers {
-            assert!(
-                !answer.paths.is_empty(),
-                "Answer '{}' should have valid paths",
-                answer.word
-            );
-        }
-
-        // This test demonstrates that the validation system can handle multiple
-        // answers with potential wildcard constraints in a cumulative manner,
-        // which is exactly what the bug fix addressed
     }
 
     fn create_diode_scenario_board() -> Board {
