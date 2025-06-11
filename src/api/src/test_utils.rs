@@ -30,7 +30,7 @@ pub mod test_utils {
 
     /// Creates a test game with default values
     pub fn create_test_game() -> DbGame {
-        let board = create_test_board();
+        let board = create_default_test_board();
         let serializable: crate::game::conversion::SerializableBoard = (&board).into();
         DbGame {
             id: Uuid::new_v4().to_string(),
@@ -44,7 +44,7 @@ pub mod test_utils {
 
     /// Creates a new game for database insertion
     pub fn create_new_test_game() -> NewGame {
-        let board = create_test_board();
+        let board = create_default_test_board();
         let serializable: crate::game::conversion::SerializableBoard = (&board).into();
         NewGame {
             date: "2024-01-01".to_string(),
@@ -79,40 +79,39 @@ pub mod test_utils {
         }
     }
 
-    /// Creates a simple 4x4 test board with known letters
-    pub fn create_test_board() -> Board {
+    pub fn create_test_board(letters: &str) -> Board {
         let mut board = Board::new();
-        
-        // Create a simple test board with known words
-        // T E S T
-        // H * N G
-        // A R * A
-        // S T O P
+
         let letters = [
-            ['t', 'e', 's', 't'],
-            ['h', '*', 'n', 'g'],
-            ['a', 'r', '*', 'a'],
-            ['s', 't', 'o', 'p'],
+            [letters.chars().nth(0), letters.chars().nth(1), letters.chars().nth(2), letters.chars().nth(3)],
+            [letters.chars().nth(4), letters.chars().nth(5), letters.chars().nth(6), letters.chars().nth(7)],
+            [letters.chars().nth(8), letters.chars().nth(9), letters.chars().nth(10), letters.chars().nth(11)],
+            [letters.chars().nth(12), letters.chars().nth(13), letters.chars().nth(14), letters.chars().nth(15)],
         ];
 
         for i in 0..4 {
             for j in 0..4 {
-                board.set_tile(i, j, letters[i][j], 1, letters[i][j] == '*');
+                board.set_tile(i, j, letters[i][j].unwrap(), 1, letters[i][j].unwrap() == '*');
             }
         }
 
         board
     }
 
+    /// Creates a simple 4x4 test board with known letters
+    pub fn create_default_test_board() -> Board {
+        create_test_board("testh*ngar*astop")        
+    }
+
     pub async fn setup_app(pool: sqlx::Pool<sqlx::Postgres>) -> (ApiState, Router) {
         let repository = crate::db::Repository::new(pool);
-        
+
         // Create a test game engine using test_utils
         let (game_engine, _temp_file) = create_test_game_engine();
-        
+
         let state = ApiState::new(repository, game_engine);
         let app = create_router(state.clone());
-        
+
         (state, app)
     }
 
@@ -123,7 +122,7 @@ pub mod test_utils {
 
     pub fn create_test_board_data() -> String {
         // Use test_utils board and serialize it
-        let board = create_test_board();
+        let board = create_default_test_board();
         let serializable: SerializableBoard = (&board).into();
         serde_json::to_string(&serializable).unwrap()
     }
@@ -163,7 +162,10 @@ pub mod test_utils {
 
     /// Creates a test trie with common words
     pub fn create_test_trie() -> Trie {
-        Trie::from(vec!["test", "thing", "area", "stop", "the", "are", "tea", "set", "sed", "silo", "seed", "sold", "does", "word"])
+        Trie::from(vec![
+            "test", "thing", "area", "stop", "the", "are", "tea", "set", "sed", "silo", "seed",
+            "sold", "does", "word",
+        ])
     }
 
     /// Creates test HTTP headers for API requests
@@ -216,10 +218,10 @@ pub mod test_utils {
     #[cfg(feature = "integration-tests")]
     pub async fn setup_test_database() -> sqlx::PgPool {
         use crate::db::setup_database;
-        
+
         let database_url = std::env::var("TEST_DATABASE_URL")
             .unwrap_or_else(|_| "postgresql://localhost/pathfinder_test".to_string());
-        
+
         setup_database(&database_url).await.unwrap()
     }
 
@@ -227,11 +229,11 @@ pub mod test_utils {
     #[cfg(feature = "integration-tests")]
     pub async fn create_test_api_state() -> crate::http_api::ApiState {
         use crate::db::Repository;
-        
+
         let pool = setup_test_database().await;
         let repository = Repository::new(pool);
         let (game_engine, _temp_file) = create_test_game_engine();
-        
+
         crate::http_api::ApiState::new(repository, game_engine)
     }
 
@@ -241,9 +243,7 @@ pub mod test_utils {
         uri: &str,
         body: Option<&str>,
     ) -> axum::http::Request<axum::body::Body> {
-        let mut builder = axum::http::Request::builder()
-            .method(method)
-            .uri(uri);
+        let mut builder = axum::http::Request::builder().method(method).uri(uri);
 
         if let Some(_body_content) = body {
             builder = builder.header("content-type", "application/json");
