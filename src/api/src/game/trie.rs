@@ -56,7 +56,7 @@ impl Trie {
     }
 
     pub fn search(&self, word: &str) -> bool {
-        self.isearch(&mut word.chars())
+        self.isearch(&mut word.to_lowercase().chars())
     }
 
     fn ihas_prefix(&self, prefix: &mut Chars) -> bool {
