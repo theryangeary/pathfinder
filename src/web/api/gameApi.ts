@@ -88,8 +88,12 @@ class GameApi {
     return response.json();
   }
 
-  async getDailyGame(date?: string): Promise<ApiGame> {
-    const currentDate = date || new Date().toISOString().split('T')[0];
+  async getDailyGame(): Promise<ApiGame> {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const currentDate = `${year}-${month}-${day}`;
     return this.request<ApiGame>(`/game/date/${currentDate}`);
   }
 
