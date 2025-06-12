@@ -91,6 +91,7 @@ use anyhow::Result;
 use std::sync::Arc;
 
 use crate::game::board::constraints::AnswerGroupConstraintSet;
+use crate::game::scoring::ScoreSheet;
 use crate::http_api::ApiAnswer;
 
 /// Main game engine that combines all the game logic components
@@ -150,9 +151,9 @@ impl GameEngine {
     }
 
     /// score_answer_group finds all the possible AnswerGroupConstraintSets, calculates the scores for all words based on each set of constraints, and returns the HashMap of answer -> score for the highest total scoring paths that can coexist based on constraints. It returns an error if the answers cannot coexist based on constraints.
-    pub fn score_answer_group(&self, board: &Board, answers: Vec<String>) -> Result<HashMap<String, u32>, String> {
+    pub fn score_answer_group(&self, board: &Board, answers: Vec<String>) -> Result<ScoreSheet, String> {
         if answers.is_empty() {
-            return Ok(HashMap::new());
+            return Ok(ScoreSheet::new());
         }
 
         // Find all possible paths for each answer
@@ -210,7 +211,7 @@ impl GameEngine {
             }
         }
 
-        Ok(best_scores_by_word)
+        Ok(ScoreSheet::from(best_scores_by_word))
     }
 
     pub fn score_word(&self, word: &str) -> u32 {
@@ -728,16 +729,16 @@ mod tests {
             
             match (&result, &test_case.expected_result) {
                 (Ok(actual_scores), ExpectedResult::Success { expected_scores }) => {
-                    assert_eq!(actual_scores.len(), expected_scores.len(), 
+                    assert_eq!(actual_scores.map.len(), expected_scores.len(), 
                         "Test case '{}': Score count mismatch. Expected {} scores, got {}. Description: {}", 
-                        test_case.name, expected_scores.len(), actual_scores.len(), test_case.description);
+                        test_case.name, expected_scores.len(), actual_scores.map.len(), test_case.description);
                     
                     for (expected_word, expected_score) in expected_scores {
-                        assert!(actual_scores.contains_key(*expected_word), 
+                        assert!(actual_scores.map.contains_key(*expected_word), 
                             "Test case '{}': Missing word '{}' in results. Description: {}", 
                             test_case.name, expected_word, test_case.description);
                         
-                        let actual_score = actual_scores[*expected_word];
+                        let actual_score = actual_scores.map[*expected_word];
                         assert_eq!(actual_score, *expected_score, 
                             "Test case '{}': Score mismatch for word '{}'. Expected {}, got {}. Description: {}", 
                             test_case.name, expected_word, expected_score, actual_score, test_case.description);
@@ -751,7 +752,7 @@ mod tests {
                 },
                 (Ok(actual_scores), ExpectedResult::Error { error_fragment }) => {
                     panic!("Test case '{}': Expected error containing '{}', but got success with scores: {:?}. Description: {}", 
-                        test_case.name, error_fragment, actual_scores, test_case.description);
+                        test_case.name, error_fragment, actual_scores.map, test_case.description);
                 },
                 (Err(actual_error), ExpectedResult::Success { .. }) => {
                     panic!("Test case '{}': Expected success but got error: '{}'. Description: {}", 
@@ -777,19 +778,19 @@ mod tests {
         let scores = result.unwrap();
         
         // Should have scores for both words
-        assert_eq!(scores.len(), 2);
-        assert!(scores.contains_key("cat"));
-        assert!(scores.contains_key("dog"));
+        assert_eq!(scores.map.len(), 2);
+        assert!(scores.map.contains_key("cat"));
+        assert!(scores.map.contains_key("dog"));
         
         // Scores should be positive (assuming the words can be formed)
-        for (word, score) in &scores {
+        for (word, score) in &scores.map {
             println!("Word: {}, Score: {}", word, score);
         }
         
         // Test with empty input
         let empty_result = engine.score_answer_group(&board, vec![]);
         assert!(empty_result.is_ok());
-        assert_eq!(empty_result.unwrap().len(), 0);
+        assert_eq!(empty_result.unwrap().map.len(), 0);
     }
 
     #[tokio::test]

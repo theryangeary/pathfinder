@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 /// Stable database types for long-term storage compatibility.
 /// These types should remain backwards compatible and only evolve carefully.
@@ -16,8 +15,6 @@ pub struct DbStoredAnswers {
 pub struct DbAnswer {
     pub word: String,
     pub score: i32,
-    pub path: Vec<DbPosition>,
-    pub wildcard_constraints: HashMap<String, String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -81,11 +78,6 @@ mod tests {
             DbAnswer {
                 word: "test".to_string(),
                 score: 10,
-                path: vec![
-                    DbPosition { row: 0, col: 0 },
-                    DbPosition { row: 0, col: 1 },
-                ],
-                wildcard_constraints: HashMap::new(),
             }
         ];
         

@@ -37,6 +37,24 @@ pub fn points_for_letter(letter: char) -> i32 {
     ((e_freq / letter_freq).log2().floor() as i32) + 1
 }
 
+pub struct ScoreSheet{
+    pub map: HashMap<String, u32>
+}
+
+impl ScoreSheet {
+    pub fn new() -> Self {
+        Self {
+            map: HashMap::new()
+        }
+    }
+}
+
+impl From<HashMap<String, u32>> for ScoreSheet {
+    fn from(map: HashMap<String, u32>) -> Self {
+        Self {map}
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

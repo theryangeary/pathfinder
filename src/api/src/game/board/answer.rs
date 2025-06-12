@@ -58,7 +58,7 @@ mod tests {
         }
     }
 
-    fn create_test_path(tiles: Vec<GameTile>, constraints: HashMap<String, Constraint>) -> Path {
+    fn create_test_path(tiles: Vec<GameTile>) -> Path {
         let mut tile_deque = VecDeque::new();
         for tile in tiles {
             tile_deque.push_back(tile);
@@ -75,7 +75,7 @@ mod tests {
         let tile2 = create_test_tile(0, 1, 'a', 1);
         let tile3 = create_test_tile(0, 2, 't', 1);
 
-        let path = create_test_path(vec![tile1, tile2, tile3], HashMap::new());
+        let path = create_test_path(vec![tile1, tile2, tile3]);
 
         let answer = Answer {
             word: "cat".to_string(),
@@ -109,7 +109,7 @@ mod tests {
         let tile2 = create_wildcard_tile(1, 1, 0); // Wildcard with 0 points
         let tile3 = create_test_tile(0, 2, 't', 1);
 
-        let path = create_test_path(vec![tile1, tile2, tile3], HashMap::new());
+        let path = create_test_path(vec![tile1, tile2, tile3]);
 
         let answer = Answer {
             word: "cat".to_string(),
@@ -154,7 +154,7 @@ mod tests {
     #[test]
     fn test_clone_and_partialeq() {
         let tile = create_test_tile(0, 0, 'c', 2);
-        let path = create_test_path(vec![tile], HashMap::new());
+        let path = create_test_path(vec![tile]);
 
         let answer1 = Answer {
             word: "cat".to_string(),

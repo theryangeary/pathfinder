@@ -5,22 +5,27 @@ use axum::{
     routing::{get, post},
     Router,
 };
+use moka::future::Cache;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use tower_http::{cors::CorsLayer, timeout::TimeoutLayer, limit::RequestBodyLimitLayer, services::ServeDir};
-use moka::future::Cache;
+use tower_http::{
+    cors::CorsLayer, limit::RequestBodyLimitLayer, services::ServeDir, timeout::TimeoutLayer,
+};
 
-use crate::db::{conversions::AnswerStorage, Repository};
+use crate::game::{conversion::SerializableBoard, scoring::ScoreSheet};
 use crate::game::GameEngine;
 use crate::game_generator::GameGenerator;
-use crate::game::conversion::SerializableBoard;
 use crate::security::{
-    SecurityConfig, 
     cors::CorsLayer as SecurityCorsLayer,
+    headers::SecurityHeadersLayer,
     rate_limit::RateLimitLayer,
     referer::RefererLayer,
-    headers::SecurityHeadersLayer,
-    session::{SessionLayer, cookie_layer},
+    session::{cookie_layer, SessionLayer},
+    SecurityConfig,
+};
+use crate::{
+    db::{conversions::AnswerStorage, Repository},
+    game::scoring,
 };
 
 // HTTP API types (simpler than protobuf for frontend)
@@ -51,8 +56,6 @@ pub struct ApiTile {
 pub struct ApiAnswer {
     pub word: String,
     pub score: i32,
-    pub path: Vec<ApiPosition>,
-    pub wildcard_constraints: HashMap<String, String>,
 }
 
 impl ApiAnswer {
@@ -121,15 +124,15 @@ pub struct ApiState {
 impl ApiState {
     pub fn new(repository: Repository, game_engine: GameEngine) -> Self {
         let game_generator = GameGenerator::new(repository.clone(), game_engine.clone());
-        
+
         // Create cache with reasonable memory footprint
         // Since games are immutable once created, we can cache recent ones
         let game_cache = Cache::builder()
             .max_capacity(100) // Cache up to 100 games (about 3 months worth) to reduce memory
             .time_to_live(std::time::Duration::from_secs(24 * 60 * 60)) // 24 hours TTL as safety
-            .time_to_idle(std::time::Duration::from_secs(6 * 60 * 60))  // 6 hours idle timeout
+            .time_to_idle(std::time::Duration::from_secs(6 * 60 * 60)) // 6 hours idle timeout
             .build();
-            
+
         Self {
             repository,
             game_engine,
@@ -142,7 +145,10 @@ impl ApiState {
 pub fn create_router(state: ApiState) -> Router {
     Router::new()
         .route("/api/game/date/:date", get(get_game_by_date))
-        .route("/api/game/sequence/:sequence_number", get(get_game_by_sequence))
+        .route(
+            "/api/game/sequence/:sequence_number",
+            get(get_game_by_sequence),
+        )
         // TODO consider if this can be removed from api, as it should really be done as part of /submit
         .route("/api/validate", post(validate_answer))
         .route("/api/submit", post(submit_answers))
@@ -161,7 +167,10 @@ pub fn create_router(state: ApiState) -> Router {
 pub fn create_secure_router(state: ApiState, config: SecurityConfig) -> Router {
     Router::new()
         .route("/api/game/date/:date", get(get_game_by_date))
-        .route("/api/game/sequence/:sequence_number", get(get_game_by_sequence))
+        .route(
+            "/api/game/sequence/:sequence_number",
+            get(get_game_by_sequence),
+        )
         .route("/api/validate", post(validate_answer))
         .route("/api/submit", post(submit_answers))
         .route("/api/user", post(create_user))
@@ -186,12 +195,12 @@ async fn get_game_by_date(
     State(state): State<ApiState>,
 ) -> Result<Json<ApiGame>, StatusCode> {
     let cache_key = format!("date:{}", date);
-    
+
     // Check cache first
     if let Some(cached_game) = state.game_cache.get(&cache_key).await {
         return Ok(Json(cached_game));
     }
-    
+
     // Try to get existing game
     let db_game = match state.repository.get_game_by_date(&date).await {
         Ok(Some(game)) => game,
@@ -206,10 +215,10 @@ async fn get_game_by_date(
     };
 
     let api_game = convert_db_game_to_api_game_direct(db_game)?;
-    
+
     // Cache the result before returning
     state.game_cache.insert(cache_key, api_game.clone()).await;
-    
+
     Ok(Json(api_game))
 }
 
@@ -218,49 +227,63 @@ async fn get_game_by_sequence(
     State(state): State<ApiState>,
 ) -> Result<Json<ApiGame>, StatusCode> {
     let cache_key = format!("seq:{}", sequence_number);
-    
+
     // Check cache first
     if let Some(cached_game) = state.game_cache.get(&cache_key).await {
         return Ok(Json(cached_game));
     }
-    
+
     // Get existing game by sequence number (don't generate new ones)
-    let db_game = match state.repository.get_game_by_sequence_number(sequence_number).await {
+    let db_game = match state
+        .repository
+        .get_game_by_sequence_number(sequence_number)
+        .await
+    {
         Ok(Some(game)) => game,
         Ok(None) => return Err(StatusCode::NOT_FOUND),
         Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
     };
 
     let api_game = convert_db_game_to_api_game_direct(db_game)?;
-    
+
     // Cache the result before returning
     state.game_cache.insert(cache_key, api_game.clone()).await;
-    
+
     Ok(Json(api_game))
 }
 
-fn convert_db_game_to_api_game(db_game: crate::db::models::DbGame) -> Result<Json<ApiGame>, StatusCode> {
+fn convert_db_game_to_api_game(
+    db_game: crate::db::models::DbGame,
+) -> Result<Json<ApiGame>, StatusCode> {
     let api_game = convert_db_game_to_api_game_direct(db_game)?;
     Ok(Json(api_game))
 }
 
-fn convert_db_game_to_api_game_direct(db_game: crate::db::models::DbGame) -> Result<ApiGame, StatusCode> {
+fn convert_db_game_to_api_game_direct(
+    db_game: crate::db::models::DbGame,
+) -> Result<ApiGame, StatusCode> {
     // Parse board from JSON
-    let serializable_board: crate::game::conversion::SerializableBoard = 
-        serde_json::from_str(&db_game.board_data)
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let serializable_board: crate::game::conversion::SerializableBoard =
+        serde_json::from_str(&db_game.board_data).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     // Convert to API format
     let api_board = ApiBoard {
-        tiles: serializable_board.rows.into_iter().map(|row| {
-            row.tiles.into_iter().map(|tile| ApiTile {
-                letter: tile.letter,
-                points: tile.points,
-                is_wildcard: tile.is_wildcard,
-                row: tile.row,
-                col: tile.col,
-            }).collect()
-        }).collect()
+        tiles: serializable_board
+            .rows
+            .into_iter()
+            .map(|row| {
+                row.tiles
+                    .into_iter()
+                    .map(|tile| ApiTile {
+                        letter: tile.letter,
+                        points: tile.points,
+                        is_wildcard: tile.is_wildcard,
+                        row: tile.row,
+                        col: tile.col,
+                    })
+                    .collect()
+            })
+            .collect(),
     };
 
     let api_game = ApiGame {
@@ -280,10 +303,14 @@ async fn validate_answer(
 ) -> Result<Json<ValidateResponse>, StatusCode> {
     // Use the game engine to validate the word
     let is_valid = state.game_engine.is_valid_word_in_dictionary(&request.word);
-    
+
     let response = ValidateResponse {
         is_valid,
-        score: if is_valid { request.word.len() as i32 * 2 } else { 0 },
+        score: if is_valid {
+            request.word.len() as i32 * 2
+        } else {
+            0
+        },
         path: vec![], // TODO: Calculate actual path
         wildcard_constraints: HashMap::new(),
         error_message: if request.word.len() < 3 {
@@ -309,29 +336,35 @@ async fn submit_answers(
             match state.repository.get_user_by_id(user_id).await {
                 Ok(Some(existing_user)) if existing_user.cookie_token == *cookie_token => {
                     // Valid user - update last seen
-                    let _ = state.repository.update_user_last_seen(&existing_user.id).await;
+                    let _ = state
+                        .repository
+                        .update_user_last_seen(&existing_user.id)
+                        .await;
                     existing_user
-                },
+                }
                 _ => {
                     // Invalid user_id or cookie_token mismatch - create new user
                     create_new_user(&state).await?
                 }
             }
-        },
+        }
         (None, Some(cookie_token)) => {
             // Try to find user by cookie token only
             match state.repository.get_user_by_cookie(cookie_token).await {
                 Ok(Some(existing_user)) => {
                     // Valid user - update last seen
-                    let _ = state.repository.update_user_last_seen(&existing_user.id).await;
+                    let _ = state
+                        .repository
+                        .update_user_last_seen(&existing_user.id)
+                        .await;
                     existing_user
-                },
+                }
                 _ => {
                     // Invalid cookie_token - create new user
                     create_new_user(&state).await?
                 }
             }
-        },
+        }
         _ => {
             // No user identification provided - create new user
             create_new_user(&state).await?
@@ -353,6 +386,15 @@ async fn submit_answers(
         return Err(StatusCode::BAD_REQUEST);
     }
 
+    // Score submitted answers
+    let scoring = match score_submitted_answers(&state, &game, &request.answers).await {
+        Ok(scoring) => scoring,
+        Err(error_msg) => {
+            println!("Answer scoring failed: {}", error_msg);
+            return Err(StatusCode::BAD_REQUEST);
+        }
+    };
+
     // Serialize answers to JSON using stable database format
     let answers_json = match AnswerStorage::serialize_api_answers(&request.answers) {
         Ok(json) => json,
@@ -368,13 +410,17 @@ async fn submit_answers(
         completed: true, // Assume completed when submitting all answers
     };
 
-    let _game_entry = match state.repository.create_or_update_game_entry(new_entry).await {
+    let _game_entry = match state
+        .repository
+        .create_or_update_game_entry(new_entry)
+        .await
+    {
         Ok(entry) => entry,
         Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
     };
 
     // Get real stats
-    let (total_players, user_rank, percentile, average_score, highest_score) = 
+    let (total_players, user_rank, percentile, average_score, highest_score) =
         match state.repository.get_game_stats(&game.id, total_score).await {
             Ok(stats) => stats,
             Err(_) => {
@@ -413,34 +459,46 @@ async fn get_game_entry(
     Query(params): Query<HashMap<String, String>>,
     State(state): State<ApiState>,
 ) -> Result<Json<Option<Vec<ApiAnswer>>>, StatusCode> {
-    println!("get_game_entry called - game_id: {}, params: {:?}", game_id, params);
-    
+    println!(
+        "get_game_entry called - game_id: {}, params: {:?}",
+        game_id, params
+    );
+
     // Get user identification from query parameters
     let user = match (params.get("user_id"), params.get("cookie_token")) {
         (Some(user_id), Some(cookie_token)) => {
-            println!("Validating user by ID: {} and cookie: {}", user_id, cookie_token);
+            println!(
+                "Validating user by ID: {} and cookie: {}",
+                user_id, cookie_token
+            );
             // Validate existing user by both ID and cookie token
             match state.repository.get_user_by_id(user_id).await {
                 Ok(Some(existing_user)) => {
-                    println!("Found user: {}, stored cookie: {}", existing_user.id, existing_user.cookie_token);
+                    println!(
+                        "Found user: {}, stored cookie: {}",
+                        existing_user.id, existing_user.cookie_token
+                    );
                     if existing_user.cookie_token == *cookie_token {
                         println!("Cookie tokens match!");
                         existing_user
                     } else {
-                        println!("Cookie tokens don't match! Provided: {}, Stored: {}", cookie_token, existing_user.cookie_token);
-                        return Ok(Json(None)) // Invalid user credentials
+                        println!(
+                            "Cookie tokens don't match! Provided: {}, Stored: {}",
+                            cookie_token, existing_user.cookie_token
+                        );
+                        return Ok(Json(None)); // Invalid user credentials
                     }
-                },
+                }
                 Ok(None) => {
                     println!("No user found with ID: {}", user_id);
-                    return Err(StatusCode::UNAUTHORIZED) // Invalid user credentials
+                    return Err(StatusCode::UNAUTHORIZED); // Invalid user credentials
                 }
                 Err(e) => {
                     println!("Database error getting user by ID: {}", e);
-                    return Ok(Json(None)) // Invalid user credentials
+                    return Ok(Json(None)); // Invalid user credentials
                 }
             }
-        },
+        }
         (None, Some(cookie_token)) => {
             println!("Validating user by cookie token only: {}", cookie_token);
             // Try to find user by cookie token only
@@ -448,20 +506,20 @@ async fn get_game_entry(
                 Ok(Some(existing_user)) => {
                     println!("Found user by cookie: {}", existing_user.id);
                     existing_user
-                },
+                }
                 Ok(None) => {
                     println!("No user found with cookie: {}", cookie_token);
-                    return Err(StatusCode::UNAUTHORIZED) // Invalid cookie_token
+                    return Err(StatusCode::UNAUTHORIZED); // Invalid cookie_token
                 }
                 Err(e) => {
                     println!("Database error getting user by cookie: {}", e);
-                    return Ok(Json(None)) // Invalid cookie_token
+                    return Ok(Json(None)); // Invalid cookie_token
                 }
             }
-        },
+        }
         _ => {
             println!("No user identification provided");
-            return Ok(Json(None)) // No user identification provided
+            return Ok(Json(None)); // No user identification provided
         }
     };
 
@@ -476,17 +534,20 @@ async fn get_game_entry(
                 Ok(answers) => {
                     println!("Parsed answers: {:?}", answers);
                     Ok(Json(Some(answers)))
-                },
+                }
                 Err(e) => {
                     println!("Failed to parse answers JSON: {}", e);
                     Err(StatusCode::INTERNAL_SERVER_ERROR)
                 }
             }
-        },
+        }
         Ok(None) => {
-            println!("No game entry found for user {} and game {}", user.id, game_id);
+            println!(
+                "No game entry found for user {} and game {}",
+                user.id, game_id
+            );
             Ok(Json(None)) // No entry found
-        },
+        }
         Err(e) => {
             println!("Error getting game entry: {}", e);
             Err(StatusCode::INTERNAL_SERVER_ERROR)
@@ -498,8 +559,11 @@ async fn create_new_user(state: &ApiState) -> Result<crate::db::models::DbUser, 
     let new_user = crate::db::models::NewUser {
         cookie_token: uuid::Uuid::new_v4().to_string(),
     };
-    
-    state.repository.create_user(new_user).await
+
+    state
+        .repository
+        .create_user(new_user)
+        .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }
 
@@ -509,13 +573,33 @@ async fn validate_submitted_answers(
     submitted_answers: &[ApiAnswer],
 ) -> Result<(), String> {
     // Parse the board from the game data
-    let serializable_board: SerializableBoard = 
-        serde_json::from_str(&game.board_data)
-            .map_err(|_| "Failed to parse game board data".to_string())?;
-    
+    let serializable_board: SerializableBoard = serde_json::from_str(&game.board_data)
+        .map_err(|_| "Failed to parse game board data".to_string())?;
+
     let board: crate::game::Board = serializable_board.into();
 
-    state.game_engine.validate_api_answer_group(&board, Vec::from(submitted_answers))
+    state
+        .game_engine
+        .validate_api_answer_group(&board, Vec::from(submitted_answers))
+}
+
+async fn score_submitted_answers(
+    state: &ApiState,
+    game: &crate::db::models::DbGame,
+    submitted_answers: &[ApiAnswer],
+) -> Result<ScoreSheet, String> {
+    // Parse the board from the game data
+    let serializable_board: SerializableBoard = serde_json::from_str(&game.board_data)
+        .map_err(|_| "Failed to parse game board data".to_string())?;
+
+    let board: crate::game::Board = serializable_board.into();
+
+    let answers = submitted_answers
+        .iter()
+        .map(|m| m.word.to_string())
+        .collect();
+
+    state.game_engine.score_answer_group(&board, answers)
 }
 
 async fn health_check() -> Result<Json<serde_json::Value>, StatusCode> {
@@ -530,33 +614,31 @@ mod tests {
     use super::*;
     use axum::http::StatusCode;
     use tower::util::ServiceExt;
-    
+
     use crate::test_utils::test_utils::*;
 
     #[sqlx::test]
     async fn test_get_game_by_sequence_exists(pool: sqlx::Pool<sqlx::Postgres>) {
         let (state, app) = setup_app(pool).await;
-        
+
         // Create a test game using test_utils
         let mut new_game = create_new_test_game();
         new_game.date = "2025-06-08".to_string();
         new_game.threshold_score = 40;
         new_game.sequence_number = 1;
         let created_game = state.repository.create_game(new_game).await.unwrap();
-        
+
         // Test the endpoint using test_utils request helper
-        let request = create_test_request(
-            axum::http::Method::GET,
-            "/api/game/sequence/1",
-            None,
-        );
+        let request = create_test_request(axum::http::Method::GET, "/api/game/sequence/1", None);
         let response = app.oneshot(request).await.unwrap();
-        
+
         assert_eq!(response.status(), StatusCode::OK);
-        
-        let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
         let game: ApiGame = serde_json::from_slice(&body).unwrap();
-        
+
         assert_eq!(game.id, created_game.id);
         assert_eq!(game.sequence_number, 1);
         assert_eq!(game.date, "2025-06-08");
@@ -567,100 +649,82 @@ mod tests {
     #[sqlx::test]
     async fn test_get_game_by_sequence_not_found(pool: sqlx::Pool<sqlx::Postgres>) {
         let (_state, app) = setup_app(pool).await;
-        
+
         // Test getting a non-existent sequence number
-        let request = create_test_request(
-            axum::http::Method::GET,
-            "/api/game/sequence/999",
-            None,
-        );
+        let request = create_test_request(axum::http::Method::GET, "/api/game/sequence/999", None);
         let response = app.oneshot(request).await.unwrap();
-        
+
         assert_eq!(response.status(), StatusCode::NOT_FOUND);
     }
 
     #[sqlx::test]
     async fn test_get_game_by_sequence_multiple_games(pool: sqlx::Pool<sqlx::Postgres>) {
         let (state, app) = setup_app(pool).await;
-        
+
         // Create multiple test games using test_utils
         let mut game1 = create_new_test_game();
         game1.date = "2025-06-08".to_string();
         game1.threshold_score = 40;
         game1.sequence_number = 1;
-        
+
         let mut game2 = create_new_test_game();
         game2.date = "2025-06-07".to_string();
         game2.threshold_score = 35;
         game2.sequence_number = 3;
-        
+
         let mut game3 = create_new_test_game();
         game3.date = "2025-06-06".to_string();
         game3.threshold_score = 45;
         game3.sequence_number = 5;
-        
+
         let games = vec![game1, game2, game3];
-        
+
         for game in games {
             state.repository.create_game(game).await.unwrap();
         }
-        
+
         // Test getting game with sequence number 1
-        let request = create_test_request(
-            axum::http::Method::GET,
-            "/api/game/sequence/1",
-            None,
-        );
+        let request = create_test_request(axum::http::Method::GET, "/api/game/sequence/1", None);
         let response = app.clone().oneshot(request).await.unwrap();
-        
+
         assert_eq!(response.status(), StatusCode::OK);
-        let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
         let game: ApiGame = serde_json::from_slice(&body).unwrap();
         assert_eq!(game.sequence_number, 1);
         assert_eq!(game.date, "2025-06-08");
-        
+
         // Test getting game with sequence number 3
-        let request = create_test_request(
-            axum::http::Method::GET,
-            "/api/game/sequence/3",
-            None,
-        );
+        let request = create_test_request(axum::http::Method::GET, "/api/game/sequence/3", None);
         let response = app.clone().oneshot(request).await.unwrap();
-        
+
         assert_eq!(response.status(), StatusCode::OK);
-        let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
         let game: ApiGame = serde_json::from_slice(&body).unwrap();
         assert_eq!(game.sequence_number, 3);
         assert_eq!(game.date, "2025-06-07");
-        
+
         // Test getting game with sequence number 5
-        let request = create_test_request(
-            axum::http::Method::GET,
-            "/api/game/sequence/5",
-            None,
-        );
+        let request = create_test_request(axum::http::Method::GET, "/api/game/sequence/5", None);
         let response = app.clone().oneshot(request).await.unwrap();
-        
+
         assert_eq!(response.status(), StatusCode::OK);
-        let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
         let game: ApiGame = serde_json::from_slice(&body).unwrap();
         assert_eq!(game.sequence_number, 5);
         assert_eq!(game.date, "2025-06-06");
-        
+
         // Test getting non-existent sequence numbers
-        let request = create_test_request(
-            axum::http::Method::GET,
-            "/api/game/sequence/2",
-            None,
-        );
+        let request = create_test_request(axum::http::Method::GET, "/api/game/sequence/2", None);
         let response = app.clone().oneshot(request).await.unwrap();
         assert_eq!(response.status(), StatusCode::NOT_FOUND);
-        
-        let request = create_test_request(
-            axum::http::Method::GET,
-            "/api/game/sequence/4",
-            None,
-        );
+
+        let request = create_test_request(axum::http::Method::GET, "/api/game/sequence/4", None);
         let response = app.oneshot(request).await.unwrap();
         assert_eq!(response.status(), StatusCode::NOT_FOUND);
     }
@@ -668,27 +732,26 @@ mod tests {
     #[sqlx::test]
     async fn test_get_game_by_date_endpoint(pool: sqlx::Pool<sqlx::Postgres>) {
         let (state, app) = setup_app(pool).await;
-        
+
         // Create a test game using test_utils
         let mut new_game = create_new_test_game();
         new_game.date = "2025-06-08".to_string();
         new_game.threshold_score = 40;
         new_game.sequence_number = 1;
         let created_game = state.repository.create_game(new_game).await.unwrap();
-        
+
         // Test the date endpoint
-        let request = create_test_request(
-            axum::http::Method::GET,
-            "/api/game/date/2025-06-08",
-            None,
-        );
+        let request =
+            create_test_request(axum::http::Method::GET, "/api/game/date/2025-06-08", None);
         let response = app.oneshot(request).await.unwrap();
-        
+
         assert_eq!(response.status(), StatusCode::OK);
-        
-        let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
         let game: ApiGame = serde_json::from_slice(&body).unwrap();
-        
+
         assert_eq!(game.id, created_game.id);
         assert_eq!(game.date, "2025-06-08");
         assert_eq!(game.sequence_number, 1);
@@ -697,25 +760,24 @@ mod tests {
     #[sqlx::test]
     async fn test_validate_word_endpoint(pool: sqlx::Pool<sqlx::Postgres>) {
         let (_state, app) = setup_app(pool).await;
-        
+
         let request_body = ValidateRequest {
             word: "test".to_string(),
             previous_answers: vec![],
         };
-        
+
         let body_json = serde_json::to_string(&request_body).unwrap();
-        let request = create_test_request(
-            axum::http::Method::POST,
-            "/api/validate",
-            Some(&body_json),
-        );
+        let request =
+            create_test_request(axum::http::Method::POST, "/api/validate", Some(&body_json));
         let response = app.oneshot(request).await.unwrap();
-        
+
         assert_eq!(response.status(), StatusCode::OK);
-        
-        let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
         let validate_response: ValidateResponse = serde_json::from_slice(&body).unwrap();
-        
+
         assert!(validate_response.is_valid);
         assert_eq!(validate_response.error_message, "");
     }
@@ -723,25 +785,24 @@ mod tests {
     #[sqlx::test]
     async fn test_validate_invalid_word_endpoint(pool: sqlx::Pool<sqlx::Postgres>) {
         let (_state, app) = setup_app(pool).await;
-        
+
         let request_body = ValidateRequest {
             word: "invalidword".to_string(),
             previous_answers: vec![],
         };
-        
+
         let body_json = serde_json::to_string(&request_body).unwrap();
-        let request = create_test_request(
-            axum::http::Method::POST,
-            "/api/validate",
-            Some(&body_json),
-        );
+        let request =
+            create_test_request(axum::http::Method::POST, "/api/validate", Some(&body_json));
         let response = app.oneshot(request).await.unwrap();
-        
+
         assert_eq!(response.status(), StatusCode::OK);
-        
-        let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
         let validate_response: ValidateResponse = serde_json::from_slice(&body).unwrap();
-        
+
         assert!(!validate_response.is_valid);
         assert!(validate_response.error_message.contains("invalidword"));
     }
@@ -749,19 +810,17 @@ mod tests {
     #[sqlx::test]
     async fn test_create_user_endpoint(pool: sqlx::Pool<sqlx::Postgres>) {
         let (_state, app) = setup_app(pool).await;
-        
-        let request = create_test_request(
-            axum::http::Method::POST,
-            "/api/user",
-            None,
-        );
+
+        let request = create_test_request(axum::http::Method::POST, "/api/user", None);
         let response = app.oneshot(request).await.unwrap();
-        
+
         assert_eq!(response.status(), StatusCode::OK);
-        
-        let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
         let user_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
-        
+
         assert!(user_response["user_id"].is_string());
         assert!(user_response["cookie_token"].is_string());
         assert!(!user_response["user_id"].as_str().unwrap().is_empty());
@@ -772,51 +831,48 @@ mod tests {
     async fn test_game_caching_works(pool: sqlx::Pool<sqlx::Postgres>) {
         // TODO this doens't really effectively test caching
         let (state, app) = setup_app(pool).await;
-        
+
         // Create a test game using test_utils
         let mut new_game = create_new_test_game();
         new_game.date = "2025-06-08".to_string();
         new_game.threshold_score = 40;
         new_game.sequence_number = 1;
         let _created_game = state.repository.create_game(new_game).await.unwrap();
-        
+
         // First request - should hit database and cache
-        let request1 = create_test_request(
-            axum::http::Method::GET,
-            "/api/game/sequence/1",
-            None,
-        );
+        let request1 = create_test_request(axum::http::Method::GET, "/api/game/sequence/1", None);
         let response1 = app.clone().oneshot(request1).await.unwrap();
-        
+
         assert_eq!(response1.status(), StatusCode::OK);
-        
+
         // Verify cache has the game
         let cache_key = "seq:1";
         let cached_game = state.game_cache.get(cache_key).await;
         assert!(cached_game.is_some());
-        
+
         // Second request - should hit cache
-        let request2 = create_test_request(
-            axum::http::Method::GET,
-            "/api/game/sequence/1",
-            None,
-        );
+        let request2 = create_test_request(axum::http::Method::GET, "/api/game/sequence/1", None);
         let response2 = app.oneshot(request2).await.unwrap();
-        
+
         assert_eq!(response2.status(), StatusCode::OK);
-        
+
         // Both responses should be identical
-        let body1 = axum::body::to_bytes(response1.into_body(), usize::MAX).await.unwrap();
-        let body2 = axum::body::to_bytes(response2.into_body(), usize::MAX).await.unwrap();
+        let body1 = axum::body::to_bytes(response1.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let body2 = axum::body::to_bytes(response2.into_body(), usize::MAX)
+            .await
+            .unwrap();
         assert_eq!(body1, body2);
     }
 
-    
     #[sqlx::test]
-    async fn test_validate_submitted_answers_with_cumulative_constraints(pool: sqlx::Pool<sqlx::Postgres>) {
+    async fn test_validate_submitted_answers_with_cumulative_constraints(
+        pool: sqlx::Pool<sqlx::Postgres>,
+    ) {
         // Integration test for the validate_submitted_answers function fix
         let (state, _app) = setup_app(pool).await;
-        
+
         // Create a test game with a simple board that allows constraint testing
         let board_data = create_test_board_data(); // Use existing simple board
         let game = crate::db::models::DbGame {
@@ -827,68 +883,48 @@ mod tests {
             sequence_number: 1,
             created_at: chrono::Utc::now(),
         };
-        
+
         // Test answers that require cumulative constraint validation
         let test_answers = vec![
             ApiAnswer {
                 word: "test".to_string(),
                 score: 4,
-                path: vec![
-                    ApiPosition { row: 0, col: 0 },
-                    ApiPosition { row: 0, col: 1 },
-                    ApiPosition { row: 0, col: 2 },
-                    ApiPosition { row: 0, col: 3 },
-                ],
-                wildcard_constraints: HashMap::new(),
             },
             ApiAnswer {
                 word: "word".to_string(),
                 score: 6,
-                path: vec![
-                    ApiPosition { row: 1, col: 0 },
-                    ApiPosition { row: 1, col: 1 },
-                    ApiPosition { row: 1, col: 2 },
-                    ApiPosition { row: 1, col: 3 },
-                ],
-                wildcard_constraints: HashMap::new(),
             },
         ];
-        
+
         // This should succeed - the key test is that it uses validate_answer_with_constraints
         // internally rather than validate_answer
         let result = validate_submitted_answers(&state, &game, &test_answers).await;
-        assert!(result.is_ok(), "Submitted answers should be valid: {:?} {:?}", result.err(), board_data.clone());
-        
+        assert!(
+            result.is_ok(),
+            "Submitted answers should be valid: {:?} {:?}",
+            result.err(),
+            board_data.clone()
+        );
+
         // Test that we can detect when answers would conflict (if they did)
         // This validates that the function is actually checking constraints properly
         let conflicting_answers = vec![
             ApiAnswer {
                 word: "test".to_string(),
                 score: 4,
-                path: vec![
-                    ApiPosition { row: 0, col: 0 },
-                    ApiPosition { row: 0, col: 1 },
-                    ApiPosition { row: 0, col: 2 },
-                    ApiPosition { row: 0, col: 3 },
-                ],
-                wildcard_constraints: HashMap::new(),
             },
             ApiAnswer {
                 word: "invalid".to_string(), // This word is not in our test dictionary
                 score: 6,
-                path: vec![
-                    ApiPosition { row: 1, col: 0 },
-                    ApiPosition { row: 1, col: 1 },
-                    ApiPosition { row: 1, col: 2 },
-                    ApiPosition { row: 1, col: 3 },
-                ],
-                wildcard_constraints: HashMap::new(),
             },
         ];
-        
+
         let result = validate_submitted_answers(&state, &game, &conflicting_answers).await;
         assert!(result.is_err(), "Invalid word should be rejected");
-        assert!(result.unwrap_err().contains("not in the dictionary"), "Should reject invalid words");
+        assert!(
+            result.unwrap_err().contains("not in the dictionary"),
+            "Should reject invalid words"
+        );
     }
 
     fn create_diode_scenario_board_data() -> String {
@@ -900,7 +936,7 @@ mod tests {
         // JSON representation of the puzzle #8 board from user screenshot
         // H I S S
         // C * L O  <- wildcard at (1,1)
-        // L E * D  <- wildcard at (2,2)  
+        // L E * D  <- wildcard at (2,2)
         // S E E O
         r#"{"rows":[{"tiles":[{"letter":"h","points":3,"is_wildcard":false,"row":0,"col":0},{"letter":"i","points":1,"is_wildcard":false,"row":0,"col":1},{"letter":"s","points":1,"is_wildcard":false,"row":0,"col":2},{"letter":"s","points":1,"is_wildcard":false,"row":0,"col":3}]},{"tiles":[{"letter":"c","points":2,"is_wildcard":false,"row":1,"col":0},{"letter":"*","points":0,"is_wildcard":true,"row":1,"col":1},{"letter":"l","points":2,"is_wildcard":false,"row":1,"col":2},{"letter":"o","points":1,"is_wildcard":false,"row":1,"col":3}]},{"tiles":[{"letter":"l","points":2,"is_wildcard":false,"row":2,"col":0},{"letter":"e","points":1,"is_wildcard":false,"row":2,"col":1},{"letter":"*","points":0,"is_wildcard":true,"row":2,"col":2},{"letter":"d","points":2,"is_wildcard":false,"row":2,"col":3}]},{"tiles":[{"letter":"s","points":1,"is_wildcard":false,"row":3,"col":0},{"letter":"e","points":1,"is_wildcard":false,"row":3,"col":1},{"letter":"e","points":1,"is_wildcard":false,"row":3,"col":2},{"letter":"o","points":1,"is_wildcard":false,"row":3,"col":3}]}]}"#.to_string()
     }
@@ -917,30 +953,46 @@ mod tests {
     #[tokio::test]
     async fn test_wildcard_pathfinding_fix() {
         // Test that wildcard pathfinding works correctly after the fix
-        
+
         // Create a test game engine using test_utils with additional words
         let (game_engine, _temp_file) = create_test_game_engine();
         // Note: The test_utils game engine already includes "test", "sed", etc.
-        
+
         // Create the exact board from puzzle #8
-        let serializable_board: SerializableBoard = 
+        let serializable_board: SerializableBoard =
             serde_json::from_str(&create_puzzle8_board_data()).unwrap();
         let board: crate::game::Board = serializable_board.into();
-        
+
         // Test that "sed" can now be found on the board (this was failing before the fix)
         let answer = game_engine.validate_answer(&board, "sed");
-        assert!(answer.is_ok(), "Word 'sed' should be valid on puzzle #8 board after wildcard fix: {:?}", answer.err());
-        
+        assert!(
+            answer.is_ok(),
+            "Word 'sed' should be valid on puzzle #8 board after wildcard fix: {:?}",
+            answer.err()
+        );
+
         let answer = answer.unwrap();
-        assert!(!answer.paths.is_empty(), "Word 'sed' should have valid paths");
+        assert!(
+            !answer.paths.is_empty(),
+            "Word 'sed' should have valid paths"
+        );
         assert_eq!(answer.word, "sed");
-        
+
         // Also test other words from the puzzle #8 scenario
         let test_words = ["silo", "seed", "sed", "sold", "does"];
         for word in test_words {
             let answer = game_engine.validate_answer(&board, word);
-            assert!(answer.is_ok(), "Word '{}' should be valid: {:?}", word, answer.err());
-            assert!(!answer.unwrap().paths.is_empty(), "Word '{}' should have valid paths", word);
+            assert!(
+                answer.is_ok(),
+                "Word '{}' should be valid: {:?}",
+                word,
+                answer.err()
+            );
+            assert!(
+                !answer.unwrap().paths.is_empty(),
+                "Word '{}' should have valid paths",
+                word
+            );
         }
     }
 

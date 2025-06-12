@@ -10,8 +10,6 @@ impl From<ApiAnswer> for DbAnswer {
         Self {
             word: api.word,
             score: api.score,
-            path: api.path.into_iter().map(DbPosition::from).collect(),
-            wildcard_constraints: api.wildcard_constraints,
         }
     }
 }
@@ -21,8 +19,6 @@ impl From<DbAnswer> for ApiAnswer {
         Self {
             word: db.word,
             score: db.score,
-            path: db.path.into_iter().map(ApiPosition::from).collect(),
-            wildcard_constraints: db.wildcard_constraints,
         }
     }
 }
@@ -85,15 +81,6 @@ mod tests {
         let api_answer = ApiAnswer {
             word: "test".to_string(),
             score: 15,
-            path: vec![
-                ApiPosition { row: 0, col: 1 },
-                ApiPosition { row: 1, col: 1 },
-            ],
-            wildcard_constraints: {
-                let mut map = HashMap::new();
-                map.insert("1_1".to_string(), "e".to_string());
-                map
-            },
         };
 
         let db_answer = DbAnswer::from(api_answer.clone());
@@ -101,8 +88,6 @@ mod tests {
 
         assert_eq!(api_answer.word, back_to_api.word);
         assert_eq!(api_answer.score, back_to_api.score);
-        assert_eq!(api_answer.path.len(), back_to_api.path.len());
-        assert_eq!(api_answer.wildcard_constraints, back_to_api.wildcard_constraints);
     }
 
     #[test]
@@ -111,21 +96,10 @@ mod tests {
             ApiAnswer {
                 word: "hello".to_string(),
                 score: 10,
-                path: vec![ApiPosition { row: 0, col: 0 }],
-                wildcard_constraints: HashMap::new(),
             },
             ApiAnswer {
                 word: "world".to_string(),
                 score: 20,
-                path: vec![
-                    ApiPosition { row: 1, col: 1 },
-                    ApiPosition { row: 1, col: 2 },
-                ],
-                wildcard_constraints: {
-                    let mut map = HashMap::new();
-                    map.insert("1_1".to_string(), "w".to_string());
-                    map
-                },
             },
         ];
 
@@ -134,7 +108,6 @@ mod tests {
 
         assert_eq!(api_answers.len(), deserialized.len());
         assert_eq!(api_answers[0].word, deserialized[0].word);
-        assert_eq!(api_answers[1].wildcard_constraints, deserialized[1].wildcard_constraints);
     }
 
     #[test]
@@ -143,8 +116,6 @@ mod tests {
             ApiAnswer {
                 word: "test".to_string(),
                 score: 5,
-                path: vec![],
-                wildcard_constraints: HashMap::new(),
             }
         ];
 
