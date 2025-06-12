@@ -135,7 +135,7 @@ impl AnswerGroupConstraintSet {
     }
 
     /// merge_all iterates through the AnswerGroupConstraintSets and finds the cummulative intersection of all of them
-    fn merge_all(sets: Vec<Self>) -> Result<AnswerGroupConstraintSet, UnsatisfiableConstraint> {
+    pub fn merge_all(sets: Vec<Self>) -> Result<AnswerGroupConstraintSet, UnsatisfiableConstraint> {
         let mut cummulative_answer_group_constraints = None;
         for set in sets {
             cummulative_answer_group_constraints = match cummulative_answer_group_constraints {

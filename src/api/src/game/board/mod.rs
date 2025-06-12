@@ -1,5 +1,5 @@
 use crate::game::{
-    board::constraints::{AnswerGroupConstraintSet, PathConstraintSet},
+    board::{answer::Answer, constraints::{AnswerGroupConstraintSet, PathConstraintSet}},
     directions,
 };
 use core::fmt;
@@ -217,6 +217,19 @@ impl Board {
         }
         visited.remove(&(row_number, column_number));
         return result;
+    }
+
+    /// Get all paths for each answer
+    pub fn get_answers_with_all_paths(&self, answers: Vec<String>) -> Result<Vec<Answer>, String> {
+        let mut answers_with_all_paths = Vec::new();
+        for word in &answers {
+            let answer = self.new_answer(word);
+            if answer.paths.is_empty() {
+                return Err(format!("Word '{}' has no possible path on board", word));
+            }
+            answers_with_all_paths.push(answer);
+        }
+        Ok(answers_with_all_paths)
     }
 }
 

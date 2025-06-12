@@ -6,6 +6,7 @@ pub mod trie;
 
 pub use board::Board;
 pub use trie::Trie;
+use std::collections::HashMap;
 
 // BoardGenerator for game generation
 pub struct BoardGenerator {
@@ -60,8 +61,7 @@ impl BoardGenerator {
             for col in 0..4 {
                 // Choose random letter based on frequency
                 let letter = self.weighted_choice(&letters, &weights, rng);
-                let points =
-                    crate::game::scoring::points_for_letter(letter);
+                let points = crate::game::scoring::points_for_letter(letter);
 
                 board.set_tile(row, col, letter, points, false);
             }
@@ -102,9 +102,7 @@ pub struct GameEngine {
 impl GameEngine {
     pub fn new<T: Into<Trie>>(trie_source: T) -> Self {
         let word_trie = Arc::new(trie_source.into());
-        Self {
-            word_trie,
-        }
+        Self { word_trie }
     }
 
     pub fn validate_api_answer_group(
@@ -137,14 +135,7 @@ impl GameEngine {
         // need a step here where we check a word actually has >1 paths, unless maybe is_valid_set is already handling that for us
 
         // Get all paths for each word
-        let mut answers_with_all_paths = Vec::new();
-        for word in &answers {
-            let answer = board.new_answer(word);
-            if answer.paths.is_empty() {
-                return Err(format!("Word '{}' has no possible path on board", word));
-            }
-            answers_with_all_paths.push(answer);
-        }
+        let answers_with_all_paths = board.get_answers_with_all_paths(answers)?;
 
         // Ensure constraints can be satisfied
         if AnswerGroupConstraintSet::is_valid_set(answers_with_all_paths) {
@@ -158,9 +149,78 @@ impl GameEngine {
         self.word_trie.search(word)
     }
 
+    /// score_answer_group finds all the possible AnswerGroupConstraintSets, calculates the scores for all words based on each set of constraints, and returns the HashMap of answer -> score for the highest total scoring paths that can coexist based on constraints. It returns an error if the answers cannot coexist based on constraints.
+    pub fn score_answer_group(&self, board: &Board, answers: Vec<String>) -> Result<HashMap<String, u32>, String> {
+        if answers.is_empty() {
+            return Ok(HashMap::new());
+        }
+
+        // Find all possible paths for each answer
+        let mut answer_objects = Vec::new();
+        for word in answers {
+            let answer = self.find_word_paths(board, &word);
+            if answer.paths.is_empty() {
+                return Err(format!("Word '{}' cannot be formed on this board", word));
+            }
+            answer_objects.push(answer);
+        }
+
+        // Find all constraint sets that can satisfy all answers together
+        let constraint_sets: Vec<_> = answer_objects
+            .iter()
+            .map(|answer| answer.constraints_set.clone())
+            .collect();
+
+        let valid_constraint_set = match board::constraints::AnswerGroupConstraintSet::merge_all(constraint_sets) {
+            Ok(constraint_set) => constraint_set,
+            Err(_) => return Err("Answers cannot coexist due to conflicting wildcard constraints".to_string()),
+        };
+
+        // For each valid path constraint set, calculate the maximum possible score
+        let mut max_total_score = 0u32;
+        let mut best_scores_by_word = HashMap::new();
+        
+        for path_constraint in &valid_constraint_set.path_constraint_sets {
+            let mut total_score = 0u32;
+            let mut scores_by_word = HashMap::new();
+            
+            // For each answer, find the best scoring path that satisfies this constraint
+            for answer_obj in &answer_objects {
+                let mut best_path_score = 0;
+                
+                // Check all paths for this answer to find the one that works with current constraints
+                for path in &answer_obj.paths {
+                    // Check if this path's constraints are compatible with the current path_constraint
+                    if let Ok(_) = path.constraints.merge(*path_constraint) {
+                        let path_score :u32 = path.tiles.iter().map(|tile| tile.points).sum::<i32>().try_into().unwrap();
+                        best_path_score = best_path_score.max(path_score);
+                    }
+                }
+                
+                // Record this answer's best score and add to total (ensuring non-negative)
+                let word_score = best_path_score;
+                scores_by_word.insert(answer_obj.word.clone(), word_score);
+                total_score += word_score;
+            }
+            
+            // If this constraint set gives us a better total score, use it
+            if total_score > max_total_score {
+                max_total_score = total_score;
+                best_scores_by_word = scores_by_word;
+            }
+        }
+
+        Ok(best_scores_by_word)
+    }
+
     pub fn score_word(&self, word: &str) -> u32 {
-        // TODO
-        1
+        if word.is_empty() {
+            return 0;
+        }
+        
+        word.chars()
+            .map(|c| crate::game::scoring::points_for_letter(c) as u32)
+            .sum()
     }
 
     pub fn find_word_paths(&self, board: &Board, word: &str) -> board::answer::Answer {
@@ -467,21 +527,52 @@ mod tests {
         assert!(!engine.is_valid_word_in_dictionary("notinlist"));
     }
 
-    // #[tokio::test]
-    // async fn test_game_engine_score_word() {
-    //     let words = create_test_wordlist();
-    //     let engine = GameEngine::new(words);
+    #[tokio::test]
+    async fn test_game_engine_score_word() {
+        let words = create_test_wordlist();
+        let engine = GameEngine::new(words);
 
-    //     let cat_score = engine.score_word("cat");
-    //     let dog_score = engine.score_word("dog");
+        let cat_score = engine.score_word("cat");
+        let dog_score = engine.score_word("dog");
 
-    //     // Both should be positive scores
-    //     assert!(cat_score > 0);
-    //     assert!(dog_score > 0);
+        // Both should be positive scores
+        assert!(cat_score > 0);
+        assert!(dog_score > 0);
 
-    //     // Empty string should score 0
-    //     assert_eq!(engine.score_word(""), 0);
-    // }
+        // Empty string should score 0
+        assert_eq!(engine.score_word(""), 0);
+    }
+
+    #[test]
+    fn test_game_engine_score_answer_group() {
+        let words = create_test_wordlist();
+        let engine = GameEngine::new(words);
+        
+        // Create a simple test board
+        let board = create_test_board();
+        
+        // Test with valid words that exist on the board
+        let answers = vec!["cat".to_string(), "dog".to_string()];
+        let result = engine.score_answer_group(&board, answers.clone());
+        
+        assert!(result.is_ok());
+        let scores = result.unwrap();
+        
+        // Should have scores for both words
+        assert_eq!(scores.len(), 2);
+        assert!(scores.contains_key("cat"));
+        assert!(scores.contains_key("dog"));
+        
+        // Scores should be positive (assuming the words can be formed)
+        for (word, score) in &scores {
+            println!("Word: {}, Score: {}", word, score);
+        }
+        
+        // Test with empty input
+        let empty_result = engine.score_answer_group(&board, vec![]);
+        assert!(empty_result.is_ok());
+        assert_eq!(empty_result.unwrap().len(), 0);
+    }
 
     #[tokio::test]
     async fn test_game_engine_find_word_paths() {
