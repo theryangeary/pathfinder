@@ -138,18 +138,15 @@ function App() {
       if (existingAnswers && existingAnswers.length > 0) {
         // Populate answers from existing game entry
         const loadedAnswers = ['', '', '', '', ''];
-        const loadedConstraints: Record<string, string> = {};
         
-        // Merge wildcard constraints from all answers
+        // Load existing answers
         existingAnswers.forEach((answer, index) => {
           if (index < 5) {
             loadedAnswers[index] = answer.word;
-            Object.assign(loadedConstraints, answer.wildcard_constraints);
           }
         });
         
         setAnswers(loadedAnswers);
-        setWildcardConstraints(loadedConstraints);
         
         // Re-validate all answers using the same strict logic as the backend
         const validation = validateAllAnswersTogether(loadedAnswers);
@@ -342,13 +339,11 @@ function App() {
       // Convert frontend answers to API format
       const apiAnswers: ApiAnswer[] = answers
         .map((word, index) => {
-          if (!validAnswers[index] || !validPaths[index]) return null;
+          if (!validAnswers[index]) return null;
           
           return {
             word,
-            score: scores[index],
-            path: validPaths[index]!.map(pos => ({ row: pos.row, col: pos.col })),
-            wildcard_constraints: wildcardConstraints
+            score: scores[index]
           };
         })
         .filter((answer): answer is ApiAnswer => answer !== null);

@@ -27,8 +27,6 @@ export interface ApiTile {
 export interface ApiAnswer {
   word: string;
   score: number;
-  path: ApiPosition[];
-  wildcard_constraints: Record<string, string>;
 }
 
 export interface ApiPosition {
