@@ -543,8 +543,226 @@ mod tests {
         assert_eq!(engine.score_word(""), 0);
     }
 
+
     #[test]
-    fn test_game_engine_score_answer_group() {
+    fn test_score_answer_group_comprehensive() {
+        #[derive(Debug)]
+        enum ExpectedResult {
+            Success { expected_scores: Vec<(&'static str, u32)> },
+            Error { error_fragment: &'static str },
+        }
+
+        struct TestCase {
+            name: &'static str,
+            board: Board,
+            words: Vec<&'static str>,
+            answers: Vec<String>,
+            expected_result: ExpectedResult,
+            description: &'static str,
+        }
+
+        let test_cases = vec![
+            TestCase {
+                name: "empty_input",
+                board: create_test_board(),
+                words: create_test_wordlist(),
+                answers: vec![],
+                expected_result: ExpectedResult::Success { expected_scores: vec![] },
+                description: "Empty answer list should return empty HashMap",
+            },
+            TestCase {
+                name: "single_valid_word",
+                board: create_test_board(),
+                words: create_test_wordlist(),
+                answers: vec!["cat".to_string()],
+                expected_result: ExpectedResult::Success { expected_scores: vec![("cat", 4)] },
+                description: "Single valid word should return its correct score",
+            },
+            TestCase {
+                name: "word_not_in_dictionary",
+                board: create_test_board(),
+                words: create_test_wordlist(),
+                answers: vec!["xyz".to_string()],
+                expected_result: ExpectedResult::Error { error_fragment: "cannot be formed" },
+                description: "Word not formable on board should error",
+            },
+            TestCase {
+                name: "word_not_formable_on_board",
+                board: create_test_board(),
+                words: vec!["cat", "dog", "test", "word", "game", "path", "tile", "board", "impossible"],
+                answers: vec!["impossible".to_string()],
+                expected_result: ExpectedResult::Error { error_fragment: "cannot be formed" },
+                description: "Valid dictionary word not formable on board should error",
+            },
+            TestCase {
+                name: "multiple_compatible_words",
+                board: create_test_board(),
+                words: create_test_wordlist(),
+                answers: vec!["cat".to_string(), "test".to_string()],
+                expected_result: ExpectedResult::Success { expected_scores: vec![("cat", 4), ("test", 2)] },
+                description: "Multiple words with compatible constraints should have correct individual scores",
+            },
+            TestCase {
+                name: "wildcard_constraint_scenarios",
+                board: create_constraint_test_board(),
+                words: create_test_wordlist_with_constraints(),
+                answers: vec!["cam".to_string(), "mat".to_string()],
+                expected_result: ExpectedResult::Success { expected_scores: vec![("cam", 5), ("mat", 4)] },
+                description: "Words requiring wildcard constraints should have correct individual scores",
+            },
+            TestCase {
+                name: "conflicting_wildcard_constraints",
+                board: create_constraint_test_board(),
+                words: vec!["cat", "dog", "test", "word", "hello", "world", "valid", "conflict1", "conflict2"],
+                answers: vec!["conflict1".to_string(), "conflict2".to_string()],
+                expected_result: ExpectedResult::Error { error_fragment: "cannot be formed" },
+                description: "Words with conflicting wildcard constraints should error",
+            },
+            TestCase {
+                name: "single_word_path_optimization",
+                board: create_test_board(),
+                words: create_test_wordlist(),
+                answers: vec!["cat".to_string()],
+                expected_result: ExpectedResult::Success { expected_scores: vec![("cat", 4)] },
+                description: "Should select highest scoring valid path for single word",
+            },
+            TestCase {
+                name: "zero_score_wildcard_handling",
+                board: {
+                    let mut board = Board::new();
+                    // Create board where word "cat" can be formed with wildcards: c(1,1 wildcard) -> a(1,2) -> t(1,3)
+                    board.set_tile(1, 1, '*', 0, true); // Can be 'c' (0 points)
+                    board.set_tile(1, 2, 'a', 1, false); // a (1 point) 
+                    board.set_tile(1, 3, 't', 1, false); // t (1 point)
+                    // Fill other spots to avoid issues
+                    for i in 0..4 {
+                        for j in 0..4 {
+                            if board.get_tile(i, j).letter.is_empty() {
+                                board.set_tile(i, j, 'x', 1, false);
+                            }
+                        }
+                    }
+                    board
+                },
+                words: create_test_wordlist(),
+                answers: vec!["cat".to_string()],
+                expected_result: ExpectedResult::Success { expected_scores: vec![("cat", 2)] }, // 0 + 1 + 1 = 2
+                description: "Should correctly score words with zero-point wildcard tiles",
+            },
+            TestCase {
+                name: "mixed_wildcard_and_regular_paths",
+                board: create_constraint_test_board(),
+                words: create_test_wordlist_with_constraints(),
+                answers: vec!["cat".to_string(), "cam".to_string()],
+                expected_result: ExpectedResult::Success { expected_scores: vec![("cat", 4), ("cam", 5)] },
+                description: "Should correctly score mix of wildcard and non-wildcard paths",
+            },
+            TestCase {
+                name: "scoring_with_letter_frequency_values",
+                board: {
+                    let mut board = Board::new();
+                    // Create a board with specific letters to test frequency-based scoring
+                    // q (9 points), u (3 points), a (1 point), t (1 point) - if "quat" were a word
+                    // But we'll use actual words from our test list
+                    board.set_tile(0, 0, 'c', 2, false); // c = 2 points
+                    board.set_tile(0, 1, 'a', 1, false); // a = 1 point  
+                    board.set_tile(0, 2, 't', 1, false); // t = 1 point
+                    board.set_tile(1, 0, 'o', 1, false); // o = 1 point
+                    board.set_tile(1, 1, 'm', 3, false); // m = 3 points
+                    // Fill rest with x
+                    for i in 0..4 {
+                        for j in 0..4 {
+                            if board.get_tile(i, j).letter.is_empty() {
+                                board.set_tile(i, j, 'x', 4, false);
+                            }
+                        }
+                    }
+                    board
+                },
+                words: create_test_wordlist_with_constraints(),
+                answers: vec!["cat".to_string()], // c(2) + a(1) + t(1) = 4
+                expected_result: ExpectedResult::Success { expected_scores: vec![("cat", 4)] },
+                description: "Should correctly apply letter frequency-based scoring",
+            },
+            TestCase {
+                name: "multiple_words_optimal_constraint_selection",
+                board: create_constraint_test_board(),
+                words: create_test_wordlist_with_constraints(),
+                answers: vec!["cat".to_string(), "mat".to_string(), "cam".to_string()],
+                expected_result: ExpectedResult::Success { expected_scores: vec![("cat", 4), ("mat", 4), ("cam", 5)] },
+                description: "Should select optimal constraint set when multiple words compete for wildcards",
+            },
+            TestCase {
+                name: "single_word_multiple_path_options",
+                board: {
+                    let mut board = Board::new();
+                    // Create a board where "cat" has multiple possible paths with different scores
+                    board.set_tile(0, 0, 'c', 2, false); // One path: c(2) -> a(1) -> t(1) = 4
+                    board.set_tile(0, 1, 'a', 1, false);
+                    board.set_tile(0, 2, 't', 1, false);
+                    
+                    board.set_tile(1, 0, 'c', 2, false); // Another path: c(2) -> a(3) -> t(5) = 10  
+                    board.set_tile(1, 1, 'a', 3, false);
+                    board.set_tile(1, 2, 't', 5, false);
+                    
+                    // Fill rest with x
+                    for i in 0..4 {
+                        for j in 0..4 {
+                            if board.get_tile(i, j).letter.is_empty() {
+                                board.set_tile(i, j, 'x', 1, false);
+                            }
+                        }
+                    }
+                    board
+                },
+                words: create_test_wordlist(),
+                answers: vec!["cat".to_string()],
+                expected_result: ExpectedResult::Success { expected_scores: vec![("cat", 10)] }, // Should pick highest scoring path
+                description: "Should select the highest scoring path when multiple paths exist for same word",
+            },
+        ];
+
+        for test_case in test_cases {
+            let engine = GameEngine::new(test_case.words);
+            let result = engine.score_answer_group(&test_case.board, test_case.answers);
+            
+            match (&result, &test_case.expected_result) {
+                (Ok(actual_scores), ExpectedResult::Success { expected_scores }) => {
+                    assert_eq!(actual_scores.len(), expected_scores.len(), 
+                        "Test case '{}': Score count mismatch. Expected {} scores, got {}. Description: {}", 
+                        test_case.name, expected_scores.len(), actual_scores.len(), test_case.description);
+                    
+                    for (expected_word, expected_score) in expected_scores {
+                        assert!(actual_scores.contains_key(*expected_word), 
+                            "Test case '{}': Missing word '{}' in results. Description: {}", 
+                            test_case.name, expected_word, test_case.description);
+                        
+                        let actual_score = actual_scores[*expected_word];
+                        assert_eq!(actual_score, *expected_score, 
+                            "Test case '{}': Score mismatch for word '{}'. Expected {}, got {}. Description: {}", 
+                            test_case.name, expected_word, expected_score, actual_score, test_case.description);
+                        
+                    }
+                },
+                (Err(actual_error), ExpectedResult::Error { error_fragment }) => {
+                    assert!(actual_error.contains(error_fragment), 
+                        "Test case '{}': Error message mismatch. Expected to contain '{}', got '{}'. Description: {}", 
+                        test_case.name, error_fragment, actual_error, test_case.description);
+                },
+                (Ok(actual_scores), ExpectedResult::Error { error_fragment }) => {
+                    panic!("Test case '{}': Expected error containing '{}', but got success with scores: {:?}. Description: {}", 
+                        test_case.name, error_fragment, actual_scores, test_case.description);
+                },
+                (Err(actual_error), ExpectedResult::Success { .. }) => {
+                    panic!("Test case '{}': Expected success but got error: '{}'. Description: {}", 
+                        test_case.name, actual_error, test_case.description);
+                },
+            }
+        }
+    }
+
+    #[test]
+    fn test_game_engine_score_answer_group_basic() {
         let words = create_test_wordlist();
         let engine = GameEngine::new(words);
         
