@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ApiGameStats } from '../api/gameApi';
 import { Tile } from '../utils/scoring';
 
 interface HeatmapModalProps {
@@ -8,28 +9,29 @@ interface HeatmapModalProps {
   board: Tile[][];
   totalScore: number;
   scores: number[];
+  gameStats: ApiGameStats | null;
 }
 
-function HeatmapModal({ isOpen, onClose, tileUsage, board, totalScore, scores }: HeatmapModalProps) {
+function HeatmapModal({ isOpen, onClose, tileUsage, board, totalScore, scores, gameStats }: HeatmapModalProps) {
   const [showCopyNotification, setShowCopyNotification] = useState<boolean>(false);
-  
+
   if (!isOpen) return null;
 
   // Get the maximum usage count to normalize the heat scale
   const maxUsage = Math.max(...tileUsage.flat(), 1);
-  
+
   // Calculate the best word score
   const bestWordScore = Math.max(...scores);
 
   const copyToClipboard = (): void => {
-    const heatmapText = board.map((row, rowIndex) => 
+    const heatmapText = board.map((row, rowIndex) =>
       row.map((_tile, colIndex) => getHeatEmoji(tileUsage[rowIndex][colIndex])).join('')
     ).join('\n');
-    
+
     const currentUrl = window.location.href;
-    
+
     const textToCopy = `${heatmapText}\n\nTotal Score: ${totalScore}\nBest Word: ${bestWordScore}\n\n${currentUrl}`;
-    
+
     navigator.clipboard.writeText(textToCopy).then(() => {
       setShowCopyNotification(true);
       setTimeout(() => setShowCopyNotification(false), 1000);
@@ -41,9 +43,9 @@ function HeatmapModal({ isOpen, onClose, tileUsage, board, totalScore, scores }:
   // Define emoji heat scale from black (0 uses) to red (max uses)
   const getHeatEmoji = (usageCount: number): string => {
     if (usageCount === 0) return '⬜️'; // Black for no usage
-    
+
     const intensity = usageCount / maxUsage;
-    
+
     if (intensity <= 0.2) return '🟦'; // Blue for very low usage
     if (intensity <= 0.4) return '🟩'; // Green for low usage  
     if (intensity <= 0.6) return '🟨'; // Yellow for medium usage
@@ -64,7 +66,7 @@ function HeatmapModal({ isOpen, onClose, tileUsage, board, totalScore, scores }:
 
 
   return (
-    <div 
+    <div
       onClick={onClose}
       style={{
         position: 'fixed',
@@ -79,7 +81,7 @@ function HeatmapModal({ isOpen, onClose, tileUsage, board, totalScore, scores }:
         zIndex: 1000
       }}
     >
-      <div 
+      <div
         onClick={(e) => e.stopPropagation()}
         style={{
           backgroundColor: 'white',
@@ -92,7 +94,7 @@ function HeatmapModal({ isOpen, onClose, tileUsage, board, totalScore, scores }:
         }}
       >
         <h2 style={{ marginBottom: '20px', color: '#333' }}>Nice Work!</h2>
-        
+
         <div style={{
           fontFamily: 'monospace',
           fontSize: '24px',
@@ -103,34 +105,45 @@ function HeatmapModal({ isOpen, onClose, tileUsage, board, totalScore, scores }:
         }}>
           {board.map((row, rowIndex) => (
             <div key={rowIndex}>
-              {row.map((_tile, colIndex) => 
+              {row.map((_tile, colIndex) =>
                 getHeatEmoji(tileUsage[rowIndex][colIndex])
               ).join('')}
             </div>
           ))}
         </div>
 
-        <div style={{ 
-          marginBottom: '20px', 
-          fontSize: '16px', 
+        <div style={{
+          marginBottom: '20px',
+          fontSize: '16px',
           fontWeight: 'normal',
           color: '#555'
         }}>
           Total Score: {totalScore}
         </div>
 
-        <div style={{ 
-          marginBottom: '20px', 
-          fontSize: '16px', 
+        <div style={{
+          marginBottom: '20px',
+          fontSize: '16px',
           fontWeight: 'normal',
           color: '#555'
         }}>
           Best Word: {bestWordScore}
         </div>
 
-        <div style={{ 
-          display: 'flex', 
-          gap: '10px', 
+        {gameStats && (
+          <div style={{
+            marginBottom: '20px',
+            fontSize: '16px',
+            fontWeight: 'normal',
+            color: '#555'
+          }}>
+            Rank: {gameStats.user_rank} of {gameStats.total_players}
+          </div>
+        )}
+
+        <div style={{
+          display: 'flex',
+          gap: '10px',
           justifyContent: 'center',
           flexWrap: 'wrap'
         }}>
@@ -147,7 +160,7 @@ function HeatmapModal({ isOpen, onClose, tileUsage, board, totalScore, scores }:
           >
             Share
           </button> */}
-          
+
           <button
             onClick={copyToClipboard}
             onMouseDown={(e) => (e.target as HTMLButtonElement).style.transform = 'scale(0.95)'}
@@ -161,7 +174,7 @@ function HeatmapModal({ isOpen, onClose, tileUsage, board, totalScore, scores }:
           >
             Copy
           </button>
-          
+
           <button
             onClick={onClose}
             onMouseDown={(e) => (e.target as HTMLButtonElement).style.transform = 'scale(0.95)'}
@@ -176,7 +189,7 @@ function HeatmapModal({ isOpen, onClose, tileUsage, board, totalScore, scores }:
             Close
           </button>
         </div>
-        
+
         {showCopyNotification && (
           <div style={{
             position: 'fixed',

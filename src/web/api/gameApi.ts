@@ -75,6 +75,12 @@ export interface ApiGameStats {
   highest_score: number;
 }
 
+export interface GameEntryResponse {
+  answers: ApiAnswer[];
+  completed: boolean;
+  total_score: number;
+}
+
 class GameApi {
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const url = `${API_BASE_URL}${endpoint}`;
@@ -133,13 +139,13 @@ class GameApi {
     });
   }
 
-  async getGameEntry(gameId: string, userId?: string, cookieToken?: string): Promise<ApiAnswer[] | null> {
+  async getGameEntry(gameId: string, userId?: string, cookieToken?: string): Promise<GameEntryResponse | null> {
     const params = new URLSearchParams();
     if (userId) params.append('user_id', userId);
     if (cookieToken) params.append('cookie_token', cookieToken);
     
     const query = params.toString() ? `?${params.toString()}` : '';
-    return this.request<ApiAnswer[] | null>(`/game-entry/${gameId}${query}`);
+    return this.request<GameEntryResponse | null>(`/game-entry/${gameId}${query}`);
   }
 }
 

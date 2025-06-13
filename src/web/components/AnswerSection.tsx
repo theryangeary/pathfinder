@@ -10,6 +10,7 @@ interface AnswerSectionProps {
   onAnswerFocus: (index: number) => void;
   isSubmitting?: boolean;
   isWordListLoading?: boolean;
+  isGameCompleted?: boolean;
 }
 
 function AnswerSection({ 
@@ -20,7 +21,8 @@ function AnswerSection({
   onSubmit,
   onAnswerFocus,
   isSubmitting = false,
-  isWordListLoading = false
+  isWordListLoading = false,
+  isGameCompleted = false
 }: AnswerSectionProps) {
   const inputRefs = useRef<(AnswerInputHandle | null)[]>([]);
 
@@ -94,7 +96,7 @@ function AnswerSection({
       <div style={{ display: 'flex', justifyContent: 'center', marginTop: '20px' }}>
         <button
           onClick={onSubmit}
-          disabled={!validAnswers.every(valid => valid) || isSubmitting}
+          disabled={(!validAnswers.every(valid => valid) && !isGameCompleted) || isSubmitting}
           onMouseDown={(e) => {
             const target = e.target as HTMLButtonElement;
             if (!target.disabled) {
@@ -117,17 +119,17 @@ function AnswerSection({
             padding: '12px 24px',
             fontSize: '16px',
             fontWeight: 'bold',
-            backgroundColor: (validAnswers.every(valid => valid) && !isSubmitting) ? '#4CAF50' : '#cccccc',
-            color: (validAnswers.every(valid => valid) && !isSubmitting) ? 'white' : '#666666',
+            backgroundColor: ((validAnswers.every(valid => valid) || isGameCompleted) && !isSubmitting) ? '#4CAF50' : '#cccccc',
+            color: ((validAnswers.every(valid => valid) || isGameCompleted) && !isSubmitting) ? 'white' : '#666666',
             border: 'none',
             borderRadius: '8px',
-            cursor: (validAnswers.every(valid => valid) && !isSubmitting) ? 'pointer' : 'not-allowed',
+            cursor: ((validAnswers.every(valid => valid) || isGameCompleted) && !isSubmitting) ? 'pointer' : 'not-allowed',
             boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
             transition: 'all 0.1s ease',
             transform: 'scale(1)'
           }}
         >
-          {isSubmitting ? 'Submitting...' : 'Submit Answers'}
+          {isSubmitting ? 'Submitting...' : (isGameCompleted ? 'View Stats' : 'Submit Answers')}
         </button>
       </div>
     </div>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ApiAnswer, ApiGame, convertApiBoardToBoard, gameApi } from './api/gameApi';
+import { ApiAnswer, ApiGame, ApiGameStats, GameEntryResponse, convertApiBoardToBoard, gameApi } from './api/gameApi';
 import AnswerSection from './components/AnswerSection';
 import Board from './components/Board';
 import HeatmapModal from './components/HeatmapModal';
@@ -30,6 +30,7 @@ function App() {
   const [highlightedPaths, setHighlightedPaths] = useState<Position[][]>([]);
   const [currentInputIndex, setCurrentInputIndex] = useState<number>(-1);
   const [showHeatmapModal, setShowHeatmapModal] = useState<boolean>(false);
+  const [gameStats, setGameStats] = useState<ApiGameStats | null>(null);
   const [validPaths, setValidPaths] = useState<(Position[] | null)[]>([]);
   const [currentGame, setCurrentGame] = useState<ApiGame | null>(null);
   const [isLoadingGame, setIsLoadingGame] = useState(true);
@@ -37,6 +38,7 @@ function App() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isValidWordLoaded, setIsValidWordLoaded] = useState(false);
   const [isValidWordFn, setIsValidWordFn] = useState<((word: string) => boolean) | null>(null);
+  const [isGameCompleted, setIsGameCompleted] = useState(false);
 
   // Load word validation function asynchronously
   useEffect(() => {
@@ -60,6 +62,7 @@ function App() {
     // Clear highlighting state when switching puzzles
     setHighlightedPaths([]);
     setCurrentInputIndex(-1);
+    setIsGameCompleted(false);
     loadGame();
   }, [sequenceNumber]);
 
@@ -129,18 +132,21 @@ function App() {
     if (!user || !currentGame) return;
     
     try {
-      const existingAnswers = await gameApi.getGameEntry(
+      const gameEntry = await gameApi.getGameEntry(
         currentGame.id, 
         user.user_id, 
         user.cookie_token
       );
       
-      if (existingAnswers && existingAnswers.length > 0) {
+      if (gameEntry && gameEntry.answers.length > 0) {
+        // Set completion status
+        setIsGameCompleted(gameEntry.completed);
+        
         // Populate answers from existing game entry
         const loadedAnswers = ['', '', '', '', ''];
         
         // Load existing answers
-        existingAnswers.forEach((answer, index) => {
+        gameEntry.answers.forEach((answer, index) => {
           if (index < 5) {
             loadedAnswers[index] = answer.word;
           }
@@ -156,6 +162,7 @@ function App() {
         setValidPaths(validation.paths);
         setWildcardConstraints(validation.constraints);
       } else {
+        setIsGameCompleted(false);
         setValidAnswers([false, false, false, false, false]);
         setScores([0,0,0,0,0]);
         setValidPaths([]);
@@ -173,7 +180,7 @@ function App() {
   };
 
   const saveProgress = async (validAnswersUpToIndex: string[]) => {
-    if (!user || !currentGame) return;
+    if (!user || !currentGame || isGameCompleted) return;
     
     try {
       // Convert valid answers to API format with scores
@@ -202,8 +209,8 @@ function App() {
   };
 
   const handleAnswerFocus = (index: number): void => {
-    // Save progress when focus moves to the next answer box
-    if (currentInputIndex !== index && currentInputIndex >= 0 && user && currentGame) {
+    // Save progress when focus moves to the next answer box (only if game not completed)
+    if (currentInputIndex !== index && currentInputIndex >= 0 && user && currentGame && !isGameCompleted) {
       // Check if all preceding answers (up to currentInputIndex) are valid
       const precedingAnswersValid = validAnswers.slice(0, currentInputIndex + 1).every(valid => valid);
       
@@ -375,6 +382,12 @@ function App() {
   const handleSubmit = async (): Promise<void> => {
     if (!currentGame || isSubmitting) return;
 
+    // If game is already completed, just show stats modal
+    if (isGameCompleted) {
+      setShowHeatmapModal(true);
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       // Convert frontend answers to API format
@@ -396,13 +409,16 @@ function App() {
       }
 
       // Submit to backend
-      await gameApi.submitAnswers({
+      const response = await gameApi.submitAnswers({
         user_id: user?.user_id,
         cookie_token: user?.cookie_token,
         answers: apiAnswers,
         game_id: currentGame.id,
       });
 
+      // Mark game as completed after successful submission
+      setIsGameCompleted(true);
+      setGameStats(response.stats);
       setShowHeatmapModal(true);
     } catch (error) {
       console.error('Failed to submit answers:', error);
@@ -638,6 +654,7 @@ function App() {
         onAnswerFocus={handleAnswerFocus}
         isSubmitting={isSubmitting}
         isWordListLoading={!isValidWordLoaded}
+        isGameCompleted={isGameCompleted}
       />
       
       <HeatmapModal
@@ -647,6 +664,7 @@ function App() {
         board={board}
         totalScore={scores.reduce((sum, score) => sum + score, 0)}
         scores={scores}
+        gameStats={gameStats}
       />
     </div>
   );

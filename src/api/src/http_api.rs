@@ -121,6 +121,13 @@ pub struct ApiGameStats {
     pub highest_score: i32,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct GameEntryResponse {
+    pub answers: Vec<ApiAnswer>,
+    pub completed: bool,
+    pub total_score: i32,
+}
+
 #[derive(Clone)]
 pub struct ApiState {
     pub repository: Repository,
@@ -538,7 +545,7 @@ async fn get_game_entry(
     Path(game_id): Path<String>,
     Query(params): Query<HashMap<String, String>>,
     State(state): State<ApiState>,
-) -> Result<Json<Option<Vec<ApiAnswer>>>, StatusCode> {
+) -> Result<Json<Option<GameEntryResponse>>, StatusCode> {
     println!(
         "get_game_entry called - game_id: {}, params: {:?}",
         game_id, params
@@ -613,7 +620,11 @@ async fn get_game_entry(
             match AnswerStorage::deserialize_to_api_answers(&entry.answers_data) {
                 Ok(answers) => {
                     println!("Parsed answers: {:?}", answers);
-                    Ok(Json(Some(answers)))
+                    Ok(Json(Some(GameEntryResponse {
+                        answers,
+                        completed: entry.completed,
+                        total_score: entry.total_score,
+                    })))
                 }
                 Err(e) => {
                     println!("Failed to parse answers JSON: {}", e);
