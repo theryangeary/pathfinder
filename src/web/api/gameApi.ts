@@ -108,7 +108,26 @@ class GameApi {
     return this.request<ApiGame>(`/game/date/${currentDate}`);
   }
 
+  async getGameByDate(date: string): Promise<ApiGame> {
+    // Validate that the requested date is not in the future (client-side check)
+    const requestedDate = new Date(date + 'T00:00:00');
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    if (requestedDate > today) {
+      throw new Error('Cannot load puzzles from future dates');
+    }
+    
+    return this.request<ApiGame>(`/game/date/${date}`);
+  }
+
   async getGameBySequence(sequenceNumber: number): Promise<ApiGame> {
+    // Frontend validation: prevent obviously invalid sequence numbers
+    if (sequenceNumber < 1) {
+      throw new Error('Sequence number must be at least 1');
+    }
+    
+    // Note: Additional server-side validation will be added to prevent future puzzles
     return this.request<ApiGame>(`/game/sequence/${sequenceNumber}`);
   }
 

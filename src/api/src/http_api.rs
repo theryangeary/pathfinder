@@ -5,6 +5,8 @@ use axum::{
     routing::{get, post},
     Router,
 };
+use chrono::{NaiveDate, Utc};
+use chrono_tz::Tz;
 use moka::future::Cache;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -25,7 +27,6 @@ use crate::security::{
 };
 use crate::{
     db::{conversions::AnswerStorage, Repository},
-    game::scoring,
 };
 
 // HTTP API types (simpler than protobuf for frontend)
@@ -205,12 +206,37 @@ pub fn create_secure_router(state: ApiState, config: SecurityConfig) -> Router {
         .with_state(state)
 }
 
+// Helper functions
+
+/// Check if a date is in the future relative to the earliest timezone that might be playing
+/// This ensures we only allow loading puzzles for dates that have already started somewhere in the world
+fn is_date_in_future(date_str: &str) -> bool {
+    // Parse the date string (YYYY-MM-DD format)
+    let target_date = match NaiveDate::parse_from_str(date_str, "%Y-%m-%d") {
+        Ok(date) => date,
+        Err(_) => return true, // Invalid date format is considered "future" to reject it
+    };
+    
+    // Use UTC+14 (Pacific/Kiritimati) as the earliest timezone
+    // This is the earliest timezone where a new day begins
+    let earliest_tz: Tz = "Pacific/Kiritimati".parse().unwrap();
+    let now_in_earliest = Utc::now().with_timezone(&earliest_tz);
+    let today_in_earliest = now_in_earliest.date_naive();
+    
+    target_date > today_in_earliest
+}
+
 // Route handlers
 
 async fn get_game_by_date(
     Path(date): Path<String>,
     State(state): State<ApiState>,
 ) -> Result<Json<ApiGame>, StatusCode> {
+    // Validate that the requested date is not in the future
+    if is_date_in_future(&date) {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+    
     let cache_key = format!("date:{}", date);
 
     // Check cache first
@@ -247,6 +273,10 @@ async fn get_game_by_sequence(
 
     // Check cache first
     if let Some(cached_game) = state.game_cache.get(&cache_key).await {
+        // Still need to validate that this isn't a future puzzle, even if cached
+        if is_date_in_future(&cached_game.date) {
+            return Err(StatusCode::BAD_REQUEST);
+        }
         return Ok(Json(cached_game));
     }
 
@@ -256,7 +286,13 @@ async fn get_game_by_sequence(
         .get_game_by_sequence_number(sequence_number)
         .await
     {
-        Ok(Some(game)) => game,
+        Ok(Some(game)) => {
+            // Validate that this game's date is not in the future
+            if is_date_in_future(&game.date) {
+                return Err(StatusCode::BAD_REQUEST);
+            }
+            game
+        },
         Ok(None) => return Err(StatusCode::NOT_FOUND),
         Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
     };
@@ -1050,6 +1086,30 @@ mod tests {
         // S A * I  <- wildcard at (2,2)
         // I N A L
         r#"{"rows":[{"tiles":[{"letter":"t","points":1,"is_wildcard":false,"row":0,"col":0},{"letter":"m","points":3,"is_wildcard":false,"row":0,"col":1},{"letter":"i","points":1,"is_wildcard":false,"row":0,"col":2},{"letter":"t","points":1,"is_wildcard":false,"row":0,"col":3}]},{"tiles":[{"letter":"c","points":2,"is_wildcard":false,"row":1,"col":0},{"letter":"*","points":0,"is_wildcard":true,"row":1,"col":1},{"letter":"o","points":1,"is_wildcard":false,"row":1,"col":2},{"letter":"t","points":1,"is_wildcard":false,"row":1,"col":3}]},{"tiles":[{"letter":"s","points":1,"is_wildcard":false,"row":2,"col":0},{"letter":"a","points":1,"is_wildcard":false,"row":2,"col":1},{"letter":"*","points":0,"is_wildcard":true,"row":2,"col":2},{"letter":"i","points":1,"is_wildcard":false,"row":2,"col":3}]},{"tiles":[{"letter":"i","points":1,"is_wildcard":false,"row":3,"col":0},{"letter":"n","points":1,"is_wildcard":false,"row":3,"col":1},{"letter":"a","points":1,"is_wildcard":false,"row":3,"col":2},{"letter":"l","points":2,"is_wildcard":false,"row":3,"col":3}]}]}"#.to_string()
+    }
+
+    #[test]
+    fn test_is_date_in_future() {
+        // Test with today's date (should not be in future)
+        let today = Utc::now().format("%Y-%m-%d").to_string();
+        assert!(!is_date_in_future(&today), "Today should not be considered future");
+
+        // Test with yesterday's date (should not be in future)
+        let yesterday = (Utc::now() - chrono::Duration::days(1))
+            .format("%Y-%m-%d")
+            .to_string();
+        assert!(!is_date_in_future(&yesterday), "Yesterday should not be considered future");
+
+        // Test with a clearly future date (should be in future)
+        let future_date = (Utc::now() + chrono::Duration::days(10))
+            .format("%Y-%m-%d")
+            .to_string();
+        assert!(is_date_in_future(&future_date), "Future date should be considered future");
+
+        // Test with invalid date format (should be considered future for safety)
+        assert!(is_date_in_future("invalid-date"), "Invalid date should be considered future");
+        assert!(is_date_in_future("2024-13-45"), "Invalid date should be considered future");
+        assert!(is_date_in_future("not-a-date"), "Invalid date should be considered future");
     }
 
     #[tokio::test]
