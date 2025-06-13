@@ -18,7 +18,7 @@ function isDiagonalMove(pos1: Position, pos2: Position): boolean {
   return rowDiff === 1 && colDiff === 1;
 }
 
-function findAllPaths(board: Tile[][], word: string, wildcardConstraints: Record<string, string> = {}): Position[][] {
+export function findAllPaths(board: Tile[][], word: string, wildcardConstraints: Record<string, string> = {}): Position[][] {
   const paths: Position[][] = [];
   
   function dfs(currentPath: Position[], remainingWord: string, usedPositions: Set<string>): void {
