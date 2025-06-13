@@ -91,6 +91,7 @@ function AnswerSection({
             score={score}
             onEnterPress={handleEnterPress}
             onFocus={onAnswerFocus}
+            isGameCompleted={isGameCompleted}
           />
         );
       })}

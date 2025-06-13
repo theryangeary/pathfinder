@@ -9,6 +9,7 @@ interface AnswerInputProps {
   score: number;
   onEnterPress?: (index: number) => void;
   onFocus?: (index: number) => void;
+  isGameCompleted?: boolean;
 }
 
 interface AnswerInputHandle {
@@ -23,7 +24,8 @@ const AnswerInput = forwardRef<AnswerInputHandle, AnswerInputProps>(function Ans
   isEnabled, 
   score,
   onEnterPress,
-  onFocus
+  onFocus,
+  isGameCompleted = false
 }, ref) {
   const inputRef = useRef<HTMLInputElement>(null);
   const statusIcon = value.length <= 0 ? '' : isValid ? '✅' : '❌';
@@ -55,10 +57,11 @@ const AnswerInput = forwardRef<AnswerInputHandle, AnswerInputProps>(function Ans
         ref={inputRef}
         type="text"
         value={value}
-        onChange={(e) => onChange(index, e.target.value.toLowerCase().replace(/[^a-z]/g, ''))}
+        onChange={(e) => isGameCompleted ? undefined : onChange(index, e.target.value.toLowerCase().replace(/[^a-z]/g, ''))}
         onKeyDown={handleKeyDown}
         onFocus={() => onFocus && onFocus(index)}
-        disabled={!isEnabled}
+        disabled={!isEnabled || isGameCompleted}
+        readOnly={isGameCompleted}
         placeholder={`Answer ${index + 1}`}
         style={{
           padding: '8px 12px',
@@ -66,7 +69,8 @@ const AnswerInput = forwardRef<AnswerInputHandle, AnswerInputProps>(function Ans
           borderRadius: '4px',
           fontSize: '16px',
           minWidth: '200px',
-          backgroundColor: isEnabled ? '#fff' : '#f5f5f5'
+          backgroundColor: isGameCompleted ? '#fcfcfc' : (isEnabled ? '#fff' : '#f5f5f5'),
+          cursor: isGameCompleted ? 'default' : 'text'
         }}
       />
       <span 
