@@ -9,6 +9,7 @@ interface AnswerInputProps {
   score: number;
   onEnterPress?: (index: number) => void;
   onFocus?: (index: number) => void;
+  onBlur?: (index: number) => void;
   isGameCompleted?: boolean;
 }
 
@@ -25,6 +26,7 @@ const AnswerInput = forwardRef<AnswerInputHandle, AnswerInputProps>(function Ans
   score,
   onEnterPress,
   onFocus,
+  onBlur,
   isGameCompleted = false
 }, ref) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -60,6 +62,7 @@ const AnswerInput = forwardRef<AnswerInputHandle, AnswerInputProps>(function Ans
         onChange={(e) => isGameCompleted ? undefined : onChange(index, e.target.value.toLowerCase().replace(/[^a-z]/g, ''))}
         onKeyDown={handleKeyDown}
         onFocus={() => onFocus && onFocus(index)}
+        onBlur={() => onBlur && onBlur(index)}
         disabled={!isEnabled || isGameCompleted}
         readOnly={isGameCompleted}
         placeholder={`Answer ${index + 1}`}

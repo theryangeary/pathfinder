@@ -185,12 +185,12 @@ function App() {
     }
   };
 
-  const saveProgress = async (validAnswersUpToIndex: string[]) => {
+  const saveProgress = async () => {
     if (!user || !currentGame || isGameCompleted) return;
     
     try {
-      // Convert valid answers to API format with scores
-      const apiAnswers: ApiAnswer[] = validAnswersUpToIndex
+      // Convert all valid answers to API format with scores
+      const apiAnswers: ApiAnswer[] = answers
         .map((word, index) => {
           if (!word || !validAnswers[index]) return null;
           
@@ -215,18 +215,6 @@ function App() {
   };
 
   const handleAnswerFocus = (index: number): void => {
-    // Save progress when focus moves to the next answer box (only if game not completed)
-    if (currentInputIndex !== index && currentInputIndex >= 0 && user && currentGame && !isGameCompleted) {
-      // Check if all preceding answers (up to currentInputIndex) are valid
-      const precedingAnswersValid = validAnswers.slice(0, currentInputIndex + 1).every(valid => valid);
-      
-      if (precedingAnswersValid) {
-        // Save the valid answers up to the current index
-        const validAnswersUpToIndex = answers.slice(0, currentInputIndex + 1);
-        saveProgress(validAnswersUpToIndex);
-      }
-    }
-    
     // Update highlighting when focusing on a different input
     if (currentInputIndex !== index) {
       setCurrentInputIndex(index);
@@ -239,6 +227,13 @@ function App() {
       } else {
         setHighlightedPaths([]);
       }
+    }
+  };
+
+  const handleAnswerBlur = (_index: number): void => {
+    // Save progress when any answer input loses focus
+    if (user && currentGame && !isGameCompleted) {
+      saveProgress();
     }
   };
 
@@ -658,6 +653,7 @@ function App() {
         scores={scores}
         onSubmit={handleSubmit}
         onAnswerFocus={handleAnswerFocus}
+        onAnswerBlur={handleAnswerBlur}
         isSubmitting={isSubmitting}
         isWordListLoading={!isValidWordLoaded}
         isGameCompleted={isGameCompleted}

@@ -8,6 +8,7 @@ interface AnswerSectionProps {
   scores: number[];
   onSubmit: () => void;
   onAnswerFocus: (index: number) => void;
+  onAnswerBlur: (index: number) => void;
   isSubmitting?: boolean;
   isWordListLoading?: boolean;
   isGameCompleted?: boolean;
@@ -21,6 +22,7 @@ function AnswerSection({
   scores,
   onSubmit,
   onAnswerFocus,
+  onAnswerBlur,
   isSubmitting = false,
   isWordListLoading = false,
   isGameCompleted = false,
@@ -91,6 +93,7 @@ function AnswerSection({
             score={score}
             onEnterPress={handleEnterPress}
             onFocus={onAnswerFocus}
+            onBlur={onAnswerBlur}
             isGameCompleted={isGameCompleted}
           />
         );
