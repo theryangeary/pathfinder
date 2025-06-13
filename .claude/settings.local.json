@@ -42,7 +42,9 @@
       "Bash(RUST_LOG=info cargo run)",
       "Bash(RUST_LOG=info cargo run --bin word-game-backend)",
       "Bash(RUST_LOG=info cargo run --bin http_memory_test)",
-      "Bash(diff:*)"
+      "Bash(diff:*)",
+      "Bash(npm run typecheck:*)",
+      "Bash(npm run:*)"
     ],
     "deny": []
   }

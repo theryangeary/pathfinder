@@ -54,6 +54,13 @@ export interface SubmitRequest {
   game_id: string;
 }
 
+export interface UpdateProgressRequest {
+  user_id?: string;
+  cookie_token?: string;
+  answers: ApiAnswer[];
+  game_id: string;
+}
+
 export interface SubmitResponse {
   user_id: string;
   total_score: number;
@@ -108,6 +115,13 @@ class GameApi {
 
   async submitAnswers(request: SubmitRequest): Promise<SubmitResponse> {
     return this.request<SubmitResponse>('/submit', {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
+  }
+
+  async updateProgress(request: UpdateProgressRequest): Promise<{ success: boolean }> {
+    return this.request<{ success: boolean }>('/update-progress', {
       method: 'POST',
       body: JSON.stringify(request),
     });

@@ -172,7 +172,48 @@ function App() {
     }
   };
 
+  const saveProgress = async (validAnswersUpToIndex: string[]) => {
+    if (!user || !currentGame) return;
+    
+    try {
+      // Convert valid answers to API format with scores
+      const apiAnswers: ApiAnswer[] = validAnswersUpToIndex
+        .map((word, index) => {
+          if (!word || !validAnswers[index]) return null;
+          
+          return {
+            word,
+            score: scores[index]
+          };
+        })
+        .filter((answer): answer is ApiAnswer => answer !== null);
+
+      if (apiAnswers.length > 0) {
+        await gameApi.updateProgress({
+          user_id: user.user_id,
+          cookie_token: user.cookie_token,
+          answers: apiAnswers,
+          game_id: currentGame.id,
+        });
+      }
+    } catch (error) {
+      console.warn('Failed to save progress:', error);
+    }
+  };
+
   const handleAnswerFocus = (index: number): void => {
+    // Save progress when focus moves to the next answer box
+    if (currentInputIndex !== index && currentInputIndex >= 0 && user && currentGame) {
+      // Check if all preceding answers (up to currentInputIndex) are valid
+      const precedingAnswersValid = validAnswers.slice(0, currentInputIndex + 1).every(valid => valid);
+      
+      if (precedingAnswersValid) {
+        // Save the valid answers up to the current index
+        const validAnswersUpToIndex = answers.slice(0, currentInputIndex + 1);
+        saveProgress(validAnswersUpToIndex);
+      }
+    }
+    
     // Update highlighting when focusing on a different input
     if (currentInputIndex !== index) {
       setCurrentInputIndex(index);

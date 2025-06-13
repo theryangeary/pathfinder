@@ -98,6 +98,14 @@ pub struct SubmitRequest {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+pub struct UpdateProgressRequest {
+    pub user_id: Option<String>,
+    pub cookie_token: Option<String>,
+    pub answers: Vec<ApiAnswer>,
+    pub game_id: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
 pub struct SubmitResponse {
     pub user_id: String,
     pub total_score: i32,
@@ -152,6 +160,7 @@ pub fn create_router(state: ApiState) -> Router {
         // TODO consider if this can be removed from api, as it should really be done as part of /submit
         .route("/api/validate", post(validate_answer))
         .route("/api/submit", post(submit_answers))
+        .route("/api/update-progress", post(update_progress))
         .route("/api/user", post(create_user))
         .route("/api/game-entry/:game_id", get(get_game_entry))
         .nest_service("/", ServeDir::new("static"))
@@ -173,6 +182,7 @@ pub fn create_secure_router(state: ApiState, config: SecurityConfig) -> Router {
         )
         .route("/api/validate", post(validate_answer))
         .route("/api/submit", post(submit_answers))
+        .route("/api/update-progress", post(update_progress))
         .route("/api/user", post(create_user))
         .route("/api/game-entry/:game_id", get(get_game_entry))
         .route("/health", get(health_check))
@@ -444,6 +454,76 @@ async fn submit_answers(
     };
 
     Ok(Json(response))
+}
+
+async fn update_progress(
+    State(state): State<ApiState>,
+    Json(request): Json<UpdateProgressRequest>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    // Validate and get existing user
+    let user = match (request.user_id.as_ref(), request.cookie_token.as_ref()) {
+        (Some(user_id), Some(cookie_token)) => {
+            // Validate existing user by both ID and cookie token
+            match state.repository.get_user_by_id(user_id).await {
+                Ok(Some(existing_user)) if existing_user.cookie_token == *cookie_token => {
+                    // Valid user - update last seen
+                    let _ = state
+                        .repository
+                        .update_user_last_seen(&existing_user.id)
+                        .await;
+                    existing_user
+                }
+                _ => {
+                    return Err(StatusCode::UNAUTHORIZED);
+                }
+            }
+        }
+        (None, Some(cookie_token)) => {
+            // Try to find user by cookie token only
+            match state.repository.get_user_by_cookie(cookie_token).await {
+                Ok(Some(existing_user)) => {
+                    // Valid user - update last seen
+                    let _ = state
+                        .repository
+                        .update_user_last_seen(&existing_user.id)
+                        .await;
+                    existing_user
+                }
+                _ => {
+                    return Err(StatusCode::UNAUTHORIZED);
+                }
+            }
+        }
+        _ => {
+            return Err(StatusCode::UNAUTHORIZED);
+        }
+    };
+
+    let total_score: i32 = request.answers.iter().map(|a| a.score).sum();
+
+    // Serialize answers to JSON using stable database format
+    let answers_json = match AnswerStorage::serialize_api_answers(&request.answers) {
+        Ok(json) => json,
+        Err(_) => return Err(StatusCode::BAD_REQUEST),
+    };
+
+    // Create or update game entry with completed=false for progress
+    let new_entry = crate::db::models::NewGameEntry {
+        user_id: user.id.clone(),
+        game_id: request.game_id.clone(),
+        answers_data: answers_json,
+        total_score,
+        completed: false, // Mark as incomplete for progress saving
+    };
+
+    match state
+        .repository
+        .create_or_update_game_entry(new_entry)
+        .await
+    {
+        Ok(_) => Ok(Json(serde_json::json!({"success": true}))),
+        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    }
 }
 
 async fn create_user(State(state): State<ApiState>) -> Result<Json<serde_json::Value>, StatusCode> {
