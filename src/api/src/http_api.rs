@@ -127,6 +127,7 @@ pub struct GameEntryResponse {
     pub answers: Vec<ApiAnswer>,
     pub completed: bool,
     pub total_score: i32,
+    pub stats: Option<ApiGameStats>,
 }
 
 #[derive(Clone)]
@@ -664,20 +665,44 @@ async fn get_game_entry(
         Ok(Some(entry)) => {
             println!("Found game entry: {:?}", entry.answers_data);
             // Parse the answers from JSON using stable database format
-            match AnswerStorage::deserialize_to_api_answers(&entry.answers_data) {
+            let answers = match AnswerStorage::deserialize_to_api_answers(&entry.answers_data) {
                 Ok(answers) => {
                     println!("Parsed answers: {:?}", answers);
-                    Ok(Json(Some(GameEntryResponse {
-                        answers,
-                        completed: entry.completed,
-                        total_score: entry.total_score,
-                    })))
+                    answers
                 }
                 Err(e) => {
                     println!("Failed to parse answers JSON: {}", e);
-                    Err(StatusCode::INTERNAL_SERVER_ERROR)
+                    return Err(StatusCode::INTERNAL_SERVER_ERROR);
                 }
-            }
+            };
+            
+            // Calculate stats if the game is completed
+            let stats = if entry.completed {
+                match state.repository.get_game_stats(&game_id, entry.total_score).await {
+                    Ok((total_players, user_rank, percentile, average_score, highest_score)) => {
+                        Some(ApiGameStats {
+                            total_players,
+                            user_rank,
+                            percentile: percentile as f32,
+                            average_score,
+                            highest_score,
+                        })
+                    }
+                    Err(e) => {
+                        println!("Failed to get game stats: {}", e);
+                        None
+                    }
+                }
+            } else {
+                None
+            };
+            
+            Ok(Json(Some(GameEntryResponse {
+                answers,
+                completed: entry.completed,
+                total_score: entry.total_score,
+                stats,
+            })))
         }
         Ok(None) => {
             println!(

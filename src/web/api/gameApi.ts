@@ -79,6 +79,7 @@ export interface GameEntryResponse {
   answers: ApiAnswer[];
   completed: boolean;
   total_score: number;
+  stats?: ApiGameStats;
 }
 
 class GameApi {

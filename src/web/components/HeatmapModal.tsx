@@ -23,7 +23,7 @@ function HeatmapModal({ isOpen, onClose, tileUsage, board, totalScore, scores, g
   // Calculate the best word score
   const bestWordScore = Math.max(...scores);
 
-  const ranking = !gameStats ? `` : `Rank: ${gameStats?.user_rank} of ${gameStats?.total_players}`;
+  const ranking = !gameStats ? `` : `Rank: ${gameStats.user_rank} of ${gameStats.total_players}`;
 
   const copyToClipboard = (): void => {
     const heatmapText = board.map((row, rowIndex) =>

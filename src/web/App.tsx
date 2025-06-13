@@ -142,6 +142,11 @@ function App() {
         // Set completion status
         setIsGameCompleted(gameEntry.completed);
         
+        // Set game stats if available (for completed games)
+        if (gameEntry.stats) {
+          setGameStats(gameEntry.stats);
+        }
+        
         // Populate answers from existing game entry
         const loadedAnswers = ['', '', '', '', ''];
         
@@ -163,6 +168,7 @@ function App() {
         setWildcardConstraints(validation.constraints);
       } else {
         setIsGameCompleted(false);
+        setGameStats(null);
         setValidAnswers([false, false, false, false, false]);
         setScores([0,0,0,0,0]);
         setValidPaths([]);
