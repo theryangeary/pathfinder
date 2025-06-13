@@ -46,8 +46,8 @@ function HeatmapModal({ isOpen, onClose, tileUsage, board, totalScore, scores, g
 
     const intensity = usageCount / maxUsage;
 
-    if (intensity <= 0.2) return '🟦'; // Blue for very low usage
-    if (intensity <= 0.4) return '🟩'; // Green for low usage  
+    if (intensity <= 0.2) return '🟪'; // Blue for very low usage
+    if (intensity <= 0.4) return '🟦'; // Green for low usage  
     if (intensity <= 0.6) return '🟨'; // Yellow for medium usage
     if (intensity <= 0.8) return '🟧'; // Orange for high usage
     return '🟥'; // Red for maximum usage
