@@ -11,6 +11,7 @@ interface AnswerSectionProps {
   isSubmitting?: boolean;
   isWordListLoading?: boolean;
   isGameCompleted?: boolean;
+  isOffline?: boolean;
 }
 
 function AnswerSection({ 
@@ -22,7 +23,8 @@ function AnswerSection({
   onAnswerFocus,
   isSubmitting = false,
   isWordListLoading = false,
-  isGameCompleted = false
+  isGameCompleted = false,
+  isOffline = false
 }: AnswerSectionProps) {
   const inputRefs = useRef<(AnswerInputHandle | null)[]>([]);
 
@@ -129,7 +131,7 @@ function AnswerSection({
             transform: 'scale(1)'
           }}
         >
-          {isSubmitting ? 'Submitting...' : (isGameCompleted ? 'View Stats' : 'Submit Answers')}
+          {isSubmitting ? 'Submitting...' : (isGameCompleted || isOffline ? 'View Stats' : 'Submit Answers')}
         </button>
       </div>
     </div>

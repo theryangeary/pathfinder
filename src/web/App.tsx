@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ApiAnswer, ApiGame, ApiGameStats, GameEntryResponse, convertApiBoardToBoard, gameApi } from './api/gameApi';
+import { ApiAnswer, ApiGame, ApiGameStats, convertApiBoardToBoard, gameApi } from './api/gameApi';
 import AnswerSection from './components/AnswerSection';
 import Board from './components/Board';
 import HeatmapModal from './components/HeatmapModal';
@@ -380,10 +380,10 @@ function App() {
   };
 
   const handleSubmit = async (): Promise<void> => {
-    if (!currentGame || isSubmitting) return;
+    if ((!currentGame && !apiError) || isSubmitting) return;
 
-    // If game is already completed, just show stats modal
-    if (isGameCompleted) {
+    // If game is already completed or offline, just show stats modal
+    if (isGameCompleted || apiError) {
       setShowHeatmapModal(true);
       return;
     }
@@ -655,6 +655,7 @@ function App() {
         isSubmitting={isSubmitting}
         isWordListLoading={!isValidWordLoaded}
         isGameCompleted={isGameCompleted}
+        isOffline={!!apiError}
       />
       
       <HeatmapModal
