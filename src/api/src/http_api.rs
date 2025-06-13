@@ -395,6 +395,17 @@ async fn submit_answers(
         Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
     };
 
+    // Check if user has already completed this game
+    match state.repository.get_game_entry(&user.id, &request.game_id).await {
+        Ok(Some(existing_entry)) if existing_entry.completed => {
+            return Err(StatusCode::CONFLICT); // 409 Conflict - already submitted
+        }
+        Ok(_) => {
+            // No existing entry or entry is not completed - proceed
+        }
+        Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
+    }
+
     // Validate that all submitted answers are valid for this game
     if let Err(error_msg) = validate_submitted_answers(&state, &game, &request.answers).await {
         println!("Answer validation failed: {}", error_msg);
