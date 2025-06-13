@@ -23,6 +23,8 @@ function HeatmapModal({ isOpen, onClose, tileUsage, board, totalScore, scores, g
   // Calculate the best word score
   const bestWordScore = Math.max(...scores);
 
+  const ranking = !gameStats ? `` : `Rank: ${gameStats?.user_rank} of ${gameStats?.total_players}`;
+
   const copyToClipboard = (): void => {
     const heatmapText = board.map((row, rowIndex) =>
       row.map((_tile, colIndex) => getHeatEmoji(tileUsage[rowIndex][colIndex])).join('')
@@ -30,7 +32,7 @@ function HeatmapModal({ isOpen, onClose, tileUsage, board, totalScore, scores, g
 
     const currentUrl = window.location.href;
 
-    const textToCopy = `${heatmapText}\n\nTotal Score: ${totalScore}\nBest Word: ${bestWordScore}\n\n${currentUrl}`;
+    const textToCopy = `${heatmapText}\n\nTotal Score: ${totalScore}\nBest Word: ${bestWordScore}\n${ranking}\n\n${currentUrl}`;
 
     navigator.clipboard.writeText(textToCopy).then(() => {
       setShowCopyNotification(true);
@@ -137,7 +139,7 @@ function HeatmapModal({ isOpen, onClose, tileUsage, board, totalScore, scores, g
             fontWeight: 'normal',
             color: '#555'
           }}>
-            Rank: {gameStats.user_rank} of {gameStats.total_players}
+            {ranking}
           </div>
         )}
 
