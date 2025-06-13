@@ -388,8 +388,6 @@ async fn submit_answers(
         }
     };
 
-    let total_score: i32 = request.answers.iter().map(|a| a.score).sum();
-
     // Get the specified game to store the entry against
     let game = match state.repository.get_game_by_id(&request.game_id).await {
         Ok(Some(game)) => game,
@@ -404,13 +402,15 @@ async fn submit_answers(
     }
 
     // Score submitted answers
-    let scoring = match score_submitted_answers(&state, &game, &request.answers).await {
+    let score_sheet = match score_submitted_answers(&state, &game, &request.answers).await {
         Ok(scoring) => scoring,
         Err(error_msg) => {
             println!("Answer scoring failed: {}", error_msg);
             return Err(StatusCode::BAD_REQUEST);
         }
     };
+
+    let total_score: i32 = score_sheet.total_score().try_into().unwrap();
 
     // Serialize answers to JSON using stable database format
     let answers_json = match AnswerStorage::serialize_api_answers(&request.answers) {

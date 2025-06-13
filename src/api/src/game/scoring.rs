@@ -47,6 +47,10 @@ impl ScoreSheet {
             map: HashMap::new()
         }
     }
+
+    pub fn total_score(&self) -> u32 {
+        self.map.values().sum()
+    }
 }
 
 impl From<HashMap<String, u32>> for ScoreSheet {
