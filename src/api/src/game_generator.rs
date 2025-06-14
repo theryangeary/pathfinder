@@ -83,7 +83,11 @@ impl GameGenerator {
                     .try_generate_valid_board(&mut rng, threshold_score)
                     .await
                 {
-                    Ok(board_data) => {
+                    Ok((board, _valid_answers)) => {
+                        // Convert board to JSON for storage
+                        let serializable_board = crate::game::conversion::SerializableBoard::from(&board);
+                        let board_data = serde_json::to_string(&serializable_board)?;
+                        
                         let sequence_number = self.repository.get_next_sequence_number().await?;
                         let new_game = NewGame {
                             date: date.to_string(),
@@ -130,7 +134,7 @@ impl GameGenerator {
         &self,
         rng: &mut R,
         threshold_score: i32,
-    ) -> Result<String> {
+    ) -> Result<(crate::game::board::Board, Vec<crate::game::board::answer::Answer>)> {
         let board_generator = BoardGenerator::new();
         let board = board_generator.generate_board(rng);
 
@@ -144,10 +148,7 @@ impl GameGenerator {
         let top_5_sum: i32 = scores.iter().take(5).sum();
 
         if top_5_sum >= threshold_score {
-            // Convert board to JSON for storage
-            let serializable_board = crate::game::conversion::SerializableBoard::from(&board);
-            let board_json = serde_json::to_string(&serializable_board)?;
-            Ok(board_json)
+            Ok((board, valid_answers))
         } else {
             anyhow::bail!(
                 "Board quality insufficient: top 5 words sum to {} (threshold: {})",
