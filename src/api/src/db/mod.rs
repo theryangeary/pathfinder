@@ -35,6 +35,7 @@ async fn run_migrations(pool: &PgPool) -> Result<()> {
     let migrations = [
         ("001_initial.sql", include_str!("../../migrations/001_initial.sql")),
         ("002_add_sequence_number.sql", include_str!("../../migrations/002_add_sequence_number.sql")),
+        ("003_add_game_answers.sql", include_str!("../../migrations/003_add_game_answers.sql")),
     ];
     
     for (filename, migration_sql) in &migrations {

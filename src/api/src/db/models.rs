@@ -32,6 +32,16 @@ pub struct DbGameEntry {
     pub updated_at: DateTime<Utc>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DbGameAnswer {
+    pub id: String,
+    pub game_id: String,
+    pub word: String,
+    pub path: String, // JSON serialized path array
+    pub path_constraint_set: String, // JSON serialized PathConstraintSet
+    pub created_at: DateTime<Utc>,
+}
+
 // Helper structs for creating new entries
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NewUser {
@@ -53,6 +63,14 @@ pub struct NewGameEntry {
     pub answers_data: String,
     pub total_score: i32,
     pub completed: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NewGameAnswer {
+    pub game_id: String,
+    pub word: String,
+    pub path: String,
+    pub path_constraint_set: String,
 }
 
 impl DbUser {
@@ -92,6 +110,19 @@ impl DbGameEntry {
             completed,
             created_at: now,
             updated_at: now,
+        }
+    }
+}
+
+impl DbGameAnswer {
+    pub fn new(game_id: String, word: String, path: String, path_constraint_set: String) -> Self {
+        Self {
+            id: Uuid::new_v4().to_string(),
+            game_id,
+            word,
+            path,
+            path_constraint_set,
+            created_at: Utc::now(),
         }
     }
 }
