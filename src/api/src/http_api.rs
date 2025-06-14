@@ -75,6 +75,31 @@ pub struct ApiPosition {
     pub col: i32,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ApiPath {
+    pub tiles: Vec<ApiTile>,
+    pub constraints: ApiPathConstraintSet,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum ApiPathConstraintSet {
+    Unconstrainted,
+    FirstDecided(char),
+    SecondDecided(char),
+    BothDecided(char, char),
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ApiPathsResponse {
+    pub words: Vec<ApiWordPaths>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ApiWordPaths {
+    pub word: String,
+    pub paths: Vec<ApiPath>,
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ValidateRequest {
     pub word: String,
@@ -167,6 +192,7 @@ pub fn create_router(state: ApiState) -> Router {
             get(get_game_by_sequence),
         )
         .route("/api/game/:game_id/words", get(get_game_words))
+        .route("/api/game/:game_id/paths", get(get_game_paths))
         // TODO consider if this can be removed from api, as it should really be done as part of /submit
         .route("/api/validate", post(validate_answer))
         .route("/api/submit", post(submit_answers))
@@ -191,6 +217,7 @@ pub fn create_secure_router(state: ApiState, config: SecurityConfig) -> Router {
             get(get_game_by_sequence),
         )
         .route("/api/game/:game_id/words", get(get_game_words))
+        .route("/api/game/:game_id/paths", get(get_game_paths))
         .route("/api/validate", post(validate_answer))
         .route("/api/submit", post(submit_answers))
         .route("/api/update-progress", post(update_progress))
@@ -229,6 +256,59 @@ fn is_date_in_future(date_str: &str) -> bool {
     target_date > today_in_earliest
 }
 
+// Conversion functions for paths API
+
+impl From<crate::game::board::constraints::PathConstraintSet> for ApiPathConstraintSet {
+    fn from(constraint: crate::game::board::constraints::PathConstraintSet) -> Self {
+        match constraint {
+            crate::game::board::constraints::PathConstraintSet::Unconstrainted => {
+                ApiPathConstraintSet::Unconstrainted
+            }
+            crate::game::board::constraints::PathConstraintSet::FirstDecided(c) => {
+                ApiPathConstraintSet::FirstDecided(c)
+            }
+            crate::game::board::constraints::PathConstraintSet::SecondDecided(c) => {
+                ApiPathConstraintSet::SecondDecided(c)
+            }
+            crate::game::board::constraints::PathConstraintSet::BothDecided(c1, c2) => {
+                ApiPathConstraintSet::BothDecided(c1, c2)
+            }
+        }
+    }
+}
+
+impl From<crate::game::board::path::Path> for ApiPath {
+    fn from(path: crate::game::board::path::Path) -> Self {
+        let tiles: Vec<ApiTile> = path
+            .tiles
+            .into_iter()
+            .map(|tile| ApiTile {
+                letter: tile.letter,
+                points: tile.points,
+                is_wildcard: tile.is_wildcard,
+                row: tile.row,
+                col: tile.col,
+            })
+            .collect();
+
+        ApiPath {
+            tiles,
+            constraints: path.constraints.into(),
+        }
+    }
+}
+
+impl From<crate::game::board::answer::Answer> for ApiWordPaths {
+    fn from(answer: crate::game::board::answer::Answer) -> Self {
+        let paths: Vec<ApiPath> = answer.paths.into_iter().map(|path| path.into()).collect();
+
+        ApiWordPaths {
+            word: answer.word,
+            paths,
+        }
+    }
+}
+
 // Route handlers
 
 async fn get_game_words(
@@ -239,6 +319,44 @@ async fn get_game_words(
         Ok(words) => Ok(Json(words)),
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
     }
+}
+
+async fn get_game_paths(
+    Path(game_id): Path<String>,
+    State(state): State<ApiState>,
+) -> Result<Json<ApiPathsResponse>, StatusCode> {
+    // Get the game from the repository
+    let game = match state.repository.get_game_by_id(&game_id).await {
+        Ok(Some(game)) => game,
+        Ok(None) => return Err(StatusCode::NOT_FOUND),
+        Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
+    };
+
+    // Parse the board from the game data
+    let serializable_board: SerializableBoard = match serde_json::from_str(&game.board_data) {
+        Ok(board) => board,
+        Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
+    };
+
+    let board: crate::game::Board = serializable_board.into();
+
+    // Get all valid words for this game
+    let valid_words = match state.repository.get_game_words(&game_id).await {
+        Ok(words) => words,
+        Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
+    };
+
+    // Find all paths for each valid word
+    let mut word_paths = Vec::new();
+    for word in valid_words {
+        let answer = state.game_engine.find_word_paths(&board, &word);
+        if !answer.paths.is_empty() {
+            word_paths.push(answer.into());
+        }
+    }
+
+    let response = ApiPathsResponse { words: word_paths };
+    Ok(Json(response))
 }
 
 async fn get_game_by_date(
@@ -1042,6 +1160,67 @@ mod tests {
     }
 
     #[sqlx::test]
+    async fn test_get_game_paths_endpoint(pool: sqlx::Pool<sqlx::Postgres>) {
+        let (state, app) = setup_app(pool).await;
+
+        // Create a test game
+        let mut new_game = create_new_test_game();
+        new_game.date = "2025-06-08".to_string();
+        new_game.threshold_score = 40;
+        new_game.sequence_number = 1;
+        let created_game = state.repository.create_game(new_game).await.unwrap();
+
+        // Create some test answers for the game
+        let test_answers = vec![
+            crate::db::models::NewGameAnswer {
+                game_id: created_game.id.clone(),
+                word: "test".to_string(),
+                path: "[]".to_string(),
+                path_constraint_set: "{}".to_string(),
+            },
+            crate::db::models::NewGameAnswer {
+                game_id: created_game.id.clone(),
+                word: "word".to_string(),
+                path: "[]".to_string(),
+                path_constraint_set: "{}".to_string(),
+            },
+            crate::db::models::NewGameAnswer {
+                game_id: created_game.id.clone(),
+                word: "game".to_string(),
+                path: "[]".to_string(),
+                path_constraint_set: "{}".to_string(),
+            },
+        ];
+        
+        state.repository.create_game_answers(test_answers).await.unwrap();
+
+        // Test the paths endpoint
+        let request = create_test_request(
+            axum::http::Method::GET, 
+            &format!("/api/game/{}/paths", created_game.id), 
+            None
+        );
+        let response = app.oneshot(request).await.unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let paths_response: ApiPathsResponse = serde_json::from_slice(&body).unwrap();
+
+        // Verify we get the expected structure
+        assert!(paths_response.words.len() > 0, "Should have some word paths");
+        
+        // Check that each word has the expected structure
+        for word_path in &paths_response.words {
+            assert!(!word_path.word.is_empty(), "Word should not be empty");
+            // Since our test board and words may not actually be valid, we just check structure
+            // In a real scenario, valid words would have paths
+        }
+    }
+
+    #[sqlx::test]
     async fn test_get_game_words_endpoint(pool: sqlx::Pool<sqlx::Postgres>) {
         let (state, app) = setup_app(pool).await;
 
@@ -1180,6 +1359,136 @@ mod tests {
         // S A * I  <- wildcard at (2,2)
         // I N A L
         r#"{"rows":[{"tiles":[{"letter":"t","points":1,"is_wildcard":false,"row":0,"col":0},{"letter":"m","points":3,"is_wildcard":false,"row":0,"col":1},{"letter":"i","points":1,"is_wildcard":false,"row":0,"col":2},{"letter":"t","points":1,"is_wildcard":false,"row":0,"col":3}]},{"tiles":[{"letter":"c","points":2,"is_wildcard":false,"row":1,"col":0},{"letter":"*","points":0,"is_wildcard":true,"row":1,"col":1},{"letter":"o","points":1,"is_wildcard":false,"row":1,"col":2},{"letter":"t","points":1,"is_wildcard":false,"row":1,"col":3}]},{"tiles":[{"letter":"s","points":1,"is_wildcard":false,"row":2,"col":0},{"letter":"a","points":1,"is_wildcard":false,"row":2,"col":1},{"letter":"*","points":0,"is_wildcard":true,"row":2,"col":2},{"letter":"i","points":1,"is_wildcard":false,"row":2,"col":3}]},{"tiles":[{"letter":"i","points":1,"is_wildcard":false,"row":3,"col":0},{"letter":"n","points":1,"is_wildcard":false,"row":3,"col":1},{"letter":"a","points":1,"is_wildcard":false,"row":3,"col":2},{"letter":"l","points":2,"is_wildcard":false,"row":3,"col":3}]}]}"#.to_string()
+    }
+
+    #[test]
+    fn test_api_path_constraint_set_conversion() {
+        use crate::game::board::constraints::PathConstraintSet;
+        
+        // Test Unconstrainted conversion
+        let internal = PathConstraintSet::Unconstrainted;
+        let api: ApiPathConstraintSet = internal.into();
+        assert!(matches!(api, ApiPathConstraintSet::Unconstrainted));
+        
+        // Test FirstDecided conversion
+        let internal = PathConstraintSet::FirstDecided('a');
+        let api: ApiPathConstraintSet = internal.into();
+        assert!(matches!(api, ApiPathConstraintSet::FirstDecided('a')));
+        
+        // Test SecondDecided conversion
+        let internal = PathConstraintSet::SecondDecided('b');
+        let api: ApiPathConstraintSet = internal.into();
+        assert!(matches!(api, ApiPathConstraintSet::SecondDecided('b')));
+        
+        // Test BothDecided conversion
+        let internal = PathConstraintSet::BothDecided('x', 'y');
+        let api: ApiPathConstraintSet = internal.into();
+        assert!(matches!(api, ApiPathConstraintSet::BothDecided('x', 'y')));
+    }
+
+    #[test]
+    fn test_api_paths_response_serialization() {
+        use crate::game::board::path::{Path, GameTile};
+        use crate::game::board::constraints::PathConstraintSet;
+        use std::collections::VecDeque;
+        
+        // Create a sample response structure
+        let mut tiles = VecDeque::new();
+        tiles.push_back(GameTile {
+            letter: "c".to_string(),
+            points: 2,
+            is_wildcard: false,
+            row: 0,
+            col: 0,
+        });
+        tiles.push_back(GameTile {
+            letter: "*".to_string(),
+            points: 0,
+            is_wildcard: true,
+            row: 1,
+            col: 1,
+        });
+        tiles.push_back(GameTile {
+            letter: "t".to_string(),
+            points: 1,
+            is_wildcard: false,
+            row: 0,
+            col: 2,
+        });
+        
+        let path = Path {
+            tiles,
+            constraints: PathConstraintSet::FirstDecided('a'),
+        };
+        
+        let word_paths = ApiWordPaths {
+            word: "cat".to_string(),
+            paths: vec![path.into()],
+        };
+        
+        let response = ApiPathsResponse {
+            words: vec![word_paths],
+        };
+        
+        // Test serialization
+        let json = serde_json::to_string_pretty(&response).expect("Should serialize");
+        
+        // The JSON should contain the expected structure
+        assert!(json.contains("cat"));
+        assert!(json.contains("tiles"));
+        assert!(json.contains("constraints"));
+        assert!(json.contains("FirstDecided"));
+        
+        // Test that we can deserialize it back
+        let deserialized: ApiPathsResponse = serde_json::from_str(&json).expect("Should deserialize");
+        assert_eq!(deserialized.words.len(), 1);
+        assert_eq!(deserialized.words[0].word, "cat");
+        assert_eq!(deserialized.words[0].paths.len(), 1);
+        assert_eq!(deserialized.words[0].paths[0].tiles.len(), 3);
+    }
+
+    #[test]
+    fn test_api_path_conversion() {
+        use crate::game::board::path::{Path, GameTile};
+        use crate::game::board::constraints::PathConstraintSet;
+        use std::collections::VecDeque;
+        
+        // Create a test path
+        let mut tiles = VecDeque::new();
+        tiles.push_back(GameTile {
+            letter: "c".to_string(),
+            points: 2,
+            is_wildcard: false,
+            row: 0,
+            col: 0,
+        });
+        tiles.push_back(GameTile {
+            letter: "a".to_string(),
+            points: 1,
+            is_wildcard: false,
+            row: 0,
+            col: 1,
+        });
+        
+        let internal_path = Path {
+            tiles,
+            constraints: PathConstraintSet::FirstDecided('c'),
+        };
+        
+        let api_path: ApiPath = internal_path.into();
+        
+        assert_eq!(api_path.tiles.len(), 2);
+        assert_eq!(api_path.tiles[0].letter, "c");
+        assert_eq!(api_path.tiles[0].points, 2);
+        assert_eq!(api_path.tiles[0].row, 0);
+        assert_eq!(api_path.tiles[0].col, 0);
+        assert!(!api_path.tiles[0].is_wildcard);
+        
+        assert_eq!(api_path.tiles[1].letter, "a");
+        assert_eq!(api_path.tiles[1].points, 1);
+        assert!(!api_path.tiles[1].is_wildcard);
+        
+        assert!(matches!(api_path.constraints, ApiPathConstraintSet::FirstDecided('c')));
     }
 
     #[test]
