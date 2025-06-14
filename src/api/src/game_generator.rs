@@ -1,11 +1,12 @@
-use crate::db::{models::NewGame, Repository};
-use crate::game::{BoardGenerator, GameEngine};
+use crate::db::{models::{NewGame, NewGameAnswer}, Repository};
+use crate::game::{BoardGenerator, GameEngine, conversion::{SerializablePath, SerializableAnswerGroupConstraintSet}};
 use anyhow::Result;
 use chrono::{Duration, Utc};
 use rand::SeedableRng;
 use rand_seeder::Seeder;
 use serde_json;
 use tracing::{error, info, warn};
+use uuid;
 
 #[derive(Clone)]
 pub struct GameGenerator {
@@ -83,7 +84,7 @@ impl GameGenerator {
                     .try_generate_valid_board(&mut rng, threshold_score)
                     .await
                 {
-                    Ok((board, _valid_answers)) => {
+                    Ok((board, valid_answers)) => {
                         // Convert board to JSON for storage
                         let serializable_board = crate::game::conversion::SerializableBoard::from(&board);
                         let board_data = serde_json::to_string(&serializable_board)?;
@@ -96,10 +97,31 @@ impl GameGenerator {
                             sequence_number,
                         };
 
-                        let game = self.repository.create_game(new_game).await?;
+                        // Prepare game answers entries BEFORE creating the game
+                        let mut game_answers = Vec::new();
+                        // Use a temporary game_id that will be replaced by the actual ID
+                        let temp_game_id = uuid::Uuid::new_v4().to_string();
+                        
+                        for answer in &valid_answers {
+                            for path in &answer.paths {
+                                let serializable_path = SerializablePath::from(path);
+                                let serializable_constraints = SerializableAnswerGroupConstraintSet::from(&answer.constraints_set);
+                                
+                                game_answers.push(NewGameAnswer {
+                                    game_id: temp_game_id.clone(), // Will be replaced in the atomic create
+                                    word: answer.word.clone(),
+                                    path: serde_json::to_string(&serializable_path)?,
+                                    path_constraint_set: serde_json::to_string(&serializable_constraints)?,
+                                });
+                            }
+                        }
+                        
+                        // Create game and answers atomically
+                        let (game, _created_answers) = self.repository.create_game_with_answers(new_game, game_answers).await?;
+                        
                         info!(
-                            "Successfully generated game for {} after {} attempts with threshold {}",
-                            date, generation_attempt, threshold_score
+                            "Successfully generated game for {} after {} attempts with threshold {} and {} valid answers",
+                            date, generation_attempt, threshold_score, valid_answers.len()
                         );
                         return Ok(game);
                     }
