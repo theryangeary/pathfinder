@@ -26,6 +26,25 @@ impl GameGenerator {
     pub async fn generate_missing_games(&self) -> Result<()> {
         let today = Utc::now().date_naive();
 
+        // Generate games for today and the next 3 days
+        for days_ahead in 0..=3 {
+            let target_date = today + Duration::days(days_ahead);
+            let date_str = target_date.format("%Y-%m-%d").to_string();
+
+            if !self.repository.game_exists_for_date(&date_str).await? {
+                match self.generate_game_for_date(&date_str).await {
+                    Ok(game) => {
+                        info!("Generated game for date: {} with ID: {}", date_str, game.id);
+                    }
+                    Err(e) => {
+                        error!("Failed to generate game for date {}: {}", date_str, e);
+                    }
+                }
+            } else {
+                info!("Game already exists for date: {}", date_str);
+            }
+        }
+        
         // Generate games for the past 7 days, in case this is the first launch or the app has had downtime.
         for days_back in 1..=7 {
             let target_date = today - Duration::days(8) + Duration::days(days_back);
@@ -45,25 +64,6 @@ impl GameGenerator {
                 }
             } else {
                 info!("Game already exists for past date: {}", date_str);
-            }
-        }
-
-        // Generate games for today and the next 3 days
-        for days_ahead in 0..=3 {
-            let target_date = today + Duration::days(days_ahead);
-            let date_str = target_date.format("%Y-%m-%d").to_string();
-
-            if !self.repository.game_exists_for_date(&date_str).await? {
-                match self.generate_game_for_date(&date_str).await {
-                    Ok(game) => {
-                        info!("Generated game for date: {} with ID: {}", date_str, game.id);
-                    }
-                    Err(e) => {
-                        error!("Failed to generate game for date {}: {}", date_str, e);
-                    }
-                }
-            } else {
-                info!("Game already exists for date: {}", date_str);
             }
         }
 
