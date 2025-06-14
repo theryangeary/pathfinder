@@ -351,6 +351,19 @@ impl Repository {
         Ok((game, created_answers))
     }
 
+    pub async fn get_game_words(&self, game_id: &str) -> Result<Vec<String>> {
+        let rows = sqlx::query("SELECT DISTINCT word FROM game_answers WHERE game_id = $1")
+            .bind(game_id)
+            .fetch_all(&self.pool)
+            .await?;
+
+        let words = rows.into_iter()
+            .map(|row| row.get::<String, _>("word"))
+            .collect();
+
+        Ok(words)
+    }
+
     // Statistics operations
     pub async fn get_game_stats(&self, game_id: &str, user_score: i32) -> Result<(i32, i32, f64, i32, i32)> {
         // Get total players for this game

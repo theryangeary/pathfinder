@@ -43,6 +43,22 @@ function App() {
   // Load word validation function asynchronously
   useEffect(() => {
     const loadWordList = async () => {
+      // Try to load game-specific word list first if we have a game
+      if (currentGame) {
+        try {
+          const gameWords = await gameApi.getGameWords(currentGame.id);
+          if (gameWords.length > 0) {
+            const gameWordSet = new Set(gameWords.map(word => word.toLowerCase()));
+            setIsValidWordFn(() => (word: string) => gameWordSet.has(word.toLowerCase()));
+            setIsValidWordLoaded(true);
+            return;
+          }
+        } catch (error) {
+          console.warn('Failed to load game-specific word list, falling back to complete word list:', error);
+        }
+      }
+
+      // Fallback to complete word list
       try {
         const { isValidWord } = await import('./data/wordList');
         setIsValidWordFn(() => isValidWord);
@@ -55,7 +71,7 @@ function App() {
       }
     };
     loadWordList();
-  }, []);
+  }, [currentGame]);
 
   // Load game immediately, don't wait for user
   useEffect(() => {
@@ -63,6 +79,9 @@ function App() {
     setHighlightedPaths([]);
     setCurrentInputIndex(-1);
     setIsGameCompleted(false);
+    // Reset word list state when switching games
+    setIsValidWordLoaded(false);
+    setIsValidWordFn(null);
     loadGame();
   }, [sequenceNumber]);
 

@@ -167,6 +167,10 @@ class GameApi {
     const query = params.toString() ? `?${params.toString()}` : '';
     return this.request<GameEntryResponse | null>(`/game-entry/${gameId}${query}`);
   }
+
+  async getGameWords(gameId: string): Promise<string[]> {
+    return this.request<string[]>(`/game/${gameId}/words`);
+  }
 }
 
 export const gameApi = new GameApi();

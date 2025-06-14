@@ -166,6 +166,7 @@ pub fn create_router(state: ApiState) -> Router {
             "/api/game/sequence/:sequence_number",
             get(get_game_by_sequence),
         )
+        .route("/api/game/:game_id/words", get(get_game_words))
         // TODO consider if this can be removed from api, as it should really be done as part of /submit
         .route("/api/validate", post(validate_answer))
         .route("/api/submit", post(submit_answers))
@@ -189,6 +190,7 @@ pub fn create_secure_router(state: ApiState, config: SecurityConfig) -> Router {
             "/api/game/sequence/:sequence_number",
             get(get_game_by_sequence),
         )
+        .route("/api/game/:game_id/words", get(get_game_words))
         .route("/api/validate", post(validate_answer))
         .route("/api/submit", post(submit_answers))
         .route("/api/update-progress", post(update_progress))
@@ -228,6 +230,16 @@ fn is_date_in_future(date_str: &str) -> bool {
 }
 
 // Route handlers
+
+async fn get_game_words(
+    Path(game_id): Path<String>,
+    State(state): State<ApiState>,
+) -> Result<Json<Vec<String>>, StatusCode> {
+    match state.repository.get_game_words(&game_id).await {
+        Ok(words) => Ok(Json(words)),
+        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    }
+}
 
 async fn get_game_by_date(
     Path(date): Path<String>,
@@ -1027,6 +1039,63 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(body1, body2);
+    }
+
+    #[sqlx::test]
+    async fn test_get_game_words_endpoint(pool: sqlx::Pool<sqlx::Postgres>) {
+        let (state, app) = setup_app(pool).await;
+
+        // Create a test game
+        let mut new_game = create_new_test_game();
+        new_game.date = "2025-06-08".to_string();
+        new_game.threshold_score = 40;
+        new_game.sequence_number = 1;
+        let created_game = state.repository.create_game(new_game).await.unwrap();
+
+        // Create some test answers for the game
+        let test_answers = vec![
+            crate::db::models::NewGameAnswer {
+                game_id: created_game.id.clone(),
+                word: "test".to_string(),
+                path: "[]".to_string(),
+                path_constraint_set: "{}".to_string(),
+            },
+            crate::db::models::NewGameAnswer {
+                game_id: created_game.id.clone(),
+                word: "word".to_string(),
+                path: "[]".to_string(),
+                path_constraint_set: "{}".to_string(),
+            },
+            crate::db::models::NewGameAnswer {
+                game_id: created_game.id.clone(),
+                word: "game".to_string(),
+                path: "[]".to_string(),
+                path_constraint_set: "{}".to_string(),
+            },
+        ];
+        
+        state.repository.create_game_answers(test_answers).await.unwrap();
+
+        // Test the words endpoint
+        let request = create_test_request(
+            axum::http::Method::GET, 
+            &format!("/api/game/{}/words", created_game.id), 
+            None
+        );
+        let response = app.oneshot(request).await.unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let words: Vec<String> = serde_json::from_slice(&body).unwrap();
+
+        // Verify we get the expected words
+        assert_eq!(words.len(), 3);
+        assert!(words.contains(&"test".to_string()));
+        assert!(words.contains(&"word".to_string()));
+        assert!(words.contains(&"game".to_string()));
     }
 
     #[sqlx::test]
