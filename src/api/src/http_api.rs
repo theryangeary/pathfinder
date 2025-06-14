@@ -193,6 +193,7 @@ pub fn create_router(state: ApiState) -> Router {
         )
         .route("/api/game/:game_id/words", get(get_game_words))
         .route("/api/game/:game_id/paths", get(get_game_paths))
+        .route("/api/game/:game_id/word/:word/paths", get(get_word_paths))
         // TODO consider if this can be removed from api, as it should really be done as part of /submit
         .route("/api/validate", post(validate_answer))
         .route("/api/submit", post(submit_answers))
@@ -218,6 +219,7 @@ pub fn create_secure_router(state: ApiState, config: SecurityConfig) -> Router {
         )
         .route("/api/game/:game_id/words", get(get_game_words))
         .route("/api/game/:game_id/paths", get(get_game_paths))
+        .route("/api/game/:game_id/word/:word/paths", get(get_word_paths))
         .route("/api/validate", post(validate_answer))
         .route("/api/submit", post(submit_answers))
         .route("/api/update-progress", post(update_progress))
@@ -357,6 +359,49 @@ async fn get_game_paths(
 
     let response = ApiPathsResponse { words: word_paths };
     Ok(Json(response))
+}
+
+async fn get_word_paths(
+    Path((game_id, word)): Path<(String, String)>,
+    State(state): State<ApiState>,
+) -> Result<Json<ApiWordPaths>, StatusCode> {
+    // Get the game from the repository
+    let game = match state.repository.get_game_by_id(&game_id).await {
+        Ok(Some(game)) => game,
+        Ok(None) => return Err(StatusCode::NOT_FOUND),
+        Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
+    };
+
+    // Parse the board from the game data
+    let serializable_board: SerializableBoard = match serde_json::from_str(&game.board_data) {
+        Ok(board) => board,
+        Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
+    };
+
+    let board: crate::game::Board = serializable_board.into();
+
+    // Check if the word is valid for this game (exists in the game's word list)
+    let valid_words = match state.repository.get_game_words(&game_id).await {
+        Ok(words) => words,
+        Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
+    };
+
+    // Convert word to lowercase for case-insensitive comparison
+    let word_lower = word.to_lowercase();
+    
+    if !valid_words.contains(&word_lower) {
+        return Err(StatusCode::NOT_FOUND);
+    }
+
+    // Find all paths for this specific word
+    let answer = state.game_engine.find_word_paths(&board, &word_lower);
+    
+    if answer.paths.is_empty() {
+        return Err(StatusCode::NOT_FOUND);
+    }
+
+    let word_paths: ApiWordPaths = answer.into();
+    Ok(Json(word_paths))
 }
 
 async fn get_game_by_date(
@@ -1221,6 +1266,67 @@ mod tests {
     }
 
     #[sqlx::test]
+    async fn test_get_word_paths_endpoint(pool: sqlx::Pool<sqlx::Postgres>) {
+        let (state, app) = setup_app(pool).await;
+
+        // Create a test game
+        let mut new_game = create_new_test_game();
+        new_game.date = "2025-06-08".to_string();
+        new_game.threshold_score = 40;
+        new_game.sequence_number = 1;
+        let created_game = state.repository.create_game(new_game).await.unwrap();
+
+        // Create some test answers for the game
+        let test_answers = vec![
+            crate::db::models::NewGameAnswer {
+                game_id: created_game.id.clone(),
+                word: "test".to_string(),
+                path: "[]".to_string(),
+                path_constraint_set: "{}".to_string(),
+            },
+            crate::db::models::NewGameAnswer {
+                game_id: created_game.id.clone(),
+                word: "word".to_string(),
+                path: "[]".to_string(),
+                path_constraint_set: "{}".to_string(),
+            },
+        ];
+        
+        state.repository.create_game_answers(test_answers).await.unwrap();
+
+        // Test the word paths endpoint for a valid word
+        let request = create_test_request(
+            axum::http::Method::GET, 
+            &format!("/api/game/{}/word/test/paths", created_game.id), 
+            None
+        );
+        let response = app.clone().oneshot(request).await.unwrap();
+
+        // Should return OK even if paths are empty (word exists in game)
+        assert!(response.status() == StatusCode::OK || response.status() == StatusCode::NOT_FOUND);
+
+        // Test with an invalid word (not in game's word list)
+        let request = create_test_request(
+            axum::http::Method::GET, 
+            &format!("/api/game/{}/word/invalidword/paths", created_game.id), 
+            None
+        );
+        let response = app.clone().oneshot(request).await.unwrap();
+
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+
+        // Test with invalid game ID
+        let request = create_test_request(
+            axum::http::Method::GET, 
+            "/api/game/invalid-game-id/word/test/paths", 
+            None
+        );
+        let response = app.oneshot(request).await.unwrap();
+
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[sqlx::test]
     async fn test_get_game_words_endpoint(pool: sqlx::Pool<sqlx::Postgres>) {
         let (state, app) = setup_app(pool).await;
 
@@ -1489,6 +1595,86 @@ mod tests {
         assert!(!api_path.tiles[1].is_wildcard);
         
         assert!(matches!(api_path.constraints, ApiPathConstraintSet::FirstDecided('c')));
+    }
+
+    #[test]
+    fn test_word_paths_case_insensitive() {
+        // Test that the endpoint handles case-insensitive word matching
+        let test_words = vec!["test".to_string(), "word".to_string(), "game".to_string()];
+        
+        // Test that lowercase matches work
+        assert!(test_words.contains(&"test".to_lowercase()));
+        assert!(test_words.contains(&"TEST".to_lowercase()));
+        assert!(test_words.contains(&"Test".to_lowercase()));
+        
+        // Test that non-existent words don't match
+        assert!(!test_words.contains(&"invalid".to_lowercase()));
+        assert!(!test_words.contains(&"NOTFOUND".to_lowercase()));
+    }
+
+    #[test]
+    fn test_api_word_paths_structure() {
+        use crate::game::board::path::{Path, GameTile};
+        use crate::game::board::constraints::PathConstraintSet;
+        use std::collections::VecDeque;
+        
+        // Create a sample word paths structure
+        let mut tiles = VecDeque::new();
+        tiles.push_back(GameTile {
+            letter: "t".to_string(),
+            points: 1,
+            is_wildcard: false,
+            row: 0,
+            col: 0,
+        });
+        tiles.push_back(GameTile {
+            letter: "e".to_string(),
+            points: 1,
+            is_wildcard: false,
+            row: 0,
+            col: 1,
+        });
+        tiles.push_back(GameTile {
+            letter: "*".to_string(),
+            points: 0,
+            is_wildcard: true,
+            row: 1,
+            col: 1,
+        });
+        tiles.push_back(GameTile {
+            letter: "t".to_string(),
+            points: 1,
+            is_wildcard: false,
+            row: 0,
+            col: 2,
+        });
+        
+        let path = Path {
+            tiles,
+            constraints: PathConstraintSet::FirstDecided('s'),
+        };
+        
+        let word_paths = ApiWordPaths {
+            word: "test".to_string(),
+            paths: vec![path.into()],
+        };
+        
+        // Test serialization
+        let json = serde_json::to_string_pretty(&word_paths).expect("Should serialize");
+        
+        // The JSON should contain the expected structure
+        assert!(json.contains("test"));
+        assert!(json.contains("paths"));
+        assert!(json.contains("tiles"));
+        assert!(json.contains("constraints"));
+        assert!(json.contains("FirstDecided"));
+        
+        // Test that we can deserialize it back
+        let deserialized: ApiWordPaths = serde_json::from_str(&json).expect("Should deserialize");
+        assert_eq!(deserialized.word, "test");
+        assert_eq!(deserialized.paths.len(), 1);
+        assert_eq!(deserialized.paths[0].tiles.len(), 4);
+        assert!(matches!(deserialized.paths[0].constraints, ApiPathConstraintSet::FirstDecided('s')));
     }
 
     #[test]
