@@ -39,6 +39,7 @@ vi.mock('../api/gameApi', () => ({
     getGameBySequence: vi.fn(),
     getGameEntry: vi.fn(),
     submitAnswers: vi.fn(),
+    getGameWords: vi.fn(),
   },
   convertApiBoardToBoard: vi.fn(() => puzzle8Board),
 }))
@@ -104,6 +105,7 @@ describe('Puzzle #8 Validation Tests', () => {
     ;(gameApi.gameApi.getGameBySequence as any).mockResolvedValue(mockPuzzle8GameData)
     ;(gameApi.gameApi.getGameEntry as any).mockResolvedValue(null)
     ;(gameApi.gameApi.submitAnswers as any).mockResolvedValue({ success: true })
+    ;(gameApi.gameApi.getGameWords as any).mockResolvedValue(['silo', 'seed', 'sed', 'sold', 'does', 'his', 'hi', 'so', 'lo', 'ol', 'led', 'eel', 'ee', 'od', 'do', 'oe', 'os'])
   })
 
   it('should validate the exact word "sed" that was failing in puzzle #8', async () => {

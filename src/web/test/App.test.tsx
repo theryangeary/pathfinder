@@ -11,6 +11,7 @@ vi.mock('../api/gameApi', () => ({
     getDailyGame: vi.fn(),
     getGameBySequence: vi.fn(),
     getGameEntry: vi.fn(),
+    getGameWords: vi.fn(),
   },
   convertApiBoardToBoard: vi.fn(() => [
     [
@@ -84,6 +85,7 @@ describe('App Component Routing', () => {
     ;(gameApi.gameApi.getDailyGame as Mock).mockResolvedValue(mockGameData)
     ;(gameApi.gameApi.getGameBySequence as Mock).mockResolvedValue(mockSequenceGameData)
     ;(gameApi.gameApi.getGameEntry as Mock).mockResolvedValue(null)
+    ;(gameApi.gameApi.getGameWords as Mock).mockResolvedValue(['test', 'word', 'list'])
   })
 
   it('should load daily game when accessing root path', async () => {

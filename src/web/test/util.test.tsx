@@ -1,3 +1,4 @@
+import { describe, it, expect } from 'vitest'
 import { Tile } from '../utils/scoring'
 
 export function testBoard(letters: string): Tile[][] {
@@ -28,3 +29,13 @@ export function testBoard(letters: string): Tile[][] {
       ],
     ]
 }
+
+describe('Test Utils', () => {
+  it('should create a test board with correct structure', () => {
+    const board = testBoard('abcdefghijklmnop')
+    expect(board).toHaveLength(4)
+    expect(board[0]).toHaveLength(4)
+    expect(board[0][0].letter).toBe('a')
+    expect(board[3][3].letter).toBe('p')
+  })
+})
