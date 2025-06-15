@@ -81,12 +81,12 @@ describe('Pathfinding Tests', () => {
     const board = testBoard('eadux*ysta*tnhrv')
     
     // Test the sequence 'day', 'year', 'sev', 'data' to verify wildcard constraint behavior
-    // This sequence will demonstrate the conflict:
+    // This sequence will demonstrate the conflict resolution:
     // - 'day' uses no wildcards, establishing no constraints
-    // - 'year' constrains the first wildcard (1,1) to 'e'
+    // - 'year' constrains the first wildcard (1,1) to 'e' OR the second wildcard (2,2) to 'e'
     // - 'sev' constrains the second wildcard (2,2) to 'e'  
-    // - 'data' needs the first wildcard (1,1) to be 't', but it's already 'e'
-    // Expected final state: wildcard (1,1) = 't', wildcard (2,2) = 'e' (this will fail)
+    // - 'data' needs the first wildcard (1,1) to be 't'
+    // Expected final state: wildcard (1,1) = 't', wildcard (2,2) = 'e'
     
     let constraints: Record<string, string> = {}
     
@@ -98,7 +98,7 @@ describe('Pathfinding Tests', () => {
       constraints = { ...constraints, ...dayConstraints }
     }
     
-    // 2. Enter 'year' - will constrain first wildcard (1,1) to 'e'
+    // 2. Enter 'year' - should constrain either first or second wildcard (1,1) to 'e'
     const yearPath = findBestPath(board, 'year', constraints)
     expect(yearPath).toBeTruthy()
     if (yearPath) {
