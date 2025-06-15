@@ -1,40 +1,14 @@
-import { describe, it, expect } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { findAllPaths } from '../utils/pathfinding'
 import { Tile } from '../utils/scoring'
+import { testBoard } from './util.test'
+
+
+
 
 describe('Pathfinding Tests', () => {
   it('should find exactly 3 paths for "vea" on tarae*oros*sotvi board', () => {
-    // Board layout: tarae*oros*sotvi
-    // t a r a
-    // e * o r  <- wildcard at (1,1)
-    // o s * s  <- wildcard at (2,2)
-    // o t v i
-    const board: Tile[][] = [
-      [
-        { letter: 't', points: 1, isWildcard: false, row: 0, col: 0 },
-        { letter: 'a', points: 1, isWildcard: false, row: 0, col: 1 },
-        { letter: 'r', points: 1, isWildcard: false, row: 0, col: 2 },
-        { letter: 'a', points: 1, isWildcard: false, row: 0, col: 3 },
-      ],
-      [
-        { letter: 'e', points: 1, isWildcard: false, row: 1, col: 0 },
-        { letter: '*', points: 0, isWildcard: true, row: 1, col: 1 },
-        { letter: 'o', points: 1, isWildcard: false, row: 1, col: 2 },
-        { letter: 'r', points: 1, isWildcard: false, row: 1, col: 3 },
-      ],
-      [
-        { letter: 'o', points: 1, isWildcard: false, row: 2, col: 0 },
-        { letter: 's', points: 1, isWildcard: false, row: 2, col: 1 },
-        { letter: '*', points: 0, isWildcard: true, row: 2, col: 2 },
-        { letter: 's', points: 1, isWildcard: false, row: 2, col: 3 },
-      ],
-      [
-        { letter: 'o', points: 1, isWildcard: false, row: 3, col: 0 },
-        { letter: 't', points: 1, isWildcard: false, row: 3, col: 1 },
-        { letter: 'v', points: 1, isWildcard: false, row: 3, col: 2 },
-        { letter: 'i', points: 1, isWildcard: false, row: 3, col: 3 },
-      ],
-    ]
+    const board = testBoard('tarae*oros*sotvi')
 
     const paths = findAllPaths(board, 'vea')
     

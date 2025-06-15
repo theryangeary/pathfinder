@@ -1,6 +1,6 @@
 // API client for word game backend
 
-const API_BASE_URL = import.meta.env.PROD 
+const API_BASE_URL = import.meta.env.PROD
   ? '/api'  // In production, use relative path (nginx proxy)
   : 'http://localhost:3001/api';  // In development, use direct backend URL
 
@@ -114,11 +114,11 @@ class GameApi {
     const requestedDate = new Date(date + 'T00:00:00');
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    
+
     if (requestedDate > today) {
       throw new Error('Cannot load puzzles from future dates');
     }
-    
+
     return this.request<ApiGame>(`/game/date/${date}`);
   }
 
@@ -127,7 +127,7 @@ class GameApi {
     if (sequenceNumber < 1) {
       throw new Error('Sequence number must be at least 1');
     }
-    
+
     // Note: Additional server-side validation will be added to prevent future puzzles
     return this.request<ApiGame>(`/game/sequence/${sequenceNumber}`);
   }
@@ -163,7 +163,7 @@ class GameApi {
     const params = new URLSearchParams();
     if (userId) params.append('user_id', userId);
     if (cookieToken) params.append('cookie_token', cookieToken);
-    
+
     const query = params.toString() ? `?${params.toString()}` : '';
     return this.request<GameEntryResponse | null>(`/game-entry/${gameId}${query}`);
   }
@@ -187,7 +187,7 @@ export function convertApiTileToTile(apiTile: ApiTile): import('../utils/scoring
 }
 
 export function convertApiBoardToBoard(apiBoard: ApiBoard): import('../utils/scoring').Tile[][] {
-  return apiBoard.tiles.map(row => 
+  return apiBoard.tiles.map(row =>
     row.map(tile => convertApiTileToTile(tile))
   );
 }
