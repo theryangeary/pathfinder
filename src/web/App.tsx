@@ -677,6 +677,8 @@ function App() {
         isWordListLoading={!isValidWordLoaded}
         isGameCompleted={isGameCompleted}
         isOffline={!!apiError}
+        board={board}
+        validPaths={validPaths}
       />
       
       <HeatmapModal

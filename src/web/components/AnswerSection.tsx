@@ -1,4 +1,5 @@
 import { useRef } from 'react';
+import { Position, Tile } from '../utils/scoring';
 import AnswerInput, { AnswerInputHandle } from './AnswerInput';
 
 interface AnswerSectionProps {
@@ -13,6 +14,8 @@ interface AnswerSectionProps {
   isWordListLoading?: boolean;
   isGameCompleted?: boolean;
   isOffline?: boolean;
+  board: Tile[][];
+  validPaths: (Position[] | null)[];
 }
 
 function AnswerSection({ 
@@ -26,7 +29,9 @@ function AnswerSection({
   isSubmitting = false,
   isWordListLoading = false,
   isGameCompleted = false,
-  isOffline = false
+  isOffline = false,
+  board,
+  validPaths
 }: AnswerSectionProps) {
   const inputRefs = useRef<(AnswerInputHandle | null)[]>([]);
 
@@ -138,6 +143,13 @@ function AnswerSection({
           {isSubmitting ? 'Submitting...' : (isGameCompleted || isOffline ? 'View Stats' : 'Submit Answers')}
         </button>
       </div>
+      
+      {/* <ConstraintDisplay 
+        board={board}
+        answers={answers}
+        validAnswers={validAnswers}
+        validPaths={validPaths}
+      /> */}
     </div>
   );
 }
