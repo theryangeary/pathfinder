@@ -6,6 +6,35 @@ interface PathScore {
   lastDiagonalIndex: number;
 }
 
+// TypeScript equivalents of backend constraint types
+export enum PathConstraintType {
+  Unconstrained = 'Unconstrained',
+  FirstDecided = 'FirstDecided',
+  SecondDecided = 'SecondDecided',
+  BothDecided = 'BothDecided'
+}
+
+export interface PathConstraintSet {
+  type: PathConstraintType;
+  firstChar?: string;
+  secondChar?: string;
+}
+
+export interface AnswerGroupConstraintSet {
+  pathConstraintSets: PathConstraintSet[];
+}
+
+export interface PathWithConstraints {
+  path: Position[];
+  constraints: PathConstraintSet;
+}
+
+export interface Answer {
+  word: string;
+  paths: PathWithConstraints[];
+  constraintsSet: AnswerGroupConstraintSet;
+}
+
 function isAdjacent(pos1: Position, pos2: Position): boolean {
   const rowDiff = Math.abs(pos1.row - pos2.row);
   const colDiff = Math.abs(pos1.col - pos2.col);
@@ -16,6 +45,228 @@ function isDiagonalMove(pos1: Position, pos2: Position): boolean {
   const rowDiff = Math.abs(pos1.row - pos2.row);
   const colDiff = Math.abs(pos1.col - pos2.col);
   return rowDiff === 1 && colDiff === 1;
+}
+
+function getWildcardPositions(board: Tile[][]): Position[] {
+  const wildcardPositions: Position[] = [];
+  for (let row = 0; row < 4; row++) {
+    for (let col = 0; col < 4; col++) {
+      if (board[row][col].isWildcard) {
+        wildcardPositions.push({ row, col });
+      }
+    }
+  }
+  return wildcardPositions;
+}
+
+function isFirstWildcard(pos: Position): boolean {
+  // Following backend logic: first wildcard is at position where row < 2 && col < 2
+  return pos.row < 2 && pos.col < 2;
+}
+
+function isSecondWildcard(pos: Position): boolean {
+  // Following backend logic: second wildcard is any wildcard that's not the first
+  return !isFirstWildcard(pos);
+}
+
+function createConstraintFromWildcard(pos: Position, char: string): PathConstraintSet {
+  if (isFirstWildcard(pos)) {
+    return {
+      type: PathConstraintType.FirstDecided,
+      firstChar: char
+    };
+  } else {
+    return {
+      type: PathConstraintType.SecondDecided,
+      secondChar: char
+    };
+  }
+}
+
+function mergeConstraints(constraint1: PathConstraintSet, constraint2: PathConstraintSet): PathConstraintSet | null {
+  // Handle Unconstrained cases
+  if (constraint1.type === PathConstraintType.Unconstrained) {
+    return constraint2;
+  }
+  if (constraint2.type === PathConstraintType.Unconstrained) {
+    return constraint1;
+  }
+
+  // Handle FirstDecided cases
+  if (constraint1.type === PathConstraintType.FirstDecided) {
+    if (constraint2.type === PathConstraintType.FirstDecided) {
+      if (constraint1.firstChar === constraint2.firstChar) {
+        return constraint1;
+      } else {
+        return null; // Unsatisfiable
+      }
+    } else if (constraint2.type === PathConstraintType.SecondDecided) {
+      return {
+        type: PathConstraintType.BothDecided,
+        firstChar: constraint1.firstChar,
+        secondChar: constraint2.secondChar
+      };
+    } else if (constraint2.type === PathConstraintType.BothDecided) {
+      if (constraint1.firstChar === constraint2.firstChar) {
+        return constraint2;
+      } else {
+        return null; // Unsatisfiable
+      }
+    }
+  }
+
+  // Handle SecondDecided cases
+  if (constraint1.type === PathConstraintType.SecondDecided) {
+    if (constraint2.type === PathConstraintType.FirstDecided) {
+      return {
+        type: PathConstraintType.BothDecided,
+        firstChar: constraint2.firstChar,
+        secondChar: constraint1.secondChar
+      };
+    } else if (constraint2.type === PathConstraintType.SecondDecided) {
+      if (constraint1.secondChar === constraint2.secondChar) {
+        return constraint1;
+      } else {
+        return null; // Unsatisfiable
+      }
+    } else if (constraint2.type === PathConstraintType.BothDecided) {
+      if (constraint1.secondChar === constraint2.secondChar) {
+        return constraint2;
+      } else {
+        return null; // Unsatisfiable
+      }
+    }
+  }
+
+  // Handle BothDecided cases
+  if (constraint1.type === PathConstraintType.BothDecided) {
+    if (constraint2.type === PathConstraintType.FirstDecided) {
+      if (constraint1.firstChar === constraint2.firstChar) {
+        return constraint1;
+      } else {
+        return null; // Unsatisfiable
+      }
+    } else if (constraint2.type === PathConstraintType.SecondDecided) {
+      if (constraint1.secondChar === constraint2.secondChar) {
+        return constraint1;
+      } else {
+        return null; // Unsatisfiable
+      }
+    } else if (constraint2.type === PathConstraintType.BothDecided) {
+      if (constraint1.firstChar === constraint2.firstChar && 
+          constraint1.secondChar === constraint2.secondChar) {
+        return constraint1;
+      } else {
+        return null; // Unsatisfiable
+      }
+    }
+  }
+
+  return null; // Fallback
+}
+
+function findPathsForWordFromPosition(
+  board: Tile[][],
+  word: string,
+  startRow: number,
+  startCol: number,
+  visited: Set<string>
+): PathWithConstraints[] {
+  const result: PathWithConstraints[] = [];
+  
+  if (word.length === 0 || visited.has(`${startRow}-${startCol}`)) {
+    return result;
+  }
+
+  const currentChar = word[0].toLowerCase();
+  const tile = board[startRow][startCol];
+  
+  // Check if current tile can represent the current character
+  if (!tile.isWildcard && tile.letter.toLowerCase() !== currentChar) {
+    return result;
+  }
+
+  if (word.length === 1) {
+    // Base case: word is complete
+    const path = [{ row: startRow, col: startCol }];
+    const constraints = tile.isWildcard 
+      ? createConstraintFromWildcard({ row: startRow, col: startCol }, currentChar)
+      : { type: PathConstraintType.Unconstrained };
+    
+    result.push({ path, constraints });
+    return result;
+  }
+
+  // Recursive case: continue building path
+  visited.add(`${startRow}-${startCol}`);
+  
+  const directions = [
+    [-1, -1], [-1, 0], [-1, 1],
+    [0, -1],           [0, 1],
+    [1, -1],  [1, 0],  [1, 1]
+  ];
+
+  for (const [deltaRow, deltaCol] of directions) {
+    const nextRow = startRow + deltaRow;
+    const nextCol = startCol + deltaCol;
+    
+    if (nextRow >= 0 && nextRow < 4 && nextCol >= 0 && nextCol < 4) {
+      const nextPaths = findPathsForWordFromPosition(
+        board,
+        word.slice(1),
+        nextRow,
+        nextCol,
+        visited
+      );
+
+      for (const nextPath of nextPaths) {
+        const currentConstraints = tile.isWildcard 
+          ? createConstraintFromWildcard({ row: startRow, col: startCol }, currentChar)
+          : { type: PathConstraintType.Unconstrained };
+        
+        const mergedConstraints = mergeConstraints(currentConstraints, nextPath.constraints);
+        
+        if (mergedConstraints !== null) {
+          result.push({
+            path: [{ row: startRow, col: startCol }, ...nextPath.path],
+            constraints: mergedConstraints
+          });
+        }
+      }
+    }
+  }
+
+  visited.delete(`${startRow}-${startCol}`);
+  return result;
+}
+
+export function findAllPaths(board: Tile[][], word: string): Answer {
+  const allPaths: PathWithConstraints[] = [];
+  
+  // Try starting from each position
+  for (let row = 0; row < 4; row++) {
+    for (let col = 0; col < 4; col++) {
+      const pathsFromPosition = findPathsForWordFromPosition(
+        board,
+        word,
+        row,
+        col,
+        new Set()
+      );
+      allPaths.push(...pathsFromPosition);
+    }
+  }
+
+  // Create AnswerGroupConstraintSet from all path constraints
+  const constraintsSet: AnswerGroupConstraintSet = {
+    pathConstraintSets: allPaths.map(pathWithConstraints => pathWithConstraints.constraints)
+  };
+
+  return {
+    word,
+    paths: allPaths,
+    constraintsSet
+  };
 }
 
 export function findAllPathsGivenWildcards(board: Tile[][], word: string, wildcardConstraints: Record<string, string> = {}): Position[][] {

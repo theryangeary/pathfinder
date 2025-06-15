@@ -1,11 +1,46 @@
 import { describe, expect, it } from 'vitest'
-import { findAllPathsGivenWildcards, findBestPath, getWildcardConstraintsFromPath } from '../utils/pathfinding'
+import { findAllPathsGivenWildcards, findBestPath, getWildcardConstraintsFromPath, findAllPaths, PathConstraintType } from '../utils/pathfinding'
 import { testBoard } from './util.test'
 
 
 
 
 describe('Pathfinding Tests', () => {
+  it('should implement findAllPaths function correctly', () => {
+    const board = testBoard('tarae*oros*sotvi')
+
+    const result = findAllPaths(board, 'vea')
+    
+    // Verify return structure
+    expect(result.word).toBe('vea')
+    expect(result.paths).toBeDefined()
+    expect(result.constraintsSet).toBeDefined()
+    expect(result.constraintsSet.pathConstraintSets).toBeDefined()
+    
+    // Should find exactly 3 paths for 'vea' on this board (same as findAllPathsGivenWildcards)
+    expect(result.paths).toHaveLength(3)
+    
+    // Each path should have both the position array and constraints
+    result.paths.forEach(pathWithConstraints => {
+      expect(pathWithConstraints.path).toBeDefined()
+      expect(pathWithConstraints.constraints).toBeDefined()
+      expect(pathWithConstraints.path).toHaveLength(3) // 3 letters in 'vea'
+    })
+    
+    // Constraints set should have same number of constraint sets as paths
+    expect(result.constraintsSet.pathConstraintSets).toHaveLength(3)
+    
+    // Test with a simple word that uses no wildcards
+    const result2 = findAllPaths(board, 'tar')
+    expect(result2.word).toBe('tar')
+    expect(result2.paths.length).toBeGreaterThan(0)
+    
+    // For a word that doesn't use wildcards, constraints should be Unconstrained
+    const nonWildcardPath = result2.paths.find(p => 
+      p.constraints.type === PathConstraintType.Unconstrained
+    )
+    expect(nonWildcardPath).toBeDefined()
+  })
   it('should find exactly 3 paths for "vea" on tarae*oros*sotvi board', () => {
     const board = testBoard('tarae*oros*sotvi')
 
