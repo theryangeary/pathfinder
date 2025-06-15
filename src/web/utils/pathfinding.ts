@@ -18,7 +18,7 @@ function isDiagonalMove(pos1: Position, pos2: Position): boolean {
   return rowDiff === 1 && colDiff === 1;
 }
 
-export function findAllPaths(board: Tile[][], word: string, wildcardConstraints: Record<string, string> = {}): Position[][] {
+export function findAllPathsGivenWildcards(board: Tile[][], word: string, wildcardConstraints: Record<string, string> = {}): Position[][] {
   const paths: Position[][] = [];
   
   function dfs(currentPath: Position[], remainingWord: string, usedPositions: Set<string>): void {
@@ -120,7 +120,7 @@ function scorePathByPreference(board: Tile[][], path: Position[]): PathScore {
 }
 
 export function findBestPath(board: Tile[][], word: string, wildcardConstraints: Record<string, string> = {}): Position[] | null {
-  const allPaths = findAllPaths(board, word, wildcardConstraints);
+  const allPaths = findAllPathsGivenWildcards(board, word, wildcardConstraints);
   
   if (allPaths.length === 0) return null;
   
@@ -159,7 +159,7 @@ export function findBestPath(board: Tile[][], word: string, wildcardConstraints:
 }
 
 export function findPathsForHighlighting(board: Tile[][], word: string, wildcardConstraints: Record<string, string> = {}): Position[][] {
-  const allPaths = findAllPaths(board, word, wildcardConstraints);
+  const allPaths = findAllPathsGivenWildcards(board, word, wildcardConstraints);
   
   if (allPaths.length === 0) return [];
   
@@ -399,7 +399,7 @@ function analyzeForcedConstraints(board: Tile[][], answers: string[], validAnswe
     const word = answers[i];
     
     // Find all paths that are compatible with current constraints
-    const compatiblePaths = findAllPaths(board, word, currentConstraints);
+    const compatiblePaths = findAllPathsGivenWildcards(board, word, currentConstraints);
     
     if (compatiblePaths.length === 0) continue;
     
@@ -442,7 +442,7 @@ export function getWildcardAmbiguity(board: Tile[][], _wildcardConstraints: Reco
       const word = answers[i];
       
       // Find all possible paths for this word (ignoring current constraints to see alternatives)
-      const allPaths = findAllPaths(board, word, {});
+      const allPaths = findAllPathsGivenWildcards(board, word, {});
       
       // Filter to only paths that use this specific wildcard
       const pathsUsingWildcard = allPaths.filter(path => 
