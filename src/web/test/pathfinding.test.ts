@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { findAllPaths } from '../utils/pathfinding'
-import { Tile } from '../utils/scoring'
+import { findAllPaths, findBestPath, getWildcardConstraintsFromPath } from '../utils/pathfinding'
 import { testBoard } from './util.test'
 
 
@@ -48,33 +47,7 @@ describe('Pathfinding Tests', () => {
   })
 
   it('should respect wildcard constraints when finding paths', () => {
-    // Same board as above
-    const board: Tile[][] = [
-      [
-        { letter: 't', points: 1, isWildcard: false, row: 0, col: 0 },
-        { letter: 'a', points: 1, isWildcard: false, row: 0, col: 1 },
-        { letter: 'r', points: 1, isWildcard: false, row: 0, col: 2 },
-        { letter: 'a', points: 1, isWildcard: false, row: 0, col: 3 },
-      ],
-      [
-        { letter: 'e', points: 1, isWildcard: false, row: 1, col: 0 },
-        { letter: '*', points: 0, isWildcard: true, row: 1, col: 1 },
-        { letter: 'o', points: 1, isWildcard: false, row: 1, col: 2 },
-        { letter: 'r', points: 1, isWildcard: false, row: 1, col: 3 },
-      ],
-      [
-        { letter: 'o', points: 1, isWildcard: false, row: 2, col: 0 },
-        { letter: 's', points: 1, isWildcard: false, row: 2, col: 1 },
-        { letter: '*', points: 0, isWildcard: true, row: 2, col: 2 },
-        { letter: 's', points: 1, isWildcard: false, row: 2, col: 3 },
-      ],
-      [
-        { letter: 'o', points: 1, isWildcard: false, row: 3, col: 0 },
-        { letter: 't', points: 1, isWildcard: false, row: 3, col: 1 },
-        { letter: 'v', points: 1, isWildcard: false, row: 3, col: 2 },
-        { letter: 'i', points: 1, isWildcard: false, row: 3, col: 3 },
-      ],
-    ]
+    const board = testBoard('tarae*oros*sotvi')
 
     // Test with a wildcard constraint - constrain wildcard at (1,1) to be 'v'
     const wildcardConstraints = { '1-1': 'v' }
@@ -95,38 +68,65 @@ describe('Pathfinding Tests', () => {
   })
 
   it('should find no paths for an impossible word', () => {
-    // Same board as above
-    const board: Tile[][] = [
-      [
-        { letter: 't', points: 1, isWildcard: false, row: 0, col: 0 },
-        { letter: 'a', points: 1, isWildcard: false, row: 0, col: 1 },
-        { letter: 'r', points: 1, isWildcard: false, row: 0, col: 2 },
-        { letter: 'a', points: 1, isWildcard: false, row: 0, col: 3 },
-      ],
-      [
-        { letter: 'e', points: 1, isWildcard: false, row: 1, col: 0 },
-        { letter: '*', points: 0, isWildcard: true, row: 1, col: 1 },
-        { letter: 'o', points: 1, isWildcard: false, row: 1, col: 2 },
-        { letter: 'r', points: 1, isWildcard: false, row: 1, col: 3 },
-      ],
-      [
-        { letter: 'o', points: 1, isWildcard: false, row: 2, col: 0 },
-        { letter: 's', points: 1, isWildcard: false, row: 2, col: 1 },
-        { letter: '*', points: 0, isWildcard: true, row: 2, col: 2 },
-        { letter: 's', points: 1, isWildcard: false, row: 2, col: 3 },
-      ],
-      [
-        { letter: 'o', points: 1, isWildcard: false, row: 3, col: 0 },
-        { letter: 't', points: 1, isWildcard: false, row: 3, col: 1 },
-        { letter: 'v', points: 1, isWildcard: false, row: 3, col: 2 },
-        { letter: 'i', points: 1, isWildcard: false, row: 3, col: 3 },
-      ],
-    ]
+    const board = testBoard('tarae*oros*sotvi')
 
     // Try to find paths for a word that can't be formed on this board
     const paths = findAllPaths(board, 'xyz')
     
     // Should find no paths
     expect(paths).toHaveLength(0)
+  })
+
+  it('should resolve correct wildcards', () => {
+    const board = testBoard('eadux*ysta*tnhrv')
+    
+    // Test the sequence 'day', 'year', 'sev', 'data' to verify wildcard constraint behavior
+    // This sequence will demonstrate the conflict:
+    // - 'day' uses no wildcards, establishing no constraints
+    // - 'year' constrains the first wildcard (1,1) to 'e'
+    // - 'sev' constrains the second wildcard (2,2) to 'e'  
+    // - 'data' needs the first wildcard (1,1) to be 't', but it's already 'e'
+    // Expected final state: wildcard (1,1) = 't', wildcard (2,2) = 'e' (this will fail)
+    
+    let constraints: Record<string, string> = {}
+    
+    // 1. Enter 'day' - should not constrain any wildcards
+    const dayPath = findBestPath(board, 'day', constraints)
+    expect(dayPath).toBeTruthy()
+    if (dayPath) {
+      const dayConstraints = getWildcardConstraintsFromPath(board, 'day', dayPath)
+      constraints = { ...constraints, ...dayConstraints }
+    }
+    
+    // 2. Enter 'year' - will constrain first wildcard (1,1) to 'e'
+    const yearPath = findBestPath(board, 'year', constraints)
+    expect(yearPath).toBeTruthy()
+    if (yearPath) {
+      const yearConstraints = getWildcardConstraintsFromPath(board, 'year', yearPath)
+      constraints = { ...constraints, ...yearConstraints }
+    }
+    
+    // 3. Enter 'sev' - should constrain second wildcard (2,2) to 'e'
+    const sevPath = findBestPath(board, 'sev', constraints)
+    expect(sevPath).toBeTruthy()
+    if (sevPath) {
+      const sevConstraints = getWildcardConstraintsFromPath(board, 'sev', sevPath)
+      constraints = { ...constraints, ...sevConstraints }
+    }
+    
+    // At this point, wildcard (2,2) should be 'e'
+    expect(constraints['2-2']).toBe('e')
+    
+    // 4. Enter 'data' - should constrain first wildcard (1,1) to 't'
+    const dataPath = findBestPath(board, 'data', constraints)
+    expect(dataPath).toBeTruthy()
+    if (dataPath) {
+      const dataConstraints = getWildcardConstraintsFromPath(board, 'data', dataPath)
+      constraints = { ...constraints, ...dataConstraints }
+      
+      // Final verification: first wildcard should now be constrained to 't'
+      expect(constraints['1-1']).toBe('t')
+      expect(constraints['2-2']).toBe('e')
+    }
   })
 })
