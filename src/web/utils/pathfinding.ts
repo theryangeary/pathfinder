@@ -410,16 +410,17 @@ export function findBestPath(board: Tile[][], word: string, wildcardConstraints:
 }
 
 export function findPathsForHighlighting(board: Tile[][], word: string, wildcardConstraints: Record<string, string> = {}): Position[][] {
-  const allPaths = findAllPathsGivenWildcards(board, word, wildcardConstraints);
+  const allPaths = findAllPaths(board, word);
+  console.log(allPaths);
   
-  if (allPaths.length === 0) return [];
+  if (allPaths.paths.length === 0) return [];
   
   // Separate paths by wildcard usage
-  const pathsWithoutWildcards: Position[][] = [];
-  const pathsWithWildcards: Position[][] = [];
+  const pathsWithoutWildcards: PathWithConstraints[] = [];
+  const pathsWithWildcards: PathWithConstraints[] = [];
   
-  for (const path of allPaths) {
-    const score = scorePathByPreference(board, path);
+  for (const path of allPaths.paths) {
+    const score = scorePathByPreference(board, path.path);
     if (score.wildcardCount === 0) {
       pathsWithoutWildcards.push(path);
     } else {
@@ -429,11 +430,11 @@ export function findPathsForHighlighting(board: Tile[][], word: string, wildcard
   
   // Rule 1: If ANY paths use 0 wildcards, highlight only non-wildcard paths
   if (pathsWithoutWildcards.length > 0) {
-    return pathsWithoutWildcards;
+    return [pathsWithoutWildcards[0].path];
   }
   
-  // Rule 2: Only wildcard paths exist, apply constraint minimization
-  return getMinimalConstraintPaths(board, word, pathsWithWildcards);
+  // Rule 2: Only wildcard paths exist, highlight all paths
+  return pathsWithWildcards.map((v) => v.path);
 }
 
 interface PathAnalysis {
