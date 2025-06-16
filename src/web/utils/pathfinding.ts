@@ -409,7 +409,7 @@ export function findBestPath(board: Tile[][], word: string, wildcardConstraints:
   return pathsToConsider[0];
 }
 
-export function findPathsForHighlighting(board: Tile[][], word: string, wildcardConstraints: Record<string, string> = {}): Position[][] {
+export function findPathsForHighlighting(board: Tile[][], word: string): Position[][] {
   const allPaths = findAllPaths(board, word);
   console.log(allPaths);
   

@@ -8,15 +8,10 @@ import HeatmapModal from './components/HeatmapModal';
 import PathfinderLogo from './components/Logo';
 import { useUser } from './hooks/useUser';
 import { generateBoard } from './utils/boardGeneration';
-import { findBestPath, findPathsForHighlighting, getWildcardConstraintsFromPath } from './utils/pathfinding';
+import { AnswerGroupConstraintSet, mergeAllAnswerGroupConstraintSets, UnsatisfiableConstraint } from './utils/constraintResolution';
+import { Answer, findAllPaths, findBestPath, findPathsForHighlighting, getWildcardConstraintsFromPath } from './utils/pathfinding';
 import { calculateWordScore, Position, Tile } from './utils/scoring';
 
-interface ValidationResult {
-  isValid: boolean;
-  score: number;
-  path: Position[] | null;
-  newConstraints?: Record<string, string>;
-}
 
 function App() {
   const { sequenceNumber } = useParams<{ sequenceNumber: string }>();
@@ -224,6 +219,116 @@ function App() {
     }
   };
 
+  // Validate all answers together - replicates GameEngine::validate_api_answer_group logic
+  const validateAllAnswers = (allAnswers: string[]): { validAnswers: boolean[], scores: number[], paths: (Position[] | null)[], constraintSets: AnswerGroupConstraintSet } => {
+    const validAnswers = [false, false, false, false, false];
+    const scores = [0, 0, 0, 0, 0];
+    const paths: (Position[] | null)[] = [null, null, null, null, null];
+    const usedWords = new Set<string>();
+    
+    // Step 1: Sanitize inputs (convert to lowercase)
+    const sanitizedAnswers = allAnswers.map(word => word.toLowerCase());
+    
+    // Step 2: Dictionary validation - skip if word list not loaded
+    if (isValidWordLoaded && isValidWordFn) {
+      for (const word of sanitizedAnswers) {
+        if (word && word.length >= 2 && !isValidWordFn(word)) {
+          // Early return if any word is invalid
+          return {
+            validAnswers,
+            scores,
+            paths,
+            constraintSets: { pathConstraintSets: [] }
+          };
+        }
+      }
+    }
+    
+    // Step 3: Get all answers with all their possible paths
+    const answersWithPaths: Answer[] = [];
+    
+    for (let i = 0; i < sanitizedAnswers.length; i++) {
+      const word = sanitizedAnswers[i];
+      if (!word || word.length < 2) {
+        continue;
+      }
+      
+      // Check for duplicate words
+      const lowerWord = word.toLowerCase();
+      if (usedWords.has(lowerWord)) {
+        continue;
+      }
+      
+      // Get all paths for this word using findAllPaths
+      const answer = findAllPaths(board, word);
+      
+      if (answer.paths.length === 0) {
+        continue; // No valid paths for this word
+      }
+      
+      answersWithPaths.push(answer);
+      usedWords.add(lowerWord);
+    }
+    
+    // Step 4: Validate constraint compatibility using AnswerGroupConstraintSet::is_valid_set
+    const constraintSets = answersWithPaths.map(answer => answer.constraintsSet);
+    
+    let isValidSet = true;
+    let finalConstraintSet: AnswerGroupConstraintSet = { pathConstraintSets: [] };
+    
+    try {
+      finalConstraintSet = mergeAllAnswerGroupConstraintSets(constraintSets);
+    } catch (e) {
+      if (e instanceof UnsatisfiableConstraint) {
+        isValidSet = false;
+      } else {
+        throw e;
+      }
+    }
+    
+    if (!isValidSet) {
+      return {
+        validAnswers,
+        scores,
+        paths,
+        constraintSets: { pathConstraintSets: [] }
+      };
+    }
+    
+    // Step 5: If constraints are valid, populate results
+    const finalUsedWords = new Set<string>();
+    
+    for (let i = 0; i < allAnswers.length; i++) {
+      const originalWord = allAnswers[i];
+      const sanitizedWord = sanitizedAnswers[i];
+      
+      if (!originalWord || originalWord.length < 2) continue;
+      
+      const lowerWord = sanitizedWord.toLowerCase();
+      if (finalUsedWords.has(lowerWord)) continue;
+      
+      // Find the corresponding answer
+      const answer = answersWithPaths.find(a => a.word.toLowerCase() === lowerWord);
+      if (!answer) continue;
+      
+      // Find the best path for this word (mimicking backend logic)
+      const bestPath = findBestPath(board, originalWord, {});
+      if (!bestPath) continue;
+      
+      validAnswers[i] = true;
+      scores[i] = calculateWordScore(originalWord, bestPath, board);
+      paths[i] = bestPath;
+      finalUsedWords.add(lowerWord);
+    }
+    
+    return {
+      validAnswers,
+      scores,
+      paths,
+      constraintSets: finalConstraintSet
+    };
+  };
+
   // Validate all answers together using the same strict logic as the backend
   const validateAllAnswersTogether = (allAnswers: string[]): { validAnswers: boolean[], scores: number[], paths: (Position[] | null)[], constraints: Record<string, string> } => {
     const validAnswers = [false, false, false, false, false];
@@ -263,7 +368,7 @@ function App() {
       // Check if new constraints conflict with existing ones
       let hasConflict = false;
       for (const [key, value] of Object.entries(newConstraints)) {
-        if (cumulativeConstraints[key] && cumulativeConstraints[key] !== value) {
+        if (cumulativeConstraints[key as keyof typeof cumulativeConstraints] && cumulativeConstraints[key as keyof typeof cumulativeConstraints] !== value) {
           hasConflict = true;
           break;
         }
@@ -302,7 +407,7 @@ function App() {
           // Check constraints don't conflict
           let hasConflict = false;
           for (const [key, value] of Object.entries(newConstraints)) {
-            if (finalConstraints[key] && finalConstraints[key] !== value) {
+            if (finalConstraints[key as keyof typeof finalConstraints] && finalConstraints[key as keyof typeof finalConstraints] !== value) {
               hasConflict = true;
               break;
             }
@@ -333,7 +438,7 @@ function App() {
     setAnswers(newAnswers);
 
     // Use strict validation that matches the backend
-    const validation = validateAllAnswersTogether(newAnswers);
+    const validation = validateAllAnswers(newAnswers);
     
     setValidAnswers(validation.validAnswers);
     setScores(validation.scores);
@@ -342,7 +447,7 @@ function App() {
 
     // Set highlighted paths for the current input
     if (value && index >= 0) {
-      const paths = findPathsForHighlighting(board, value, validation.constraints);
+      const paths = findPathsForHighlighting(board, value);
       setHighlightedPaths(paths);
       setCurrentInputIndex(index);
     } else {
