@@ -92,38 +92,6 @@ function App() {
     }
   }, [userLoading, user, currentGame]);
 
-  const validateAnswerWithBoard = (boardToUse: Tile[][], word: string, _answerIndex: number, currentConstraints: Record<string, string>, previousAnswers: string[] = []): ValidationResult => {
-    if (!word || word.length < 2) return { isValid: false, score: 0, path: null };
-    
-    // Skip word validation if word list hasn't loaded yet (allow all words temporarily)
-    if (isValidWordLoaded && isValidWordFn && !isValidWordFn(word)) {
-      return { isValid: false, score: 0, path: null };
-    }
-    
-    // Check if this word was already used in a previous answer slot
-    if (previousAnswers.includes(word.toLowerCase())) {
-      return { isValid: false, score: 0, path: null };
-    }
-    
-    const path = findBestPath(boardToUse, word, currentConstraints);
-    if (!path) return { isValid: false, score: 0, path: null };
-    
-    const newConstraints = getWildcardConstraintsFromPath(boardToUse, word, path);
-    
-    for (const [key, value] of Object.entries(newConstraints)) {
-      if (currentConstraints[key] && currentConstraints[key] !== value) {
-        return { isValid: false, score: 0, path: null };
-      }
-    }
-    
-    const score = calculateWordScore(word, path, boardToUse);
-    return { isValid: true, score, path, newConstraints };
-  };
-
-  const validateAnswer = (word: string, answerIndex: number, currentConstraints: Record<string, string>, previousAnswers: string[] = []): ValidationResult => {
-    return validateAnswerWithBoard(board, word, answerIndex, currentConstraints, previousAnswers);
-  };
-
   const loadGame = async () => {
     try {
       setIsLoadingGame(true);
