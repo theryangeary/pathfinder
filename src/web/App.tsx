@@ -10,7 +10,7 @@ import { useUser } from './hooks/useUser';
 import { generateBoard } from './utils/boardGeneration';
 import { AnswerGroupConstraintSet, mergeAllAnswerGroupConstraintSets, UnsatisfiableConstraint } from './utils/constraintResolution';
 import { Answer, findAllPaths, findBestPath, findPathsForHighlighting } from './utils/pathfinding';
-import { calculateWordScore, Position, Tile } from './utils/scoring';
+import { scoreAnswerGroup, Position, Tile } from './utils/scoring';
 
 
 function App() {
@@ -312,15 +312,19 @@ function App() {
     }
     
     // Step 4: All valid words can coexist - populate results
+    // Use scoreAnswerGroup to get optimal scores for all words
+    const validWords = validWordsInfo.map(info => info.sanitizedWord);
+    const scoresByWord = scoreAnswerGroup(validWords, board);
+    
     for (const info of validWordsInfo) {
-      const { index, originalWord } = info;
+      const { index, originalWord, sanitizedWord } = info;
       
       // Find the best path for this word
       const bestPath = findBestPath(board, originalWord, {});
       if (!bestPath) continue; // Should not happen since we already found paths
       
       validAnswers[index] = true;
-      scores[index] = calculateWordScore(originalWord, bestPath, board);
+      scores[index] = scoresByWord[sanitizedWord] || 0;
       paths[index] = bestPath;
     }
     

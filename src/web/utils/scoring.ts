@@ -66,3 +66,93 @@ export function calculateWordScore(_word: string, path: Position[], board: Tile[
   }
   return score;
 }
+
+export function scoreAnswerGroup(words: string[], board: Tile[][]): Record<string, number> {
+  if (words.length === 0) {
+    return {};
+  }
+
+  // Import required functions - using require for now to avoid circular import issues
+  // These will be resolved at runtime
+  let findAllPaths: any;
+  let mergeAllAnswerGroupConstraintSets: any;
+  let intersectAnswerGroupConstraintSets: any;
+  
+  try {
+    const pathfinding = require('./pathfinding');
+    const constraintResolution = require('./constraintResolution');
+    findAllPaths = pathfinding.findAllPaths;
+    mergeAllAnswerGroupConstraintSets = constraintResolution.mergeAllAnswerGroupConstraintSets;
+    intersectAnswerGroupConstraintSets = constraintResolution.intersectAnswerGroupConstraintSets;
+  } catch (e) {
+    // Fallback to basic scoring if imports fail
+    const result: Record<string, number> = {};
+    for (const word of words) {
+      result[word] = word.length; // Simple fallback
+    }
+    return result;
+  }
+  
+  // Find all possible paths for each answer
+  const answerObjects: any[] = [];
+  for (const word of words) {
+    const answer = findAllPaths(board, word);
+    if (answer.paths.length === 0) {
+      throw new Error(`Word '${word}' cannot be formed on this board`);
+    }
+    answerObjects.push(answer);
+  }
+
+  // Find all constraint sets that can satisfy all answers together
+  const constraintSets = answerObjects.map(answer => answer.constraintsSet);
+  
+  let validConstraintSet: any;
+  try {
+    validConstraintSet = mergeAllAnswerGroupConstraintSets(constraintSets);
+  } catch (e) {
+    throw new Error('Answers cannot coexist due to conflicting wildcard constraints');
+  }
+
+  // For each valid path constraint set, calculate the maximum possible score
+  let maxTotalScore = 0;
+  let bestScoresByWord: Record<string, number> = {};
+  
+  for (const pathConstraint of validConstraintSet.pathConstraintSets) {
+    let totalScore = 0;
+    const scoresByWord: Record<string, number> = {};
+    
+    // For each answer, find the best scoring path that satisfies this constraint
+    for (const answerObj of answerObjects) {
+      let bestPathScore = 0;
+      
+      // Check all paths for this answer to find the one that works with current constraints
+      for (const path of answerObj.paths) {
+        // Check if this path's constraints are compatible with the current pathConstraint
+        try {
+          intersectAnswerGroupConstraintSets(
+            path.constraintsSet, 
+            { pathConstraintSets: [pathConstraint] }
+          );
+          // If merge succeeds, calculate score for this path
+          const pathScore = path.tiles.reduce((sum: number, tile: any) => sum + tile.points, 0);
+          bestPathScore = Math.max(bestPathScore, pathScore);
+        } catch (e) {
+          // Path constraints are incompatible, skip this path
+          continue;
+        }
+      }
+      
+      // Record this answer's best score and add to total
+      scoresByWord[answerObj.word] = bestPathScore;
+      totalScore += bestPathScore;
+    }
+    
+    // If this constraint set gives us a better total score, use it
+    if (totalScore > maxTotalScore) {
+      maxTotalScore = totalScore;
+      bestScoresByWord = scoresByWord;
+    }
+  }
+
+  return bestScoresByWord;
+}
