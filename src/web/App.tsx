@@ -9,7 +9,7 @@ import PathfinderLogo from './components/Logo';
 import { useUser } from './hooks/useUser';
 import { generateBoard } from './utils/boardGeneration';
 import { AnswerGroupConstraintSet, mergeAllAnswerGroupConstraintSets, UnsatisfiableConstraint } from './utils/constraintResolution';
-import { Answer, findAllPaths, findBestPath, findPathsForHighlighting, getWildcardConstraintsFromPath } from './utils/pathfinding';
+import { Answer, findAllPaths, findBestPath, findPathsForHighlighting } from './utils/pathfinding';
 import { calculateWordScore, Position, Tile } from './utils/scoring';
 
 
@@ -329,109 +329,6 @@ function App() {
       scores,
       paths,
       constraintSets: finalConstraintSet
-    };
-  };
-
-  // Validate all answers together using the same strict logic as the backend
-  const validateAllAnswersTogether = (allAnswers: string[]): { validAnswers: boolean[], scores: number[], paths: (Position[] | null)[], constraints: Record<string, string> } => {
-    const validAnswers = [false, false, false, false, false];
-    const scores = [0, 0, 0, 0, 0];
-    const paths: (Position[] | null)[] = [null, null, null, null, null];
-    let cumulativeConstraints = {};
-    const usedWords = new Set<string>();
-    
-    // First pass: validate each answer sequentially, building up constraints
-    for (let i = 0; i < 5; i++) {
-      const word = allAnswers[i];
-      if (!word || word.length < 2) {
-        continue;
-      }
-      
-      // Skip word validation if word list hasn't loaded yet
-      if (isValidWordLoaded && isValidWordFn && !isValidWordFn(word)) {
-        continue;
-      }
-      
-      // Check for duplicate words
-      const lowerWord = word.toLowerCase();
-      if (usedWords.has(lowerWord)) {
-        continue;
-      }
-      
-      // Try to find a valid path with current constraints
-      // TODO does this mean that we don't allow for a second possible wildcard-using path in the event 
-      const path = findBestPath(board, word, cumulativeConstraints);
-      if (!path) {
-        continue;
-      }
-      
-      // Get new constraints from this path
-      const newConstraints = getWildcardConstraintsFromPath(board, word, path);
-      
-      // Check if new constraints conflict with existing ones
-      let hasConflict = false;
-      for (const [key, value] of Object.entries(newConstraints)) {
-        if (cumulativeConstraints[key as keyof typeof cumulativeConstraints] && cumulativeConstraints[key as keyof typeof cumulativeConstraints] !== value) {
-          hasConflict = true;
-          break;
-        }
-      }
-      
-      if (hasConflict) {
-        continue;
-      }
-      
-      // This answer is valid
-      validAnswers[i] = true;
-      scores[i] = calculateWordScore(word, path, board);
-      paths[i] = path;
-      usedWords.add(lowerWord);
-      cumulativeConstraints = { ...cumulativeConstraints, ...newConstraints };
-    }
-    
-    // Second pass: re-validate to ensure all valid answers still work together
-    // This mimics the backend's behavior of validating the entire set
-    const finalValidAnswers = [false, false, false, false, false];
-    const finalScores = [0, 0, 0, 0, 0];
-    const finalPaths: (Position[] | null)[] = [null, null, null, null, null];
-    let finalConstraints = {};
-    const finalUsedWords = new Set<string>();
-    
-    for (let i = 0; i < 5; i++) {
-      if (validAnswers[i] && allAnswers[i]) {
-        const word = allAnswers[i];
-        const lowerWord = word.toLowerCase();
-        
-        // Re-validate with cumulative constraints
-        const path = findBestPath(board, word, finalConstraints);
-        if (path) {
-          const newConstraints = getWildcardConstraintsFromPath(board, word, path);
-          
-          // Check constraints don't conflict
-          let hasConflict = false;
-          for (const [key, value] of Object.entries(newConstraints)) {
-            if (finalConstraints[key as keyof typeof finalConstraints] && finalConstraints[key as keyof typeof finalConstraints] !== value) {
-              hasConflict = true;
-              break;
-            }
-          }
-          
-          if (!hasConflict && !finalUsedWords.has(lowerWord)) {
-            finalValidAnswers[i] = true;
-            finalScores[i] = calculateWordScore(word, path, board);
-            finalPaths[i] = path;
-            finalUsedWords.add(lowerWord);
-            finalConstraints = { ...finalConstraints, ...newConstraints };
-          }
-        }
-      }
-    }
-    
-    return {
-      validAnswers: finalValidAnswers,
-      scores: finalScores,
-      paths: finalPaths,
-      constraints: finalConstraints
     };
   };
 
