@@ -368,10 +368,8 @@ function App() {
   };
 
   const handleSubmit = async (): Promise<void> => {
-    if ((!currentGame && !apiError) || isSubmitting) return;
-
     // If game is already completed or offline, just show stats modal
-    if (isGameCompleted || apiError) {
+    if (isGameCompleted || !currentGame || isSubmitting) {
       setShowHeatmapModal(true);
       return;
     }
