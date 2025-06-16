@@ -141,13 +141,13 @@ function App() {
         
         setAnswers(loadedAnswers);
         
-        // Re-validate all answers using the same strict logic as the backend
-        const validation = validateAllAnswersTogether(loadedAnswers);
+        // Re-validate all answers using the new permissive logic
+        const validation = validateAllAnswers(loadedAnswers);
         
         setValidAnswers(validation.validAnswers);
         setScores(validation.scores);
         setValidPaths(validation.paths);
-        setWildcardConstraints(validation.constraints);
+        setWildcardConstraints(convertConstraintSetsToConstraints(validation.constraintSets));
       } else {
         setIsGameCompleted(false);
         setGameStats(null);
@@ -219,7 +219,7 @@ function App() {
     }
   };
 
-  // Validate all answers together - replicates GameEngine::validate_api_answer_group logic
+  // Validate all answers together - skips invalid words and continues with remaining valid words
   const validateAllAnswers = (allAnswers: string[]): { validAnswers: boolean[], scores: number[], paths: (Position[] | null)[], constraintSets: AnswerGroupConstraintSet } => {
     const validAnswers = [false, false, false, false, false];
     const scores = [0, 0, 0, 0, 0];
@@ -229,49 +229,64 @@ function App() {
     // Step 1: Sanitize inputs (convert to lowercase)
     const sanitizedAnswers = allAnswers.map(word => word.toLowerCase());
     
-    // Step 2: Dictionary validation - skip if word list not loaded
-    if (isValidWordLoaded && isValidWordFn) {
-      for (const word of sanitizedAnswers) {
-        if (word && word.length >= 2 && !isValidWordFn(word)) {
-          // Early return if any word is invalid
-          return {
-            validAnswers,
-            scores,
-            paths,
-            constraintSets: { pathConstraintSets: [] }
-          };
-        }
-      }
+    // Step 2: Collect valid words that pass dictionary and path validation
+    interface ValidWordInfo {
+      index: number;
+      originalWord: string;
+      sanitizedWord: string;
+      answer: Answer;
     }
     
-    // Step 3: Get all answers with all their possible paths
-    const answersWithPaths: Answer[] = [];
+    const validWordsInfo: ValidWordInfo[] = [];
     
     for (let i = 0; i < sanitizedAnswers.length; i++) {
-      const word = sanitizedAnswers[i];
-      if (!word || word.length < 2) {
+      const originalWord = allAnswers[i];
+      const sanitizedWord = sanitizedAnswers[i];
+      
+      // Skip empty or too short words
+      if (!sanitizedWord || sanitizedWord.length < 2) {
         continue;
+      }
+      
+      // Skip if word list is loaded and word is not in dictionary
+      if (isValidWordLoaded && isValidWordFn && !isValidWordFn(sanitizedWord)) {
+        continue; // Skip this word, don't fail entire validation
       }
       
       // Check for duplicate words
-      const lowerWord = word.toLowerCase();
-      if (usedWords.has(lowerWord)) {
-        continue;
+      if (usedWords.has(sanitizedWord)) {
+        continue; // Skip duplicate
       }
       
       // Get all paths for this word using findAllPaths
-      const answer = findAllPaths(board, word);
+      const answer = findAllPaths(board, sanitizedWord);
       
       if (answer.paths.length === 0) {
-        continue; // No valid paths for this word
+        continue; // Skip this word, don't fail entire validation
       }
       
-      answersWithPaths.push(answer);
-      usedWords.add(lowerWord);
+      // This word is valid - add to our collection
+      validWordsInfo.push({
+        index: i,
+        originalWord,
+        sanitizedWord,
+        answer
+      });
+      usedWords.add(sanitizedWord);
     }
     
-    // Step 4: Validate constraint compatibility using AnswerGroupConstraintSet::is_valid_set
-    const constraintSets = answersWithPaths.map(answer => answer.constraintsSet);
+    // Step 3: Check if the valid words can coexist (constraint compatibility)
+    if (validWordsInfo.length === 0) {
+      // No valid words at all
+      return {
+        validAnswers,
+        scores,
+        paths,
+        constraintSets: { pathConstraintSets: [] }
+      };
+    }
+    
+    const constraintSets = validWordsInfo.map(info => info.answer.constraintsSet);
     
     let isValidSet = true;
     let finalConstraintSet: AnswerGroupConstraintSet = { pathConstraintSets: [] };
@@ -287,6 +302,7 @@ function App() {
     }
     
     if (!isValidSet) {
+      // Valid words exist but their constraints conflict - return no valid answers
       return {
         validAnswers,
         scores,
@@ -295,30 +311,17 @@ function App() {
       };
     }
     
-    // Step 5: If constraints are valid, populate results
-    const finalUsedWords = new Set<string>();
-    
-    for (let i = 0; i < allAnswers.length; i++) {
-      const originalWord = allAnswers[i];
-      const sanitizedWord = sanitizedAnswers[i];
+    // Step 4: All valid words can coexist - populate results
+    for (const info of validWordsInfo) {
+      const { index, originalWord } = info;
       
-      if (!originalWord || originalWord.length < 2) continue;
-      
-      const lowerWord = sanitizedWord.toLowerCase();
-      if (finalUsedWords.has(lowerWord)) continue;
-      
-      // Find the corresponding answer
-      const answer = answersWithPaths.find(a => a.word.toLowerCase() === lowerWord);
-      if (!answer) continue;
-      
-      // Find the best path for this word (mimicking backend logic)
+      // Find the best path for this word
       const bestPath = findBestPath(board, originalWord, {});
-      if (!bestPath) continue;
+      if (!bestPath) continue; // Should not happen since we already found paths
       
-      validAnswers[i] = true;
-      scores[i] = calculateWordScore(originalWord, bestPath, board);
-      paths[i] = bestPath;
-      finalUsedWords.add(lowerWord);
+      validAnswers[index] = true;
+      scores[index] = calculateWordScore(originalWord, bestPath, board);
+      paths[index] = bestPath;
     }
     
     return {
@@ -432,17 +435,68 @@ function App() {
     };
   };
 
+  // Helper function to convert AnswerGroupConstraintSet to Record<string, string> format
+  const convertConstraintSetsToConstraints = (constraintSets: AnswerGroupConstraintSet): Record<string, string> => {
+    const constraints: Record<string, string> = {};
+    
+    if (constraintSets.pathConstraintSets.length === 0) {
+      return constraints;
+    }
+    
+    // Use the first constraint set (they should all be compatible if validation passed)
+    const firstConstraintSet = constraintSets.pathConstraintSets[0];
+    
+    // Find wildcard positions on the board
+    const wildcardPositions: Array<{row: number, col: number, isFirst: boolean}> = [];
+    for (let row = 0; row < 4; row++) {
+      for (let col = 0; col < 4; col++) {
+        if (board[row][col]?.isWildcard) {
+          wildcardPositions.push({ 
+            row, 
+            col, 
+            isFirst: row < 2 && col < 2 // Backend logic for determining first wildcard
+          });
+        }
+      }
+    }
+    
+    // Convert PathConstraintSet to position-based constraints
+    if (firstConstraintSet.type === 'FirstDecided' && firstConstraintSet.firstChar) {
+      const firstWildcard = wildcardPositions.find(w => w.isFirst);
+      if (firstWildcard) {
+        constraints[`${firstWildcard.row}-${firstWildcard.col}`] = firstConstraintSet.firstChar;
+      }
+    } else if (firstConstraintSet.type === 'SecondDecided' && firstConstraintSet.secondChar) {
+      const secondWildcard = wildcardPositions.find(w => !w.isFirst);
+      if (secondWildcard) {
+        constraints[`${secondWildcard.row}-${secondWildcard.col}`] = firstConstraintSet.secondChar;
+      }
+    } else if (firstConstraintSet.type === 'BothDecided') {
+      const firstWildcard = wildcardPositions.find(w => w.isFirst);
+      const secondWildcard = wildcardPositions.find(w => !w.isFirst);
+      
+      if (firstWildcard && firstConstraintSet.firstChar) {
+        constraints[`${firstWildcard.row}-${firstWildcard.col}`] = firstConstraintSet.firstChar;
+      }
+      if (secondWildcard && firstConstraintSet.secondChar) {
+        constraints[`${secondWildcard.row}-${secondWildcard.col}`] = firstConstraintSet.secondChar;
+      }
+    }
+    
+    return constraints;
+  };
+
   const handleAnswerChange = (index: number, value: string): void => {
     const newAnswers = [...answers];
     newAnswers[index] = value;
     setAnswers(newAnswers);
 
-    // Use strict validation that matches the backend
+    // Use new validation that skips invalid words
     const validation = validateAllAnswers(newAnswers);
     
     setValidAnswers(validation.validAnswers);
     setScores(validation.scores);
-    setWildcardConstraints(validation.constraints);
+    setWildcardConstraints(convertConstraintSetsToConstraints(validation.constraintSets));
     setValidPaths(validation.paths);
 
     // Set highlighted paths for the current input
