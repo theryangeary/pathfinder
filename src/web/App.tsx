@@ -197,22 +197,6 @@ function App() {
     }
   };
 
-  const handleAnswerFocus = (index: number): void => {
-    // Update highlighting when focusing on a different input
-    if (currentInputIndex !== index) {
-      setCurrentInputIndex(index);
-      
-      // If the focused input has content, show its highlighting
-      const currentValue = answers[index];
-      if (currentValue && currentValue.length > 0) {
-        const paths = findPathsForHighlighting(board, currentValue);
-        setHighlightedPaths(paths);
-      } else {
-        setHighlightedPaths([]);
-      }
-    }
-  };
-
   const handleAnswerBlur = (_index: number): void => {
     // Save progress when any answer input loses focus
     if (user && currentGame && !isGameCompleted) {
@@ -388,28 +372,40 @@ function App() {
     return constraints;
   };
 
-  const handleAnswerChange = (index: number, value: string): void => {
-    const newAnswers = [...answers];
-    newAnswers[index] = value;
-    setAnswers(newAnswers);
+  const handleAnswerInputChange = (index: number, value?: string): void => {
+    // If value is provided, update the answer (onChange behavior)
+    if (value !== undefined) {
+      const newAnswers = [...answers];
+      newAnswers[index] = value;
+      setAnswers(newAnswers);
 
-    // Use new validation that skips invalid words
-    const validation = validateAllAnswers(newAnswers);
-    const constraints = convertConstraintSetsToConstraints(validation.constraintSets);
+      // Use new validation that skips invalid words
+      const validation = validateAllAnswers(newAnswers);
+      const constraints = convertConstraintSetsToConstraints(validation.constraintSets);
+      
+      setValidAnswers(validation.validAnswers);
+      setScores(validation.scores);
+      setWildcardConstraints(constraints);
+      setValidPaths(validation.paths);
+    }
+
+    // Update highlighting (both onChange and onFocus behavior)
+    const currentValue = value !== undefined ? value : answers[index];
     
-    setValidAnswers(validation.validAnswers);
-    setScores(validation.scores);
-    setWildcardConstraints(constraints);
-    setValidPaths(validation.paths);
-
-    // Set highlighted paths for the current input
-    if (value && index >= 0) {
-      const paths = findPathsForHighlighting(board, value, constraints);
-      setHighlightedPaths(paths);
+    // Update highlighting when focusing on a different input or when value changes
+    if (currentInputIndex !== index || value !== undefined) {
       setCurrentInputIndex(index);
-    } else {
-      setHighlightedPaths([]);
-      setCurrentInputIndex(-1);
+      
+      // Set highlighted paths for the current input
+      if (currentValue && currentValue.length > 0) {
+        const currentConstraints = value !== undefined 
+          ? convertConstraintSetsToConstraints(validateAllAnswers([...answers.slice(0, index), value, ...answers.slice(index + 1)]).constraintSets)
+          : wildcardConstraints;
+        const paths = findPathsForHighlighting(board, currentValue, currentConstraints);
+        setHighlightedPaths(paths);
+      } else {
+        setHighlightedPaths([]);
+      }
     }
   };
 
@@ -695,11 +691,11 @@ function App() {
       
       <AnswerSection
         answers={answers}
-        onAnswerChange={handleAnswerChange}
+        onAnswerChange={(index, value) => handleAnswerInputChange(index, value)}
         validAnswers={validAnswers}
         scores={scores}
         onSubmit={handleSubmit}
-        onAnswerFocus={handleAnswerFocus}
+        onAnswerFocus={(index) => handleAnswerInputChange(index)}
         onAnswerBlur={handleAnswerBlur}
         isSubmitting={isSubmitting}
         isWordListLoading={!isValidWordLoaded}
