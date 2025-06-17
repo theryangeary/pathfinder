@@ -1,6 +1,6 @@
-import Tile from './Tile';
-import { getWildcardNotation } from '../utils/pathfinding';
 import { Position, Tile as TileType } from '../utils/models';
+import { getWildcardNotation } from '../utils/pathfinding';
+import Tile from './Tile';
 
 interface BoardProps {
   board: TileType[][];
@@ -20,6 +20,7 @@ function Board({ board, highlightedPaths, wildcardConstraints, answers, validAns
     // Use the new notation system that considers current typing context
     if (board.length > 0) {
       const notation = getWildcardNotation(board, wildcardConstraints, currentWord, highlightedPaths, answers, validAnswers);
+      console.log(notation);
       return notation[constraintKey] || '*';
     }
     
