@@ -346,6 +346,8 @@ function App() {
 
 
   const handleAnswerInputChange = (index: number, value?: string): void => {
+    let shouldHighlight = false;
+
     // If value is provided, update the answer (onChange behavior)
     if (value !== undefined) {
       const newAnswers = [...answers];
@@ -354,12 +356,20 @@ function App() {
 
       // Use new validation that skips invalid words
       const validation = validateAllAnswers(newAnswers, index);
-      const constraints = convertConstraintSetsToConstraints(validation.constraintSets, board);
-      
-      setValidAnswers(validation.validAnswers);
-      setScores(validation.scores);
-      setWildcardConstraints(constraints);
-      setValidPaths(validation.paths);
+      if (validation.constraintSets.pathConstraintSets.length > 0) {
+        shouldHighlight = true;
+        const constraints = convertConstraintSetsToConstraints(validation.constraintSets, board);
+        
+        setValidAnswers(validation.validAnswers);
+        setScores(validation.scores);
+        setWildcardConstraints(constraints);
+        setValidPaths(validation.paths);
+      }
+    }
+
+    if (!shouldHighlight) {
+              setHighlightedPaths([]);
+      return;
     }
 
     // Update highlighting (both onChange and onFocus behavior)
