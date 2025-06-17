@@ -8,8 +8,8 @@ import HeatmapModal from './components/HeatmapModal';
 import PathfinderLogo from './components/Logo';
 import { useUser } from './hooks/useUser';
 import { generateBoard } from './utils/boardGeneration';
-import { mergeAllAnswerGroupConstraintSets, UnsatisfiableConstraint, convertConstraintSetsToConstraints } from './utils/constraintResolution';
-import { AnswerGroupConstraintSet, PathConstraintType, Position, Tile } from './utils/models';
+import { convertConstraintSetsToConstraints, mergeAllAnswerGroupConstraintSets, UnsatisfiableConstraint } from './utils/constraintResolution';
+import { AnswerGroupConstraintSet, Position, Tile } from './utils/models';
 import { Answer, findAllPaths, findBestPath, findPathsForHighlighting } from './utils/pathfinding';
 import { scoreAnswerGroup } from './utils/scoring';
 
@@ -205,7 +205,7 @@ function App() {
   };
 
   // Validate all answers together - skips invalid words and continues with remaining valid words
-  const validateAllAnswers = (allAnswers: string[]): { validAnswers: boolean[], scores: number[], paths: (Position[] | null)[], constraintSets: AnswerGroupConstraintSet } => {
+  const validateAllAnswers = (allAnswers: string[], focusedIndex: number = -1): { validAnswers: boolean[], scores: number[], paths: (Position[] | null)[], constraintSets: AnswerGroupConstraintSet } => {
     const validAnswers = [false, false, false, false, false];
     const scores = [0, 0, 0, 0, 0];
     const paths: (Position[] | null)[] = [null, null, null, null, null];
@@ -220,24 +220,35 @@ function App() {
       originalWord: string;
       sanitizedWord: string;
       answer: Answer;
+      isInvalid?: boolean; // Track if this word is invalid (focused input with validation failures)
     }
     
     const validWordsInfo: ValidWordInfo[] = [];
-    
-    for (let i = 0; i < sanitizedAnswers.length; i++) {
-      const originalWord = allAnswers[i];
-      const sanitizedWord = sanitizedAnswers[i];
-      
+
+    function passesBasicValidityChecks(sanitizedWord: string): boolean {
       // Skip empty or too short words
       if (!sanitizedWord || sanitizedWord.length < 2) {
-        continue;
+        return false;
       }
       
       // Skip if word list is loaded and word is not in dictionary
       if (isValidWordLoaded && isValidWordFn && !isValidWordFn(sanitizedWord)) {
-        continue; // Skip this word, don't fail entire validation
+        return false; // Skip this word, don't fail entire validation
       }
       
+      return true;
+    }
+    
+    for (let i = 0; i < sanitizedAnswers.length; i++) {
+      const originalWord = allAnswers[i];
+      const sanitizedWord = sanitizedAnswers[i];
+      const isFocused = i === focusedIndex;
+      
+      // skip certain validation if it is for the current input, to show proper pathfinding
+      if (!isFocused && !passesBasicValidityChecks(sanitizedWord)) {
+        continue;
+      }
+
       // Check for duplicate words
       if (usedWords.has(sanitizedWord)) {
         continue; // Skip duplicate
@@ -305,15 +316,24 @@ function App() {
     finalConstraintSet = { pathConstraintSets: optimalConstraintSets };
     
     for (const info of validWordsInfo) {
-      const { index, originalWord, sanitizedWord } = info;
+      const { index, originalWord, sanitizedWord, isInvalid } = info;
       
       // Find the best path for this word
       const bestPath = findBestPath(board, originalWord, {});
       if (!bestPath) continue; // Should not happen since we already found paths
       
       validAnswers[index] = true;
-      scores[index] = scoresByWord[sanitizedWord] || 0;
+      
+      // For focused input that fails validation, set score to 0
+      scores[index] = isInvalid ? 0 : scoresByWord[sanitizedWord] || 0;
+      
       paths[index] = bestPath;
+    }
+
+    if (!passesBasicValidityChecks(sanitizedAnswers[focusedIndex])) {
+      console.log("heya");
+      validAnswers[focusedIndex] = false;
+      scores[focusedIndex] = 0;
     }
 
     return {
@@ -333,7 +353,7 @@ function App() {
       setAnswers(newAnswers);
 
       // Use new validation that skips invalid words
-      const validation = validateAllAnswers(newAnswers);
+      const validation = validateAllAnswers(newAnswers, index);
       const constraints = convertConstraintSetsToConstraints(validation.constraintSets, board);
       
       setValidAnswers(validation.validAnswers);
@@ -352,7 +372,7 @@ function App() {
       // Set highlighted paths for the current input
       if (currentValue && currentValue.length > 0) {
         const currentConstraints = value !== undefined 
-          ? convertConstraintSetsToConstraints(validateAllAnswers([...answers.slice(0, index), value, ...answers.slice(index + 1)]).constraintSets, board)
+          ? convertConstraintSetsToConstraints(validateAllAnswers([...answers.slice(0, index), value, ...answers.slice(index + 1)], index).constraintSets, board)
           : wildcardConstraints;
         const paths = findPathsForHighlighting(board, currentValue, currentConstraints);
         setHighlightedPaths(paths);
