@@ -7,6 +7,7 @@ import HeatmapModal from './components/HeatmapModal';
 // Lazy load word list to avoid blocking initial render
 import PathfinderLogo from './components/Logo';
 import { useUser } from './hooks/useUser';
+import { useVirtualKeyboard } from './hooks/useVirtualKeyboard';
 import { generateBoard } from './utils/boardGeneration';
 import { convertConstraintSetsToConstraints, mergeAllAnswerGroupConstraintSets, UnsatisfiableConstraint } from './utils/constraintResolution';
 import { AnswerGroupConstraintSet, Position, Tile } from './utils/models';
@@ -18,6 +19,7 @@ function App() {
   const { sequenceNumber } = useParams<{ sequenceNumber: string }>();
   const navigate = useNavigate();
   const { user, isLoading: userLoading, clearUser } = useUser();
+  const { isVisible: isVirtualKeyboardVisible } = useVirtualKeyboard();
   const [board, setBoard] = useState<Tile[][]>([]);
   const [answers, setAnswers] = useState<string[]>(['', '', '', '', '']);
   const [validAnswers, setValidAnswers] = useState<boolean[]>([false, false, false, false, false]);
@@ -531,30 +533,33 @@ function App() {
       flexDirection: 'column',
       alignItems: 'center'
     }}>
-      <PathfinderLogo />
-      
-      {apiError && (
-        <div style={{
-          backgroundColor: '#fff3cd',
-          border: '1px solid #ffeaa7',
-          color: '#856404',
-          padding: '10px',
-          borderRadius: '4px',
-          marginBottom: '20px',
-          textAlign: 'center'
-        }}>
-          {apiError}
-        </div>
-      )}
-
       <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginTop: '20px',
-        marginBottom: '20px',
-        gap: '16px'
+        display: isVirtualKeyboardVisible ? 'none' : 'block'
       }}>
+        <PathfinderLogo />
+        
+        {apiError && (
+          <div style={{
+            backgroundColor: '#fff3cd',
+            border: '1px solid #ffeaa7',
+            color: '#856404',
+            padding: '10px',
+            borderRadius: '4px',
+            marginBottom: '20px',
+            textAlign: 'center'
+          }}>
+            {apiError}
+          </div>
+        )}
+
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginTop: '20px',
+          marginBottom: '20px',
+          gap: '16px'
+        }}>
         <button
           onClick={handlePreviousPuzzle}
           disabled={!currentGame || currentGame.sequence_number <= 1}
@@ -644,6 +649,7 @@ function App() {
             height: '32px'
           }} />
         )}
+      </div>
       </div>
       
       {board.length > 0 && (
