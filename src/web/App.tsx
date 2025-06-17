@@ -345,7 +345,7 @@ function App() {
 
 
   const handleAnswerInputChange = (index: number, value?: string): void => {
-    let shouldHighlight = false;
+    let shouldHighlight = true;
 
     // If value is provided, update the answer (onChange behavior)
     if (value !== undefined) {
@@ -355,8 +355,8 @@ function App() {
 
       // Use new validation that skips invalid words
       const validation = validateAllAnswers(newAnswers, index);
-      if (validation.constraintSets.pathConstraintSets.length > 0) {
-        shouldHighlight = true;
+      shouldHighlight = validation.constraintSets.pathConstraintSets.length > 0
+      if (shouldHighlight) {
         const constraints = convertConstraintSetsToConstraints(validation.constraintSets, board);
         
         setValidAnswers(validation.validAnswers);
