@@ -368,30 +368,19 @@ function App() {
       }
     }
         
-    // Use the first constraint set (they should all be compatible if validation passed)
-    const firstConstraintSet = constraintSets.pathConstraintSets[0];
+    // find the list of possible assignments to each wildcard and reduce to the set of unique values
+    const uniqueFirstLetters = [...new Set(constraintSets.pathConstraintSets.map(constraint => constraint.firstLetter))];
+    const uniqueSecondLetters = [...new Set(constraintSets.pathConstraintSets.map(constraint => constraint.secondLetter))];
     
-    // Convert PathConstraintSet to position-based constraints
-    if (firstConstraintSet.type === 'FirstDecided' && firstConstraintSet.firstChar) {
-      const firstWildcard = wildcardPositions.find(w => w.isFirst);
-      if (firstWildcard) {
-        constraints[`${firstWildcard.row}-${firstWildcard.col}`] = firstConstraintSet.firstChar;
-      }
-    } else if (firstConstraintSet.type === 'SecondDecided' && firstConstraintSet.secondChar) {
-      const secondWildcard = wildcardPositions.find(w => !w.isFirst);
-      if (secondWildcard) {
-        constraints[`${secondWildcard.row}-${secondWildcard.col}`] = firstConstraintSet.secondChar;
-      }
-    } else if (firstConstraintSet.type === 'BothDecided') {
-      const firstWildcard = wildcardPositions.find(w => w.isFirst);
-      const secondWildcard = wildcardPositions.find(w => !w.isFirst);
-      
-      if (firstWildcard && firstConstraintSet.firstChar) {
-        constraints[`${firstWildcard.row}-${firstWildcard.col}`] = firstConstraintSet.firstChar;
-      }
-      if (secondWildcard && firstConstraintSet.secondChar) {
-        constraints[`${secondWildcard.row}-${secondWildcard.col}`] = firstConstraintSet.secondChar;
-      }
+    // Convert unique letter sets to position-based constraints
+    const firstWildcard = wildcardPositions.find(w => w.isFirst);
+    const secondWildcard = wildcardPositions.find(w => !w.isFirst);
+    
+    if (firstWildcard && uniqueFirstLetters.length > 0) {
+      constraints[`${firstWildcard.row}-${firstWildcard.col}`] = uniqueFirstLetters.join(' / ');
+    }
+    if (secondWildcard && uniqueSecondLetters.length > 0) {
+      constraints[`${secondWildcard.row}-${secondWildcard.col}`] = uniqueSecondLetters.join(' / ');
     }
     
     return constraints;
