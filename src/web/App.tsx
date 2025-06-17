@@ -354,9 +354,6 @@ function App() {
       return {};
     }
     
-    // Use the first constraint set (they should all be compatible if validation passed)
-    const firstConstraintSet = constraintSets.pathConstraintSets[0];
-    
     // Find wildcard positions on the board
     const wildcardPositions: Array<{row: number, col: number, isFirst: boolean}> = [];
     for (let row = 0; row < 4; row++) {
@@ -370,6 +367,9 @@ function App() {
         }
       }
     }
+        
+    // Use the first constraint set (they should all be compatible if validation passed)
+    const firstConstraintSet = constraintSets.pathConstraintSets[0];
     
     // Convert PathConstraintSet to position-based constraints
     if (firstConstraintSet.type === 'FirstDecided' && firstConstraintSet.firstChar) {
