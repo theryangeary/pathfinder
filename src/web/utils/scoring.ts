@@ -1,6 +1,7 @@
+import { PathConstraintSet } from '../utils/models';
+import { mergeAllAnswerGroupConstraintSets, mergePathConstraintSets } from './constraintResolution';
 import { Position, Tile } from './models';
 import { findAllPaths } from './pathfinding';
-import { mergeAllAnswerGroupConstraintSets, mergePathConstraintSets, PathConstraintSet } from './constraintResolution';
 
 export const letterFrequencies: Record<string, number> = {
   'a': 0.078,

@@ -1,23 +1,6 @@
-import { Position, Tile } from './models';
+import { AnswerGroupConstraintSet, PathConstraintSet, PathConstraintType, Position, Tile } from './models';
 import { getWildcardConstraintsFromPath } from './pathfinding';
 
-// TypeScript equivalent of Rust PathConstraintSet
-export enum PathConstraintType {
-  Unconstrained = 'Unconstrained',
-  FirstDecided = 'FirstDecided',
-  SecondDecided = 'SecondDecided',
-  BothDecided = 'BothDecided'
-}
-
-export interface PathConstraintSet {
-  type: PathConstraintType;
-  firstLetter?: string;
-  secondLetter?: string;
-}
-
-export interface AnswerGroupConstraintSet {
-  pathConstraintSets: PathConstraintSet[];
-}
 
 export class UnsatisfiableConstraint extends Error {
   constructor() {
@@ -179,7 +162,6 @@ export function intersectAnswerGroupConstraintSets(a: AnswerGroupConstraintSet, 
 // Merge all AnswerGroupConstraintSets (equivalent to Rust merge_all)
 export function mergeAllAnswerGroupConstraintSets(sets: AnswerGroupConstraintSet[]): AnswerGroupConstraintSet {
   let cumulativeConstraints: AnswerGroupConstraintSet | null = null;
-  
   for (const set of sets) {
     if (cumulativeConstraints === null) {
       cumulativeConstraints = set;
@@ -192,7 +174,14 @@ export function mergeAllAnswerGroupConstraintSets(sets: AnswerGroupConstraintSet
     throw new UnsatisfiableConstraint();
   }
   
-  return cumulativeConstraints;
+  // Remove duplicates by converting to Set and back to array
+  const uniqueConstraints = Array.from(
+    new Set(cumulativeConstraints.pathConstraintSets.map(constraint => JSON.stringify(constraint)))
+  ).map(constraintStr => JSON.parse(constraintStr) as PathConstraintSet);
+  
+  return {
+    pathConstraintSets: uniqueConstraints
+  };
 }
 
 // Convert paths and answers to AnswerGroupConstraintSets

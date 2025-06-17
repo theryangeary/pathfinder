@@ -8,8 +8,8 @@ import HeatmapModal from './components/HeatmapModal';
 import PathfinderLogo from './components/Logo';
 import { useUser } from './hooks/useUser';
 import { generateBoard } from './utils/boardGeneration';
-import { AnswerGroupConstraintSet, mergeAllAnswerGroupConstraintSets, PathConstraintType, UnsatisfiableConstraint } from './utils/constraintResolution';
-import { Position, Tile } from './utils/models';
+import { mergeAllAnswerGroupConstraintSets, UnsatisfiableConstraint } from './utils/constraintResolution';
+import { AnswerGroupConstraintSet, PathConstraintType, Position, Tile } from './utils/models';
 import { Answer, findAllPaths, findBestPath, findPathsForHighlighting } from './utils/pathfinding';
 import { scoreAnswerGroup } from './utils/scoring';
 
@@ -331,7 +331,7 @@ function App() {
       scores[index] = scoresByWord[sanitizedWord] || 0;
       paths[index] = bestPath;
     }
-    console.log("final", finalConstraintSet);
+
     return {
       validAnswers,
       scores,
@@ -342,18 +342,15 @@ function App() {
 
   // Helper function to convert AnswerGroupConstraintSet to Record<string, string> format
   const convertConstraintSetsToConstraints = (constraintSets: AnswerGroupConstraintSet): Record<string, string> => {
-    console.log(constraintSets);
     const constraints: Record<string, string> = {};
     
     if (constraintSets.pathConstraintSets.length === 0) {
-      console.log("empty");
       return constraints;
     }
 
     // Check if any of the PathConstraintsSets is "Unconstrained" and if so, return empty constraints
     // this is because if there is a way to form the highest possible score set without using wildcards, that is the optimal use of the wildcards.
     if (constraintSets.pathConstraintSets.some(pathSet => pathSet.type === 'Unconstrained')) {
-      console.log("unconstrained");
       return {};
     }
     
@@ -372,9 +369,8 @@ function App() {
     }
         
     // find the list of possible assignments to each wildcard and reduce to the set of unique values
-    const uniqueFirstLetters = [...new Set(constraintSets.pathConstraintSets.filter(constraint => constraint.type == PathConstraintType.FirstDecided || constraint.type == PathConstraintType.BothDecided).map(constraint => constraint.firstChar.toUpperCase()))];
-    const uniqueSecondLetters = [...new Set(constraintSets.pathConstraintSets.filter(constraint => constraint.type == PathConstraintType.SecondDecided || constraint.type == PathConstraintType.BothDecided).map(constraint => constraint.secondChar.toUpperCase()))];
-    console.log(uniqueFirstLetters, uniqueSecondLetters);
+    const uniqueFirstLetters = [...new Set(constraintSets.pathConstraintSets.filter(constraint => constraint.type == PathConstraintType.FirstDecided || constraint.type == PathConstraintType.BothDecided).map(constraint => constraint.firstLetter.toUpperCase()))];
+    const uniqueSecondLetters = [...new Set(constraintSets.pathConstraintSets.filter(constraint => constraint.type == PathConstraintType.SecondDecided || constraint.type == PathConstraintType.BothDecided).map(constraint => constraint.secondLetter.toUpperCase()))];
     
     // Convert unique letter sets to position-based constraints
     const firstWildcard = wildcardPositions.find(w => w.isFirst);
@@ -400,7 +396,6 @@ function App() {
     
     setValidAnswers(validation.validAnswers);
     setScores(validation.scores);
-    console.log("setting wildcards", convertConstraintSetsToConstraints(validation.constraintSets));
     setWildcardConstraints(convertConstraintSetsToConstraints(validation.constraintSets));
     setValidPaths(validation.paths);
 

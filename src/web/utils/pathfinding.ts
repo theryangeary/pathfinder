@@ -1,29 +1,10 @@
-import { Position, Tile } from './models';
+import { AnswerGroupConstraintSet, PathConstraintSet, PathConstraintType, Position, Tile } from './models';
 
 interface PathScore {
   wildcardCount: number;
   diagonalCount: number;
   lastDiagonalIndex: number;
 }
-
-// TypeScript equivalents of backend constraint types
-export enum PathConstraintType {
-  Unconstrained = 'Unconstrained',
-  FirstDecided = 'FirstDecided',
-  SecondDecided = 'SecondDecided',
-  BothDecided = 'BothDecided'
-}
-
-export interface PathConstraintSet {
-  type: PathConstraintType;
-  firstChar?: string;
-  secondChar?: string;
-}
-
-export interface AnswerGroupConstraintSet {
-  pathConstraintSets: PathConstraintSet[];
-}
-
 export interface PathWithConstraints {
   path: Position[];
   constraints: PathConstraintSet;
@@ -73,12 +54,12 @@ function createConstraintFromWildcard(pos: Position, char: string): PathConstrai
   if (isFirstWildcard(pos)) {
     return {
       type: PathConstraintType.FirstDecided,
-      firstChar: char
+      firstLetter: char
     };
   } else {
     return {
       type: PathConstraintType.SecondDecided,
-      secondChar: char
+      secondLetter: char
     };
   }
 }
@@ -95,7 +76,7 @@ function mergeConstraints(constraint1: PathConstraintSet, constraint2: PathConst
   // Handle FirstDecided cases
   if (constraint1.type === PathConstraintType.FirstDecided) {
     if (constraint2.type === PathConstraintType.FirstDecided) {
-      if (constraint1.firstChar === constraint2.firstChar) {
+      if (constraint1.firstLetter === constraint2.firstLetter) {
         return constraint1;
       } else {
         return null; // Unsatisfiable
@@ -103,11 +84,11 @@ function mergeConstraints(constraint1: PathConstraintSet, constraint2: PathConst
     } else if (constraint2.type === PathConstraintType.SecondDecided) {
       return {
         type: PathConstraintType.BothDecided,
-        firstChar: constraint1.firstChar,
-        secondChar: constraint2.secondChar
+        firstLetter: constraint1.firstLetter,
+        secondLetter: constraint2.secondLetter
       };
     } else if (constraint2.type === PathConstraintType.BothDecided) {
-      if (constraint1.firstChar === constraint2.firstChar) {
+      if (constraint1.firstLetter === constraint2.firstLetter) {
         return constraint2;
       } else {
         return null; // Unsatisfiable
@@ -120,17 +101,17 @@ function mergeConstraints(constraint1: PathConstraintSet, constraint2: PathConst
     if (constraint2.type === PathConstraintType.FirstDecided) {
       return {
         type: PathConstraintType.BothDecided,
-        firstChar: constraint2.firstChar,
-        secondChar: constraint1.secondChar
+        firstLetter: constraint2.firstLetter,
+        secondLetter: constraint1.secondLetter
       };
     } else if (constraint2.type === PathConstraintType.SecondDecided) {
-      if (constraint1.secondChar === constraint2.secondChar) {
+      if (constraint1.secondLetter === constraint2.secondLetter) {
         return constraint1;
       } else {
         return null; // Unsatisfiable
       }
     } else if (constraint2.type === PathConstraintType.BothDecided) {
-      if (constraint1.secondChar === constraint2.secondChar) {
+      if (constraint1.secondLetter === constraint2.secondLetter) {
         return constraint2;
       } else {
         return null; // Unsatisfiable
@@ -141,20 +122,20 @@ function mergeConstraints(constraint1: PathConstraintSet, constraint2: PathConst
   // Handle BothDecided cases
   if (constraint1.type === PathConstraintType.BothDecided) {
     if (constraint2.type === PathConstraintType.FirstDecided) {
-      if (constraint1.firstChar === constraint2.firstChar) {
+      if (constraint1.firstLetter === constraint2.firstLetter) {
         return constraint1;
       } else {
         return null; // Unsatisfiable
       }
     } else if (constraint2.type === PathConstraintType.SecondDecided) {
-      if (constraint1.secondChar === constraint2.secondChar) {
+      if (constraint1.secondLetter === constraint2.secondLetter) {
         return constraint1;
       } else {
         return null; // Unsatisfiable
       }
     } else if (constraint2.type === PathConstraintType.BothDecided) {
-      if (constraint1.firstChar === constraint2.firstChar && 
-          constraint1.secondChar === constraint2.secondChar) {
+      if (constraint1.firstLetter === constraint2.firstLetter && 
+          constraint1.secondLetter === constraint2.secondLetter) {
         return constraint1;
       } else {
         return null; // Unsatisfiable
