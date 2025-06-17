@@ -335,7 +335,7 @@ function App() {
 
     // Check if any of the PathConstraintsSets is "Unconstrained" and if so, return empty constraints
     // this is because if there is a way to form the highest possible score set without using wildcards, that is the optimal use of the wildcards.
-    if (constraintSets.pathConstraintSets.some(pathSet => pathSet.type === 'Unconstrained')) {
+    if (constraintSets.pathConstraintSets.some(pathSet => pathSet.type === PathConstraintType.Unconstrained)) {
       return {};
     }
     
