@@ -1,6 +1,6 @@
 import { Position, Tile } from './models';
 import { findAllPaths } from './pathfinding';
-import { mergeAllAnswerGroupConstraintSets, intersectAnswerGroupConstraintSets } from './constraintResolution';
+import { mergeAllAnswerGroupConstraintSets, mergePathConstraintSets } from './constraintResolution';
 
 export const letterFrequencies: Record<string, number> = {
   'a': 0.078,
@@ -64,7 +64,7 @@ export function scoreAnswerGroup(words: string[], board: Tile[][]): Record<strin
   }
 
   // Find all possible paths for each answer
-  const answerObjects: any[] = [];
+  const answerObjects = [];
   for (const word of words) {
     const answer = findAllPaths(board, word);
     if (answer.paths.length === 0) {
@@ -76,11 +76,11 @@ export function scoreAnswerGroup(words: string[], board: Tile[][]): Record<strin
   // Find all constraint sets that can satisfy all answers together
   const constraintSets = answerObjects.map(answer => answer.constraintsSet);
   
-  let validConstraintSet: any;
+  let validConstraintSet;
   try {
     validConstraintSet = mergeAllAnswerGroupConstraintSets(constraintSets);
-  } catch (e) {
-    throw new Error('Answers cannot coexist due to conflicting wildcard constraints');
+  } catch (error) {
+    throw new Error("Answers cannot coexist due to conflicting wildcard constraints");
   }
 
   // For each valid path constraint set, calculate the maximum possible score
@@ -99,16 +99,11 @@ export function scoreAnswerGroup(words: string[], board: Tile[][]): Record<strin
       for (const path of answerObj.paths) {
         // Check if this path's constraints are compatible with the current pathConstraint
         try {
-          intersectAnswerGroupConstraintSets(
-            path.constraintsSet, 
-            { pathConstraintSets: [pathConstraint] }
-          );
-          // If merge succeeds, calculate score for this path
-          const pathScore = path.tiles.reduce((sum: number, tile: any) => sum + tile.points, 0);
+          mergePathConstraintSets(path.constraints, pathConstraint);
+          const pathScore = path.path.reduce((sum, pos) => sum + board[pos.row][pos.col].points, 0);
           bestPathScore = Math.max(bestPathScore, pathScore);
-        } catch (e) {
-          // Path constraints are incompatible, skip this path
-          continue;
+        } catch (error) {
+          // Merge failed, skip this path
         }
       }
       
