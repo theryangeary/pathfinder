@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { Tile } from '../utils/scoring'
+import { Tile } from '../utils/models'
 
 export function testBoard(letters: string): Tile[][] {
   return [

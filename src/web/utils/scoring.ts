@@ -1,15 +1,6 @@
-export interface Position {
-  row: number;
-  col: number;
-}
-
-export interface Tile {
-  letter: string;
-  points: number;
-  isWildcard: boolean;
-  row: number;
-  col: number;
-}
+import { Position, Tile } from './models';
+import { findAllPaths } from './pathfinding';
+import { mergeAllAnswerGroupConstraintSets, intersectAnswerGroupConstraintSets } from './constraintResolution';
 
 export const letterFrequencies: Record<string, number> = {
   'a': 0.078,
@@ -72,27 +63,6 @@ export function scoreAnswerGroup(words: string[], board: Tile[][]): Record<strin
     return {};
   }
 
-  // Import required functions - using require for now to avoid circular import issues
-  // These will be resolved at runtime
-  let findAllPaths: any;
-  let mergeAllAnswerGroupConstraintSets: any;
-  let intersectAnswerGroupConstraintSets: any;
-  
-  try {
-    const pathfinding = require('./pathfinding');
-    const constraintResolution = require('./constraintResolution');
-    findAllPaths = pathfinding.findAllPaths;
-    mergeAllAnswerGroupConstraintSets = constraintResolution.mergeAllAnswerGroupConstraintSets;
-    intersectAnswerGroupConstraintSets = constraintResolution.intersectAnswerGroupConstraintSets;
-  } catch (e) {
-    // Fallback to basic scoring if imports fail
-    const result: Record<string, number> = {};
-    for (const word of words) {
-      result[word] = word.length; // Simple fallback
-    }
-    return result;
-  }
-  
   // Find all possible paths for each answer
   const answerObjects: any[] = [];
   for (const word of words) {

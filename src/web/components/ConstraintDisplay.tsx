@@ -1,4 +1,4 @@
-import { Position, Tile } from '../utils/scoring';
+import { Position, Tile } from '../utils/models';
 import { 
   getAnswerGroupConstraintSets, 
   mergeAllAnswerGroupConstraintSets, 

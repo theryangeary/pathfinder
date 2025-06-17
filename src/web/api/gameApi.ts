@@ -176,7 +176,7 @@ class GameApi {
 export const gameApi = new GameApi();
 
 // Utility functions to convert between API types and frontend types
-export function convertApiTileToTile(apiTile: ApiTile): import('../utils/scoring').Tile {
+export function convertApiTileToTile(apiTile: ApiTile): import('../utils/models').Tile {
   return {
     letter: apiTile.letter,
     points: apiTile.points,
@@ -186,13 +186,13 @@ export function convertApiTileToTile(apiTile: ApiTile): import('../utils/scoring
   };
 }
 
-export function convertApiBoardToBoard(apiBoard: ApiBoard): import('../utils/scoring').Tile[][] {
+export function convertApiBoardToBoard(apiBoard: ApiBoard): import('../utils/models').Tile[][] {
   return apiBoard.tiles.map(row =>
     row.map(tile => convertApiTileToTile(tile))
   );
 }
 
-export function convertApiPositionToPosition(apiPos: ApiPosition): import('../utils/scoring').Position {
+export function convertApiPositionToPosition(apiPos: ApiPosition): import('../utils/models').Position {
   return {
     row: apiPos.row,
     col: apiPos.col,

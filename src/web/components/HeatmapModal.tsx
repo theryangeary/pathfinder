@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ApiGameStats } from '../api/gameApi';
-import { Tile } from '../utils/scoring';
+import { Tile } from '../utils/models';
 
 interface HeatmapModalProps {
   isOpen: boolean;

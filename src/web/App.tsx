@@ -10,7 +10,8 @@ import { useUser } from './hooks/useUser';
 import { generateBoard } from './utils/boardGeneration';
 import { AnswerGroupConstraintSet, mergeAllAnswerGroupConstraintSets, UnsatisfiableConstraint } from './utils/constraintResolution';
 import { Answer, findAllPaths, findBestPath, findPathsForHighlighting } from './utils/pathfinding';
-import { scoreAnswerGroup, Position, Tile } from './utils/scoring';
+import { scoreAnswerGroup } from './utils/scoring';
+import { Position, Tile } from './utils/models';
 
 
 function App() {

@@ -1,4 +1,5 @@
-import { getLetterPoints, Tile as TileType } from '../utils/scoring';
+import { getLetterPoints } from '../utils/scoring';
+import { Tile as TileType } from '../utils/models';
 
 interface TileProps {
   tile: TileType;

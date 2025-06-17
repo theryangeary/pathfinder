@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { Position, Tile } from '../utils/scoring';
+import { Position, Tile } from '../utils/models';
 import AnswerInput, { AnswerInputHandle } from './AnswerInput';
 
 interface AnswerSectionProps {

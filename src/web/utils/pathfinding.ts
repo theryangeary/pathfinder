@@ -1,4 +1,4 @@
-import { Position, Tile } from './scoring';
+import { Position, Tile } from './models';
 
 interface PathScore {
   wildcardCount: number;

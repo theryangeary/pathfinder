@@ -1,4 +1,4 @@
-import { Position, Tile } from './scoring';
+import { Position, Tile } from './models';
 import { getWildcardConstraintsFromPath } from './pathfinding';
 
 // TypeScript equivalent of Rust PathConstraintSet

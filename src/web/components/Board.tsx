@@ -1,6 +1,6 @@
 import Tile from './Tile';
 import { getWildcardNotation } from '../utils/pathfinding';
-import { Position, Tile as TileType } from '../utils/scoring';
+import { Position, Tile as TileType } from '../utils/models';
 
 interface BoardProps {
   board: TileType[][];

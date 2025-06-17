@@ -1,4 +1,5 @@
-import { letterFrequencies, Tile } from './scoring';
+import { letterFrequencies } from './scoring';
+import { Tile } from './models';
 
 const letters = 'abcdefghijklmnopqrstuvwxyz';
 
