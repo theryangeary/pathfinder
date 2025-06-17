@@ -288,6 +288,6 @@ export function convertConstraintSetsToConstraints(constraintSets: AnswerGroupCo
   if (secondWildcard && uniqueSecondLetters.length > 0) {
     constraints[`${secondWildcard.row}-${secondWildcard.col}`] = uniqueSecondLetters.join(' / ');
   }
-  console.log(constraints); 
+
   return constraints;
 }
