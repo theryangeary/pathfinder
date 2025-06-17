@@ -178,8 +178,7 @@ export function scoreAnswerGroup(words: string[], board: Tile[][]): { scores: Re
           (pathConstraintsUsed[firstWildcardKey] === true && pathConstraintsUsed[secondWildcardKey] === true) : false;
         break;
     }
-    
-    console.log("constraint check", pathConstraint, totalScore, maxTotalScore, constraintSetUsesAllConstrainedWildcards, pathConstraintsUsed)
+  
     
     // If this constraint set gives us a better total score, use it
     if (totalScore > maxTotalScore) {

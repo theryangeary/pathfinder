@@ -331,7 +331,6 @@ function App() {
     }
 
     if (!passesBasicValidityChecks(sanitizedAnswers[focusedIndex])) {
-      console.log("heya");
       validAnswers[focusedIndex] = false;
       scores[focusedIndex] = 0;
     }
@@ -368,7 +367,7 @@ function App() {
     }
 
     if (!shouldHighlight) {
-              setHighlightedPaths([]);
+      setHighlightedPaths([]);
       return;
     }
 
