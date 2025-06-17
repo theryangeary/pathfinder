@@ -1,6 +1,6 @@
 import { Position, Tile } from './models';
 import { findAllPaths } from './pathfinding';
-import { mergeAllAnswerGroupConstraintSets, mergePathConstraintSets } from './constraintResolution';
+import { mergeAllAnswerGroupConstraintSets, mergePathConstraintSets, PathConstraintSet } from './constraintResolution';
 
 export const letterFrequencies: Record<string, number> = {
   'a': 0.078,
@@ -58,9 +58,9 @@ export function calculateWordScore(_word: string, path: Position[], board: Tile[
   return score;
 }
 
-export function scoreAnswerGroup(words: string[], board: Tile[][]): Record<string, number> {
+export function scoreAnswerGroup(words: string[], board: Tile[][]): { scores: Record<string, number>, optimalConstraintSets: PathConstraintSet[] } {
   if (words.length === 0) {
-    return {};
+    return { scores: {}, optimalConstraintSets: [] };
   }
 
   // Find all possible paths for each answer
@@ -86,6 +86,7 @@ export function scoreAnswerGroup(words: string[], board: Tile[][]): Record<strin
   // For each valid path constraint set, calculate the maximum possible score
   let maxTotalScore = 0;
   let bestScoresByWord: Record<string, number> = {};
+  let optimalConstraintSets: PathConstraintSet[] = [];
   
   for (const pathConstraint of validConstraintSet.pathConstraintSets) {
     let totalScore = 0;
@@ -116,8 +117,12 @@ export function scoreAnswerGroup(words: string[], board: Tile[][]): Record<strin
     if (totalScore > maxTotalScore) {
       maxTotalScore = totalScore;
       bestScoresByWord = scoresByWord;
+      optimalConstraintSets = [pathConstraint];
+    } else if (totalScore === maxTotalScore) {
+      // If this constraint set ties for the best score, add it to the list
+      optimalConstraintSets.push(pathConstraint);
     }
   }
 
-  return bestScoresByWord;
+  return { scores: bestScoresByWord, optimalConstraintSets };
 }

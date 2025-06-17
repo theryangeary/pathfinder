@@ -315,7 +315,7 @@ function App() {
     // Step 4: All valid words can coexist - populate results
     // Use scoreAnswerGroup to get optimal scores for all words
     const validWords = validWordsInfo.map(info => info.sanitizedWord);
-    const scoresByWord = scoreAnswerGroup(validWords, board);
+    const { scores: scoresByWord } = scoreAnswerGroup(validWords, board);
     
     for (const info of validWordsInfo) {
       const { index, originalWord, sanitizedWord } = info;
