@@ -134,8 +134,8 @@ function mergeConstraints(constraint1: PathConstraintSet, constraint2: PathConst
         return null; // Unsatisfiable
       }
     } else if (constraint2.type === PathConstraintType.BothDecided) {
-      if (constraint1.firstLetter === constraint2.firstLetter && 
-          constraint1.secondLetter === constraint2.secondLetter) {
+      if (constraint1.firstLetter === constraint2.firstLetter &&
+        constraint1.secondLetter === constraint2.secondLetter) {
         return constraint1;
       } else {
         return null; // Unsatisfiable
@@ -154,14 +154,14 @@ function findPathsForWordFromPosition(
   visited: Set<string>
 ): PathWithConstraints[] {
   const result: PathWithConstraints[] = [];
-  
+
   if (word.length === 0 || visited.has(`${startRow}-${startCol}`)) {
     return result;
   }
 
   const currentChar = word[0].toLowerCase();
   const tile = board[startRow][startCol];
-  
+
   // Check if current tile can represent the current character
   if (!tile.isWildcard && tile.letter.toLowerCase() !== currentChar) {
     return result;
@@ -170,27 +170,27 @@ function findPathsForWordFromPosition(
   if (word.length === 1) {
     // Base case: word is complete
     const path = [{ row: startRow, col: startCol }];
-    const constraints = tile.isWildcard 
+    const constraints = tile.isWildcard
       ? createConstraintFromWildcard({ row: startRow, col: startCol }, currentChar)
       : { type: PathConstraintType.Unconstrained };
-    
+
     result.push({ path, constraints });
     return result;
   }
 
   // Recursive case: continue building path
   visited.add(`${startRow}-${startCol}`);
-  
+
   const directions = [
     [-1, -1], [-1, 0], [-1, 1],
-    [0, -1],           [0, 1],
-    [1, -1],  [1, 0],  [1, 1]
+    [0, -1], [0, 1],
+    [1, -1], [1, 0], [1, 1]
   ];
 
   for (const [deltaRow, deltaCol] of directions) {
     const nextRow = startRow + deltaRow;
     const nextCol = startCol + deltaCol;
-    
+
     if (nextRow >= 0 && nextRow < 4 && nextCol >= 0 && nextCol < 4) {
       const nextPaths = findPathsForWordFromPosition(
         board,
@@ -201,12 +201,12 @@ function findPathsForWordFromPosition(
       );
 
       for (const nextPath of nextPaths) {
-        const currentConstraints = tile.isWildcard 
+        const currentConstraints = tile.isWildcard
           ? createConstraintFromWildcard({ row: startRow, col: startCol }, currentChar)
           : { type: PathConstraintType.Unconstrained };
-        
+
         const mergedConstraints = mergeConstraints(currentConstraints, nextPath.constraints);
-        
+
         if (mergedConstraints !== null) {
           result.push({
             path: [{ row: startRow, col: startCol }, ...nextPath.path],
@@ -223,7 +223,7 @@ function findPathsForWordFromPosition(
 
 export function findAllPaths(board: Tile[][], word: string): Answer {
   const allPaths: PathWithConstraints[] = [];
-  
+
   // Try starting from each position
   for (let row = 0; row < 4; row++) {
     for (let col = 0; col < 4; col++) {
@@ -252,42 +252,42 @@ export function findAllPaths(board: Tile[][], word: string): Answer {
 
 export function findAllPathsGivenWildcards(board: Tile[][], word: string, wildcardConstraints: Record<string, string> = {}): Position[][] {
   const paths: Position[][] = [];
-  
+
   function dfs(currentPath: Position[], remainingWord: string, usedPositions: Set<string>): void {
     if (remainingWord.length === 0) {
       paths.push([...currentPath]);
       return;
     }
-    
+
     const nextLetter = remainingWord[0].toLowerCase();
     const lastPos = currentPath[currentPath.length - 1];
-    
+
     for (let row = 0; row < 4; row++) {
       for (let col = 0; col < 4; col++) {
         const posKey = `${row}-${col}`;
         if (usedPositions.has(posKey)) continue;
-        
+
         const currentPos = { row, col };
         if (lastPos && !isAdjacent(lastPos, currentPos)) continue;
-        
+
         const tile = board[row][col];
         let canUse = false;
-        
+
         if (tile.isWildcard) {
           const constraintKey = `${row}-${col}`;
           const existingConstraint = wildcardConstraints[constraintKey];
-          
+
           if (!existingConstraint || existingConstraint === nextLetter) {
             canUse = true;
           }
         } else if (tile.letter.toLowerCase() === nextLetter) {
           canUse = true;
         }
-        
+
         if (canUse) {
           const newUsedPositions = new Set(usedPositions);
           newUsedPositions.add(posKey);
-          
+
           dfs(
             [...currentPath, currentPos],
             remainingWord.slice(1),
@@ -297,31 +297,31 @@ export function findAllPathsGivenWildcards(board: Tile[][], word: string, wildca
       }
     }
   }
-  
+
   for (let row = 0; row < 4; row++) {
     for (let col = 0; col < 4; col++) {
       const tile = board[row][col];
       const firstLetter = word[0].toLowerCase();
       let canStart = false;
-      
+
       if (tile.isWildcard) {
         const constraintKey = `${row}-${col}`;
         const existingConstraint = wildcardConstraints[constraintKey];
-        
+
         if (!existingConstraint || existingConstraint === firstLetter) {
           canStart = true;
         }
       } else if (tile.letter.toLowerCase() === firstLetter) {
         canStart = true;
       }
-      
+
       if (canStart) {
         const usedPositions = new Set([`${row}-${col}`]);
         dfs([{ row, col }], word.slice(1), usedPositions);
       }
     }
   }
-  
+
   return paths;
 }
 
@@ -329,21 +329,21 @@ function scorePathByPreference(board: Tile[][], path: Position[]): PathScore {
   let wildcardCount = 0;
   let diagonalCount = 0;
   let lastDiagonalIndex = -1;
-  
+
   for (let i = 0; i < path.length; i++) {
     const { row, col } = path[i];
     const tile = board[row][col];
-    
+
     if (tile.isWildcard) {
       wildcardCount++;
     }
-    
-    if (i > 0 && isDiagonalMove(path[i-1], path[i])) {
+
+    if (i > 0 && isDiagonalMove(path[i - 1], path[i])) {
       diagonalCount++;
       lastDiagonalIndex = i;
     }
   }
-  
+
   return {
     wildcardCount,
     diagonalCount,
@@ -353,13 +353,13 @@ function scorePathByPreference(board: Tile[][], path: Position[]): PathScore {
 
 export function findBestPath(board: Tile[][], word: string, wildcardConstraints: Record<string, string> = {}): Position[] | null {
   const allPaths = findAllPathsGivenWildcards(board, word, wildcardConstraints);
-  
+
   if (allPaths.length === 0) return null;
-  
+
   // Separate paths by wildcard usage
   const pathsWithoutWildcards: Position[][] = [];
   const pathsWithWildcards: Position[][] = [];
-  
+
   for (const path of allPaths) {
     const score = scorePathByPreference(board, path);
     if (score.wildcardCount === 0) {
@@ -368,37 +368,37 @@ export function findBestPath(board: Tile[][], word: string, wildcardConstraints:
       pathsWithWildcards.push(path);
     }
   }
-  
+
   // If there are ANY paths without wildcards, only consider those
   const pathsToConsider = pathsWithoutWildcards.length > 0 ? pathsWithoutWildcards : pathsWithWildcards;
-  
+
   pathsToConsider.sort((a, b) => {
     const scoreA = scorePathByPreference(board, a);
     const scoreB = scorePathByPreference(board, b);
-    
+
     if (scoreA.wildcardCount !== scoreB.wildcardCount) {
       return scoreA.wildcardCount - scoreB.wildcardCount;
     }
-    
+
     if (scoreA.diagonalCount !== scoreB.diagonalCount) {
       return scoreA.diagonalCount - scoreB.diagonalCount;
     }
-    
+
     return scoreB.lastDiagonalIndex - scoreA.lastDiagonalIndex;
   });
-  
+
   return pathsToConsider[0];
 }
 
 export function findPathsForHighlighting(board: Tile[][], word: string, constraints: Record<string, string>): Position[][] {
   const allPaths = findAllPaths(board, word);
-  
+
   if (allPaths.paths.length === 0) return [];
-  
+
   // Separate paths by wildcard usage
   const pathsWithoutWildcards: PathWithConstraints[] = [];
   const pathsWithWildcards: PathWithConstraints[] = [];
-  
+
   for (const path of allPaths.paths) {
     const score = scorePathByPreference(board, path.path);
     if (score.wildcardCount === 0) {
@@ -407,15 +407,25 @@ export function findPathsForHighlighting(board: Tile[][], word: string, constrai
       pathsWithWildcards.push(path);
     }
   }
-  
+
   // Rule 1: If ANY paths use 0 wildcards, highlight only non-wildcard paths
   if (pathsWithoutWildcards.length > 0) {
     return [pathsWithoutWildcards[0].path];
   }
-  
-  // Rule 2: Only wildcard paths exist, highlight all paths
-  let a = pathsWithWildcards.filter((v) => v.path.filter((pos) => `${pos.row}-${pos.col}` in constraints ? constraints[`${pos.row}-${pos.col}`].includes(board[pos.row][pos.col].letter) : true)).map((v) => v.path);
-  console.log(a);
+
+  // Rule 2: Only wildcard paths exist, highlight all paths that are still valid when any of the displayed wildcard constraints are valid
+  let pathsUsingCorrectWildcards = [];
+  outer: for (const path of pathsWithWildcards) {
+    for (const pos of path.path) {
+      if (`${pos.row}-${pos.col}` in constraints) {
+        if (!constraints[`${pos.row}-${pos.col}`].includes(word[path.path.indexOf(pos)].toUpperCase())) {
+          continue outer
+        }
+      }
+    }
+    pathsUsingCorrectWildcards.push(path);
+  }
+  let a = pathsUsingCorrectWildcards.map((v) => v.path);
   return a
 }
 
@@ -428,12 +438,12 @@ interface PathAnalysis {
 
 function getMinimalConstraintPaths(board: Tile[][], word: string, wildcardPaths: Position[][]): Position[][] {
   if (wildcardPaths.length === 0) return [];
-  
+
   // Analyze each path to understand wildcard usage patterns
   const pathAnalysis: PathAnalysis[] = wildcardPaths.map(path => {
     const wildcardAssignments = getWildcardConstraintsFromPath(board, word, path);
     const wildcardPositions = Object.keys(wildcardAssignments);
-    
+
     return {
       path,
       wildcardAssignments,
@@ -441,7 +451,7 @@ function getMinimalConstraintPaths(board: Tile[][], word: string, wildcardPaths:
       wildcardCount: wildcardPositions.length
     };
   });
-  
+
   // Group paths by wildcard count - prefer fewer wildcards
   const pathsByWildcardCount: Record<number, PathAnalysis[]> = {};
   pathAnalysis.forEach(analysis => {
@@ -451,45 +461,45 @@ function getMinimalConstraintPaths(board: Tile[][], word: string, wildcardPaths:
     }
     pathsByWildcardCount[count].push(analysis);
   });
-  
+
   // Find the minimum wildcard count that has valid paths
   const minWildcardCount = Math.min(...Object.keys(pathsByWildcardCount).map(Number));
   const minimalPaths = pathsByWildcardCount[minWildcardCount];
-  
+
   // Apply Rule 2a: Check if wildcards are necessary
   const necessaryPaths: PathAnalysis[] = [];
-  
+
   for (const pathAnalysis of minimalPaths) {
     const { path, wildcardAssignments } = pathAnalysis;
     let pathIsNecessary = true;
-    
+
     // For each wildcard used in this path, check if there's an alternative non-wildcard tile
     for (const [wildcardKey, letter] of Object.entries(wildcardAssignments)) {
       const [row, col] = wildcardKey.split('-').map(Number);
       const wildcardIndex = path.findIndex(pos => pos.row === row && pos.col === col);
-      
+
       if (wildcardIndex === -1) continue;
-      
+
       const prevPos = wildcardIndex > 0 ? path[wildcardIndex - 1] : null;
       const nextPos = wildcardIndex < path.length - 1 ? path[wildcardIndex + 1] : null;
-      
+
       // Check if there's a non-wildcard tile with the same letter that's adjacent to both prev and next
       const hasAlternative = checkForNonWildcardAlternative(board, letter, prevPos, nextPos, path, wildcardIndex);
-      
+
       if (hasAlternative) {
         pathIsNecessary = false;
         break;
       }
     }
-    
+
     if (pathIsNecessary) {
       necessaryPaths.push(pathAnalysis);
     }
   }
-  
+
   // If no paths are necessary, use all minimal paths (Rule 2b applies)
   const finalPaths = necessaryPaths.length > 0 ? necessaryPaths : minimalPaths;
-  
+
   return finalPaths.map(analysis => analysis.path);
 }
 
@@ -504,38 +514,38 @@ function checkForNonWildcardAlternative(board: Tile[][], letter: string, prevPos
       }
     }
   }
-  
+
   // Check if any alternative can connect to both prev and next positions
   for (const alt of alternatives) {
     // Skip if this position is already used in the path
     if (currentPath.some(pos => pos.row === alt.row && pos.col === alt.col)) {
       continue;
     }
-    
+
     let canReachPrev = !prevPos || isAdjacent(prevPos, alt);
     let canReachNext = !nextPos || isAdjacent(alt, nextPos);
-    
+
     if (canReachPrev && canReachNext) {
       return true;
     }
   }
-  
+
   return false;
 }
 
 export function getWildcardConstraintsFromPath(board: Tile[][], word: string, path: Position[]): Record<string, string> {
   const constraints: Record<string, string> = {};
-  
+
   for (let i = 0; i < path.length; i++) {
     const { row, col } = path[i];
     const tile = board[row][col];
-    
+
     if (tile.isWildcard) {
       const constraintKey = `${row}-${col}`;
       constraints[constraintKey] = word[i].toLowerCase();
     }
   }
-  
+
   return constraints;
 }
 
@@ -543,42 +553,42 @@ export function getWildcardNotation(board: Tile[][], wildcardConstraints: Record
   return wildcardConstraints;
 }
 
-function analyzeForcedConstraints(board: Tile[][], answers: string[], validAnswers: boolean[], _wildcardPositions: Array<{row: number, col: number, key: string}>): Record<string, string> {
+function analyzeForcedConstraints(board: Tile[][], answers: string[], validAnswers: boolean[], _wildcardPositions: Array<{ row: number, col: number, key: string }>): Record<string, string> {
   const forcedConstraints: Record<string, string> = {};
-  
+
   if (!answers || !validAnswers) return forcedConstraints;
-  
+
   // Build up constraints iteratively, respecting the order answers were entered
   let currentConstraints: Record<string, string> = {};
-  
+
   for (let i = 0; i < answers.length; i++) {
     if (!validAnswers[i] || !answers[i]) continue;
-    
+
     const word = answers[i];
-    
+
     // Find all paths that are compatible with current constraints
     const compatiblePaths = findAllPathsGivenWildcards(board, word, currentConstraints);
-    
+
     if (compatiblePaths.length === 0) continue;
-    
+
     // Get the best path (this is what was actually used for this answer)
     const bestPath = findBestPath(board, word, currentConstraints);
     if (!bestPath) continue;
-    
+
     // Extract constraints from the best path
     const pathConstraints = getWildcardConstraintsFromPath(board, word, bestPath);
-    
+
     // Merge into current constraints
     currentConstraints = { ...currentConstraints, ...pathConstraints };
   }
-  
+
   // The current constraints represent what each wildcard is forced to be
   return currentConstraints;
 }
 
 export function getWildcardAmbiguity(board: Tile[][], _wildcardConstraints: Record<string, string>, answers: string[], validAnswers: boolean[]): Record<string, string[] | null> {
   // Find wildcard positions
-  const wildcardPositions: Array<{row: number, col: number, key: string}> = [];
+  const wildcardPositions: Array<{ row: number, col: number, key: string }> = [];
   for (let row = 0; row < 4; row++) {
     for (let col = 0; col < 4; col++) {
       if (board[row][col]?.isWildcard) {
@@ -586,27 +596,27 @@ export function getWildcardAmbiguity(board: Tile[][], _wildcardConstraints: Reco
       }
     }
   }
-  
+
   const ambiguity: Record<string, string[] | null> = {};
-  
+
   // For each wildcard, find what letters it could represent based on current valid answers
   for (const wildcard of wildcardPositions) {
     const possibleLetters = new Set<string>();
-    
+
     // For each valid answer, check if multiple valid paths exist that use this wildcard differently
     for (let i = 0; i < answers.length; i++) {
       if (!validAnswers[i] || !answers[i]) continue;
-      
+
       const word = answers[i];
-      
+
       // Find all possible paths for this word (ignoring current constraints to see alternatives)
       const allPaths = findAllPathsGivenWildcards(board, word, {});
-      
+
       // Filter to only paths that use this specific wildcard
-      const pathsUsingWildcard = allPaths.filter(path => 
+      const pathsUsingWildcard = allPaths.filter(path =>
         path.some(pos => pos.row === wildcard.row && pos.col === wildcard.col)
       );
-      
+
       // For each path using this wildcard, see what letter it represents
       for (const path of pathsUsingWildcard) {
         for (let j = 0; j < path.length; j++) {
@@ -618,7 +628,7 @@ export function getWildcardAmbiguity(board: Tile[][], _wildcardConstraints: Reco
         }
       }
     }
-    
+
     // Only show ambiguity if there are multiple possible letters
     if (possibleLetters.size > 1) {
       ambiguity[wildcard.key] = Array.from(possibleLetters).sort();
@@ -626,6 +636,6 @@ export function getWildcardAmbiguity(board: Tile[][], _wildcardConstraints: Reco
       ambiguity[wildcard.key] = null;
     }
   }
-  
+
   return ambiguity;
 }
