@@ -166,15 +166,10 @@ impl GameEngine {
             answer_objects.push(answer);
         }
 
-        // Find all constraint sets that can satisfy all answers together
-        let constraint_sets: Vec<_> = answer_objects
-            .iter()
-            .map(|answer| answer.constraints_set.clone())
-            .collect();
-
-        let valid_constraint_set = match board::constraints::AnswerGroupConstraintSet::merge_all(constraint_sets) {
-            Ok(constraint_set) => constraint_set,
-            Err(_) => return Err("Answers cannot coexist due to conflicting wildcard constraints".to_string()),
+        let valid_constraint_set = if let Ok(v) = AnswerGroupConstraintSet::try_from(&answer_objects) {
+            v
+        } else {
+            return Err("Answers cannot coexist due to conflicting wildcard constraints".to_string())
         };
 
         // For each valid path constraint set, calculate the maximum possible score
@@ -396,8 +391,7 @@ mod tests {
     use super::*;
     use rand::SeedableRng;
     fn create_test_wordlist() -> Vec<&'static str> {
-        vec![
-            "cat", "dog", "test", "word", "game", "path", "tile", "board",
+        vec![            "cat", "dog", "test", "word", "game", "path", "tile", "board", "day", "days", "year", "data"
         ]
     }
 
@@ -544,6 +538,10 @@ mod tests {
         assert_eq!(engine.score_word(""), 0);
     }
 
+    #[test] // NEW
+    fn test_score_answer_group_constraint_set_size() {
+        
+    }
 
     #[test]
     fn test_score_answer_group_comprehensive() {

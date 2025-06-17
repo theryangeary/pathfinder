@@ -109,6 +109,23 @@ impl From<Vec<PathConstraintSet>> for AnswerGroupConstraintSet {
     }
 }
 
+impl TryFrom<&Vec<Answer>> for AnswerGroupConstraintSet {
+    fn try_from(answer_objects: &Vec<Answer>) -> Result<Self, UnsatisfiableConstraint> {
+        // Find all constraint sets that can satisfy all answers together
+        let constraint_sets: Vec<_> = answer_objects
+            .iter()
+            .map(|answer| {dbg!( &answer.word,&answer.constraints_set);answer.constraints_set.clone()})
+            .collect();
+
+        match AnswerGroupConstraintSet::merge_all(constraint_sets) {
+            Ok(constraint_set) => {dbg!(&constraint_set);return Ok(constraint_set);},
+            Err(_) => return Err(UnsatisfiableConstraint),
+        }
+    }
+
+    type Error = UnsatisfiableConstraint;
+}
+
 impl AnswerGroupConstraintSet {
     /// intersection iterates through the path_constraint_sets from self and other, nested, and finds any PathConstraintSets which can validly merge
     pub fn intersection(
@@ -142,8 +159,17 @@ impl AnswerGroupConstraintSet {
                 None => Some(set),
                 Some(existing_constraints_set) => Some(existing_constraints_set.intersection(set)?),
             };
-        };
-        cummulative_answer_group_constraints.ok_or(UnsatisfiableConstraint)
+        }
+
+        match cummulative_answer_group_constraints {
+            Some(mut result) => {
+                // Remove duplicates by converting to HashSet and back to Vec
+                let unique_constraints: HashSet<PathConstraintSet> = result.path_constraint_sets.into_iter().collect();
+                result.path_constraint_sets = unique_constraints.into_iter().collect();
+                Ok(result)
+            }
+            None => Err(UnsatisfiableConstraint)
+        }
     }
 
     pub fn is_valid_set(answers: Vec<Answer>) -> bool {
@@ -255,6 +281,7 @@ impl ConstraintsSet {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_utils::test_utils::*;
 
     const X: &str = "1_1";
     const Y: &str = "2_2";
@@ -1472,7 +1499,7 @@ mod tests {
                     answer_group_from(vec![
                         PathConstraintSet::SecondDecided('b'),
                         PathConstraintSet::Unconstrainted,
-                    ])
+                    ]),
                 ],
                 expected_error: false,
                 expected_result: Some(answer_group_from(vec![
@@ -1501,7 +1528,7 @@ mod tests {
                     answer_group_from(vec![
                         PathConstraintSet::FirstDecided('b'),
                         PathConstraintSet::FirstDecided('a'),
-                    ])
+                    ]),
                 ],
                 expected_error: false,
                 expected_result: Some(answer_group_from(vec![
@@ -1519,9 +1546,9 @@ mod tests {
                     answer_group_from(vec![PathConstraintSet::SecondDecided('y')]),
                 ],
                 expected_error: false,
-                expected_result: Some(answer_group_from(vec![
-                    PathConstraintSet::BothDecided('x', 'y'),
-                ])),
+                expected_result: Some(answer_group_from(vec![PathConstraintSet::BothDecided(
+                    'x', 'y',
+                )])),
             },
             MergeAllTestCase {
                 name: "Three sets - first two compatible, third incompatible",
@@ -1547,7 +1574,7 @@ mod tests {
                     answer_group_from(vec![
                         PathConstraintSet::FirstDecided('a'),
                         PathConstraintSet::BothDecided('a', 'b'),
-                    ])
+                    ]),
                 ],
                 expected_error: false,
                 expected_result: Some(answer_group_from(vec![
@@ -1571,9 +1598,9 @@ mod tests {
                     answer_group_from(vec![PathConstraintSet::BothDecided('z', 'w')]),
                 ],
                 expected_error: false,
-                expected_result: Some(answer_group_from(vec![
-                    PathConstraintSet::BothDecided('z', 'w'),
-                ])),
+                expected_result: Some(answer_group_from(vec![PathConstraintSet::BothDecided(
+                    'z', 'w',
+                )])),
             },
             MergeAllTestCase {
                 name: "Sets with duplicate constraints",
@@ -1600,9 +1627,9 @@ mod tests {
                     answer_group_from(vec![PathConstraintSet::SecondDecided('n')]),
                 ],
                 expected_error: false,
-                expected_result: Some(answer_group_from(vec![
-                    PathConstraintSet::BothDecided('m', 'n'),
-                ])),
+                expected_result: Some(answer_group_from(vec![PathConstraintSet::BothDecided(
+                    'm', 'n',
+                )])),
             },
         ]
     }
@@ -1630,14 +1657,17 @@ mod tests {
 
                 if let Some(expected_result) = test_case.expected_result {
                     let actual_result = result.unwrap();
-                    
+
                     // Compare as sets since order doesn't matter
                     use std::collections::HashSet;
-                    let actual_set: HashSet<PathConstraintSet> = 
+                    let actual_set: HashSet<PathConstraintSet> =
                         actual_result.path_constraint_sets.iter().cloned().collect();
-                    let expected_set: HashSet<PathConstraintSet> = 
-                        expected_result.path_constraint_sets.iter().cloned().collect();
-                    
+                    let expected_set: HashSet<PathConstraintSet> = expected_result
+                        .path_constraint_sets
+                        .iter()
+                        .cloned()
+                        .collect();
+
                     assert_eq!(
                         actual_set, expected_set,
                         "Failed test case: {} - expected {:?} but got {:?}",
@@ -1681,24 +1711,33 @@ mod tests {
             },
             IsValidSetTestCase {
                 name: "Single answer with valid constraints",
-                answers: vec![create_test_answer("word", vec![
-                    PathConstraintSet::Unconstrainted,
-                    PathConstraintSet::FirstDecided('a'),
-                ])],
+                answers: vec![create_test_answer(
+                    "word",
+                    vec![
+                        PathConstraintSet::Unconstrainted,
+                        PathConstraintSet::FirstDecided('a'),
+                    ],
+                )],
                 expected_valid: true,
             },
             // === Two answer cases ===
             IsValidSetTestCase {
                 name: "Two compatible answers",
                 answers: vec![
-                    create_test_answer("word1", vec![
-                        PathConstraintSet::FirstDecided('a'),
-                        PathConstraintSet::Unconstrainted,
-                    ]),
-                    create_test_answer("word2", vec![
-                        PathConstraintSet::SecondDecided('b'),
-                        PathConstraintSet::FirstDecided('a'),
-                    ]),
+                    create_test_answer(
+                        "word1",
+                        vec![
+                            PathConstraintSet::FirstDecided('a'),
+                            PathConstraintSet::Unconstrainted,
+                        ],
+                    ),
+                    create_test_answer(
+                        "word2",
+                        vec![
+                            PathConstraintSet::SecondDecided('b'),
+                            PathConstraintSet::FirstDecided('a'),
+                        ],
+                    ),
                 ],
                 expected_valid: true,
             },
@@ -1713,14 +1752,20 @@ mod tests {
             IsValidSetTestCase {
                 name: "Two answers with partial compatibility",
                 answers: vec![
-                    create_test_answer("word1", vec![
-                        PathConstraintSet::FirstDecided('x'),
-                        PathConstraintSet::SecondDecided('y'),
-                    ]),
-                    create_test_answer("word2", vec![
-                        PathConstraintSet::FirstDecided('z'),
-                        PathConstraintSet::BothDecided('x', 'y'),
-                    ]),
+                    create_test_answer(
+                        "word1",
+                        vec![
+                            PathConstraintSet::FirstDecided('x'),
+                            PathConstraintSet::SecondDecided('y'),
+                        ],
+                    ),
+                    create_test_answer(
+                        "word2",
+                        vec![
+                            PathConstraintSet::FirstDecided('z'),
+                            PathConstraintSet::BothDecided('x', 'y'),
+                        ],
+                    ),
                 ],
                 expected_valid: true, // SecondDecided('y') can work with BothDecided('x', 'y')
             },
@@ -1746,19 +1791,28 @@ mod tests {
             IsValidSetTestCase {
                 name: "Complex multi-answer scenario - valid",
                 answers: vec![
-                    create_test_answer("word1", vec![
-                        PathConstraintSet::Unconstrainted,
-                        PathConstraintSet::FirstDecided('m'),
-                    ]),
-                    create_test_answer("word2", vec![
-                        PathConstraintSet::SecondDecided('n'),
-                        PathConstraintSet::FirstDecided('m'),
-                    ]),
-                    create_test_answer("word3", vec![
-                        PathConstraintSet::BothDecided('m', 'n'),
-                        PathConstraintSet::FirstDecided('m'),
-                        PathConstraintSet::SecondDecided('n'),
-                    ]),
+                    create_test_answer(
+                        "word1",
+                        vec![
+                            PathConstraintSet::Unconstrainted,
+                            PathConstraintSet::FirstDecided('m'),
+                        ],
+                    ),
+                    create_test_answer(
+                        "word2",
+                        vec![
+                            PathConstraintSet::SecondDecided('n'),
+                            PathConstraintSet::FirstDecided('m'),
+                        ],
+                    ),
+                    create_test_answer(
+                        "word3",
+                        vec![
+                            PathConstraintSet::BothDecided('m', 'n'),
+                            PathConstraintSet::FirstDecided('m'),
+                            PathConstraintSet::SecondDecided('n'),
+                        ],
+                    ),
                 ],
                 expected_valid: true,
             },
@@ -1777,14 +1831,20 @@ mod tests {
                 name: "Many answers with gradual constraint building",
                 answers: vec![
                     create_test_answer("step1", vec![PathConstraintSet::Unconstrainted]),
-                    create_test_answer("step2", vec![
-                        PathConstraintSet::FirstDecided('x'),
-                        PathConstraintSet::Unconstrainted,
-                    ]),
-                    create_test_answer("step3", vec![
-                        PathConstraintSet::SecondDecided('y'),
-                        PathConstraintSet::FirstDecided('x'),
-                    ]),
+                    create_test_answer(
+                        "step2",
+                        vec![
+                            PathConstraintSet::FirstDecided('x'),
+                            PathConstraintSet::Unconstrainted,
+                        ],
+                    ),
+                    create_test_answer(
+                        "step3",
+                        vec![
+                            PathConstraintSet::SecondDecided('y'),
+                            PathConstraintSet::FirstDecided('x'),
+                        ],
+                    ),
                     create_test_answer("step4", vec![PathConstraintSet::BothDecided('x', 'y')]),
                 ],
                 expected_valid: true,
@@ -1792,10 +1852,13 @@ mod tests {
             IsValidSetTestCase {
                 name: "Answers with duplicate constraints",
                 answers: vec![
-                    create_test_answer("dup1", vec![
-                        PathConstraintSet::FirstDecided('z'),
-                        PathConstraintSet::FirstDecided('z'),
-                    ]),
+                    create_test_answer(
+                        "dup1",
+                        vec![
+                            PathConstraintSet::FirstDecided('z'),
+                            PathConstraintSet::FirstDecided('z'),
+                        ],
+                    ),
                     create_test_answer("dup2", vec![PathConstraintSet::FirstDecided('z')]),
                 ],
                 expected_valid: true,
@@ -1830,14 +1893,20 @@ mod tests {
                 name: "Realistic word puzzle scenario - valid",
                 answers: vec![
                     create_test_answer("CAT", vec![PathConstraintSet::Unconstrainted]),
-                    create_test_answer("DOG", vec![
-                        PathConstraintSet::FirstDecided('O'),
-                        PathConstraintSet::Unconstrainted,
-                    ]),
-                    create_test_answer("TOP", vec![
-                        PathConstraintSet::SecondDecided('P'),
-                        PathConstraintSet::FirstDecided('O'),
-                    ]),
+                    create_test_answer(
+                        "DOG",
+                        vec![
+                            PathConstraintSet::FirstDecided('O'),
+                            PathConstraintSet::Unconstrainted,
+                        ],
+                    ),
+                    create_test_answer(
+                        "TOP",
+                        vec![
+                            PathConstraintSet::SecondDecided('P'),
+                            PathConstraintSet::FirstDecided('O'),
+                        ],
+                    ),
                     create_test_answer("POT", vec![PathConstraintSet::BothDecided('O', 'P')]),
                 ],
                 expected_valid: true,
@@ -1866,5 +1935,20 @@ mod tests {
                 test_case.name, test_case.expected_valid, result
             );
         }
+    }
+
+    #[test]
+    fn test_try_from_vec_answer() {
+        let board = create_test_board("eadux*ysta*tnhrv");
+        let answer_inputs = vec!["day", "days", "year", "data"];
+        let answers = answer_inputs.iter().map(|a| board.paths_for(a)).collect();
+        let answer_group_constraint_set = AnswerGroupConstraintSet::try_from(&answers).unwrap();
+        
+        assert_eq!(answer_group_constraint_set.path_constraint_sets.len(), 2);
+        
+        // Check that both expected constraints are present (order doesn't matter due to deduplication)
+        let constraint_set: HashSet<PathConstraintSet> = answer_group_constraint_set.path_constraint_sets.into_iter().collect();
+        assert!(constraint_set.contains(&PathConstraintSet::BothDecided('t', 'e')));
+        assert!(constraint_set.contains(&PathConstraintSet::BothDecided('a', 'e')));
     }
 }
