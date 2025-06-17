@@ -414,7 +414,9 @@ export function findPathsForHighlighting(board: Tile[][], word: string, constrai
   }
   
   // Rule 2: Only wildcard paths exist, highlight all paths
-  return pathsWithWildcards.filter((v) => v.path.filter((pos) => `${pos.row}-${pos.col}` in constraints ? constraints[`${pos.row}-${pos.col}`].includes(board[pos.row][pos.col].letter) : true)).map((v) => v.path);
+  let a = pathsWithWildcards.filter((v) => v.path.filter((pos) => `${pos.row}-${pos.col}` in constraints ? constraints[`${pos.row}-${pos.col}`].includes(board[pos.row][pos.col].letter) : true)).map((v) => v.path);
+  console.log(a);
+  return a
 }
 
 interface PathAnalysis {

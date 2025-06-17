@@ -8,7 +8,7 @@ import HeatmapModal from './components/HeatmapModal';
 import PathfinderLogo from './components/Logo';
 import { useUser } from './hooks/useUser';
 import { generateBoard } from './utils/boardGeneration';
-import { mergeAllAnswerGroupConstraintSets, UnsatisfiableConstraint } from './utils/constraintResolution';
+import { mergeAllAnswerGroupConstraintSets, UnsatisfiableConstraint, convertConstraintSetsToConstraints } from './utils/constraintResolution';
 import { AnswerGroupConstraintSet, PathConstraintType, Position, Tile } from './utils/models';
 import { Answer, findAllPaths, findBestPath, findPathsForHighlighting } from './utils/pathfinding';
 import { scoreAnswerGroup } from './utils/scoring';
@@ -148,7 +148,7 @@ function App() {
         setValidAnswers(validation.validAnswers);
         setScores(validation.scores);
         setValidPaths(validation.paths);
-        setWildcardConstraints(convertConstraintSetsToConstraints(validation.constraintSets));
+        setWildcardConstraints(convertConstraintSetsToConstraints(validation.constraintSets, board));
       } else {
         setIsGameCompleted(false);
         setGameStats(null);
@@ -324,53 +324,6 @@ function App() {
     };
   };
 
-  // Helper function to convert AnswerGroupConstraintSet to Record<string, string> format
-  // The constraintSets parameter already contains only the optimal constraint sets that provide maximum score
-  const convertConstraintSetsToConstraints = (constraintSets: AnswerGroupConstraintSet): Record<string, string> => {
-    const constraints: Record<string, string> = {};
-    
-    if (constraintSets.pathConstraintSets.length === 0) {
-      return constraints;
-    }
-
-    // Check if any of the PathConstraintsSets is "Unconstrained" and if so, return empty constraints
-    // this is because if there is a way to form the highest possible score set without using wildcards, that is the optimal use of the wildcards.
-    if (constraintSets.pathConstraintSets.some(pathSet => pathSet.type === PathConstraintType.Unconstrained)) {
-      return {};
-    }
-    
-    // Find wildcard positions on the board
-    const wildcardPositions: Array<{row: number, col: number, isFirst: boolean}> = [];
-    for (let row = 0; row < 4; row++) {
-      for (let col = 0; col < 4; col++) {
-        if (board[row][col]?.isWildcard) {
-          wildcardPositions.push({ 
-            row, 
-            col, 
-            isFirst: row < 2 && col < 2 // Backend logic for determining first wildcard
-          });
-        }
-      }
-    }
-        
-    // Extract all possible letter assignments for each wildcard from the optimal constraint sets
-    // These constraint sets already represent only the maximum-scoring options
-    const uniqueFirstLetters = [...new Set(constraintSets.pathConstraintSets.filter(constraint => constraint.type == PathConstraintType.FirstDecided || constraint.type == PathConstraintType.BothDecided).map(constraint => constraint.firstLetter?.toUpperCase()).filter(Boolean))];
-    const uniqueSecondLetters = [...new Set(constraintSets.pathConstraintSets.filter(constraint => constraint.type == PathConstraintType.SecondDecided || constraint.type == PathConstraintType.BothDecided).map(constraint => constraint.secondLetter?.toUpperCase()).filter(Boolean))];
-    
-    // Convert unique letter sets to position-based constraints using slash notation for multiple options
-    const firstWildcard = wildcardPositions.find(w => w.isFirst);
-    const secondWildcard = wildcardPositions.find(w => !w.isFirst);
-    
-    if (firstWildcard && uniqueFirstLetters.length > 0) {
-      constraints[`${firstWildcard.row}-${firstWildcard.col}`] = uniqueFirstLetters.join(' / ');
-    }
-    if (secondWildcard && uniqueSecondLetters.length > 0) {
-      constraints[`${secondWildcard.row}-${secondWildcard.col}`] = uniqueSecondLetters.join(' / ');
-    }
-    
-    return constraints;
-  };
 
   const handleAnswerInputChange = (index: number, value?: string): void => {
     // If value is provided, update the answer (onChange behavior)
@@ -381,7 +334,7 @@ function App() {
 
       // Use new validation that skips invalid words
       const validation = validateAllAnswers(newAnswers);
-      const constraints = convertConstraintSetsToConstraints(validation.constraintSets);
+      const constraints = convertConstraintSetsToConstraints(validation.constraintSets, board);
       
       setValidAnswers(validation.validAnswers);
       setScores(validation.scores);
@@ -399,7 +352,7 @@ function App() {
       // Set highlighted paths for the current input
       if (currentValue && currentValue.length > 0) {
         const currentConstraints = value !== undefined 
-          ? convertConstraintSetsToConstraints(validateAllAnswers([...answers.slice(0, index), value, ...answers.slice(index + 1)]).constraintSets)
+          ? convertConstraintSetsToConstraints(validateAllAnswers([...answers.slice(0, index), value, ...answers.slice(index + 1)]).constraintSets, board)
           : wildcardConstraints;
         const paths = findPathsForHighlighting(board, currentValue, currentConstraints);
         setHighlightedPaths(paths);

@@ -2,12 +2,14 @@ import { describe, expect, it } from 'vitest'
 import {
   mergeAllAnswerGroupConstraintSets,
   mergePathConstraintSets,
-  UnsatisfiableConstraint
+  UnsatisfiableConstraint,
+  convertConstraintSetsToConstraints
 } from '../utils/constraintResolution'
 import {
   AnswerGroupConstraintSet,
   PathConstraintSet,
-  PathConstraintType
+  PathConstraintType,
+  Tile
 } from '../utils/models'
 
 // Helper function to create AnswerGroupConstraintSet from PathConstraintSets
@@ -564,5 +566,232 @@ describe('mergePathConstraintSets', () => {
         mergePathConstraintSets(pcs2, pcs1)
       }).toThrow(UnsatisfiableConstraint)
     }
+  })
+})
+
+// Helper function to create test board with the specified layout: 'eadux*ysta*tnhrv'
+function createTestBoard(): Tile[][] {
+  const layout = 'eadux*ysta*tnhrv'
+  const board: Tile[][] = []
+  
+  for (let row = 0; row < 4; row++) {
+    board[row] = []
+    for (let col = 0; col < 4; col++) {
+      const index = row * 4 + col
+      const char = layout[index]
+      const isWildcard = char === '*'
+      
+      board[row][col] = {
+        letter: isWildcard ? '' : char.toUpperCase(),
+        score: 1, // Simplified for testing
+        isWildcard
+      }
+    }
+  }
+  
+  return board
+}
+
+describe('convertConstraintSetsToConstraints', () => {
+  const testBoard = createTestBoard()
+  
+  it('should return empty constraints for empty constraint sets', () => {
+    const constraintSets: AnswerGroupConstraintSet = { pathConstraintSets: [] }
+    const result = convertConstraintSetsToConstraints(constraintSets, testBoard)
+    
+    expect(result).toEqual({})
+  })
+  
+  it('should return empty constraints when unconstrained path exists', () => {
+    const constraintSets: AnswerGroupConstraintSet = {
+      pathConstraintSets: [
+        unconstrained(),
+        firstDecided('A'),
+        secondDecided('B')
+      ]
+    }
+    const result = convertConstraintSetsToConstraints(constraintSets, testBoard)
+    
+    expect(result).toEqual({})
+  })
+  
+  it('should handle single first wildcard constraint', () => {
+    const constraintSets: AnswerGroupConstraintSet = {
+      pathConstraintSets: [firstDecided('E')]
+    }
+    const result = convertConstraintSetsToConstraints(constraintSets, testBoard)
+    
+    // First wildcard is at position (1,1) based on board layout 'eadux*ysta*tnhrv'
+    expect(result).toEqual({
+      '1-1': 'E'
+    })
+  })
+  
+  it('should handle single second wildcard constraint', () => {
+    const constraintSets: AnswerGroupConstraintSet = {
+      pathConstraintSets: [secondDecided('L')]
+    }
+    const result = convertConstraintSetsToConstraints(constraintSets, testBoard)
+    
+    // Second wildcard is at position (2,2) based on board layout 'eadux*ysta*tnhrv'
+    expect(result).toEqual({
+      '2-2': 'L'
+    })
+  })
+  
+  it('should handle both wildcards constrained', () => {
+    const constraintSets: AnswerGroupConstraintSet = {
+      pathConstraintSets: [bothDecided('R', 'S')]
+    }
+    const result = convertConstraintSetsToConstraints(constraintSets, testBoard)
+    
+    expect(result).toEqual({
+      '1-1': 'R',
+      '2-2': 'S'
+    })
+  })
+  
+  it('should handle multiple constraint options with slash notation', () => {
+    const constraintSets: AnswerGroupConstraintSet = {
+      pathConstraintSets: [
+        firstDecided('A'),
+        firstDecided('B'),
+        bothDecided('A', 'X'),
+        bothDecided('B', 'Y')
+      ]
+    }
+    const result = convertConstraintSetsToConstraints(constraintSets, testBoard)
+    
+    expect(result).toEqual({
+      '1-1': 'A / B',
+      '2-2': 'X / Y'
+    })
+  })
+  
+  it('should handle complex constraint combinations', () => {
+    const constraintSets: AnswerGroupConstraintSet = {
+      pathConstraintSets: [
+        firstDecided('M'),
+        secondDecided('N'),
+        bothDecided('M', 'O'),
+        bothDecided('P', 'N')
+      ]
+    }
+    const result = convertConstraintSetsToConstraints(constraintSets, testBoard)
+    
+    expect(result).toEqual({
+      '1-1': 'M / P',
+      '2-2': 'N / O'
+    })
+  })
+  
+  it('should handle same letter constraints without duplication', () => {
+    const constraintSets: AnswerGroupConstraintSet = {
+      pathConstraintSets: [
+        firstDecided('T'),
+        firstDecided('T'),
+        bothDecided('T', 'U'),
+        bothDecided('T', 'V')
+      ]
+    }
+    const result = convertConstraintSetsToConstraints(constraintSets, testBoard)
+    
+    expect(result).toEqual({
+      '1-1': 'T',
+      '2-2': 'U / V'
+    })
+  })
+  
+  it('should handle edge case with same letter in both wildcards', () => {
+    const constraintSets: AnswerGroupConstraintSet = {
+      pathConstraintSets: [
+        bothDecided('Z', 'Z'),
+        firstDecided('Z'),
+        secondDecided('Z')
+      ]
+    }
+    const result = convertConstraintSetsToConstraints(constraintSets, testBoard)
+    
+    expect(result).toEqual({
+      '1-1': 'Z',
+      '2-2': 'Z'
+    })
+  })
+  
+  it('should handle only second wildcard constraints', () => {
+    const constraintSets: AnswerGroupConstraintSet = {
+      pathConstraintSets: [
+        secondDecided('Q'),
+        secondDecided('R'),
+        secondDecided('S')
+      ]
+    }
+    const result = convertConstraintSetsToConstraints(constraintSets, testBoard)
+    
+    expect(result).toEqual({
+      '2-2': 'Q / R / S'
+    })
+  })
+  
+  it('should handle mixed constraint types with comprehensive coverage', () => {
+    const constraintSets: AnswerGroupConstraintSet = {
+      pathConstraintSets: [
+        firstDecided('A'),
+        secondDecided('B'),
+        bothDecided('A', 'C'),
+        bothDecided('D', 'B'),
+        firstDecided('D')
+      ]
+    }
+    const result = convertConstraintSetsToConstraints(constraintSets, testBoard)
+    
+    expect(result).toEqual({
+      '1-1': 'A / D',
+      '2-2': 'B / C'
+    })
+  })
+  
+  it('should verify wildcard positions for board layout eadux*ysta*tnhrv', () => {
+    // Verify that our test board has wildcards in the expected positions
+    expect(testBoard[1][1].isWildcard).toBe(true) // position (1,1) - 6th character (0-indexed position 5)
+    expect(testBoard[2][2].isWildcard).toBe(true) // position (2,2) - 11th character (0-indexed position 10)
+    
+    // Verify other positions are not wildcards
+    expect(testBoard[0][0].isWildcard).toBe(false) // 'e'
+    expect(testBoard[0][1].isWildcard).toBe(false) // 'a'
+    expect(testBoard[3][3].isWildcard).toBe(false) // 'v'
+  })
+  
+  it('should handle constraint filtering with proper letter case', () => {
+    const constraintSets: AnswerGroupConstraintSet = {
+      pathConstraintSets: [
+        firstDecided('a'), // lowercase input
+        bothDecided('b', 'c'), // lowercase input
+        secondDecided('D') // uppercase input
+      ]
+    }
+    const result = convertConstraintSetsToConstraints(constraintSets, testBoard)
+    
+    // Should convert to uppercase
+    expect(result).toEqual({
+      '1-1': 'A / B',
+      '2-2': 'C / D'
+    })
+  })
+  
+  it('should handle empty letters gracefully', () => {
+    const constraintSets: AnswerGroupConstraintSet = {
+      pathConstraintSets: [
+        { type: PathConstraintType.FirstDecided, firstLetter: undefined },
+        { type: PathConstraintType.SecondDecided, secondLetter: '' },
+        firstDecided('A')
+      ]
+    }
+    const result = convertConstraintSetsToConstraints(constraintSets, testBoard)
+    
+    // Should only include valid letters
+    expect(result).toEqual({
+      '1-1': 'A'
+    })
   })
 })
