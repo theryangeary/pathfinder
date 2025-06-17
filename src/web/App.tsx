@@ -205,7 +205,7 @@ function App() {
       // If the focused input has content, show its highlighting
       const currentValue = answers[index];
       if (currentValue && currentValue.length > 0) {
-        const paths = findPathsForHighlighting(board, currentValue, wildcardConstraints);
+        const paths = findPathsForHighlighting(board, currentValue);
         setHighlightedPaths(paths);
       } else {
         setHighlightedPaths([]);
@@ -341,6 +341,7 @@ function App() {
   };
 
   // Helper function to convert AnswerGroupConstraintSet to Record<string, string> format
+  // The constraintSets parameter already contains only the optimal constraint sets that provide maximum score
   const convertConstraintSetsToConstraints = (constraintSets: AnswerGroupConstraintSet): Record<string, string> => {
     const constraints: Record<string, string> = {};
     
@@ -368,11 +369,12 @@ function App() {
       }
     }
         
-    // find the list of possible assignments to each wildcard and reduce to the set of unique values
-    const uniqueFirstLetters = [...new Set(constraintSets.pathConstraintSets.filter(constraint => constraint.type == PathConstraintType.FirstDecided || constraint.type == PathConstraintType.BothDecided).map(constraint => constraint.firstLetter.toUpperCase()))];
-    const uniqueSecondLetters = [...new Set(constraintSets.pathConstraintSets.filter(constraint => constraint.type == PathConstraintType.SecondDecided || constraint.type == PathConstraintType.BothDecided).map(constraint => constraint.secondLetter.toUpperCase()))];
+    // Extract all possible letter assignments for each wildcard from the optimal constraint sets
+    // These constraint sets already represent only the maximum-scoring options
+    const uniqueFirstLetters = [...new Set(constraintSets.pathConstraintSets.filter(constraint => constraint.type == PathConstraintType.FirstDecided || constraint.type == PathConstraintType.BothDecided).map(constraint => constraint.firstLetter?.toUpperCase()).filter(Boolean))];
+    const uniqueSecondLetters = [...new Set(constraintSets.pathConstraintSets.filter(constraint => constraint.type == PathConstraintType.SecondDecided || constraint.type == PathConstraintType.BothDecided).map(constraint => constraint.secondLetter?.toUpperCase()).filter(Boolean))];
     
-    // Convert unique letter sets to position-based constraints
+    // Convert unique letter sets to position-based constraints using slash notation for multiple options
     const firstWildcard = wildcardPositions.find(w => w.isFirst);
     const secondWildcard = wildcardPositions.find(w => !w.isFirst);
     

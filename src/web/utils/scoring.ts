@@ -1,4 +1,4 @@
-import { PathConstraintSet } from '../utils/models';
+import { PathConstraintSet, PathConstraintType } from '../utils/models';
 import { mergeAllAnswerGroupConstraintSets, mergePathConstraintSets } from './constraintResolution';
 import { Position, Tile } from './models';
 import { findAllPaths } from './pathfinding';
@@ -92,10 +92,12 @@ export function scoreAnswerGroup(words: string[], board: Tile[][]): { scores: Re
   for (const pathConstraint of validConstraintSet.pathConstraintSets) {
     let totalScore = 0;
     const scoresByWord: Record<string, number> = {};
+    let pathConstraintsUsed: Record<string, boolean> = {};
     
     // For each answer, find the best scoring path that satisfies this constraint
     for (const answerObj of answerObjects) {
       let bestPathScore = 0;
+      let bestPathConstraintsUsed: Record<string, boolean> = {};
       
       // Check all paths for this answer to find the one that works with current constraints
       for (const path of answerObj.paths) {
@@ -103,7 +105,24 @@ export function scoreAnswerGroup(words: string[], board: Tile[][]): { scores: Re
         try {
           mergePathConstraintSets(path.constraints, pathConstraint);
           const pathScore = path.path.reduce((sum, pos) => sum + board[pos.row][pos.col].points, 0);
-          bestPathScore = Math.max(bestPathScore, pathScore);
+          
+          // Track which wildcard positions are used by this path
+          const pathConstraintsUsedThisPath: Record<string, boolean> = {};
+          path.path.forEach((pos) => { 
+            if (board[pos.row][pos.col].isWildcard) { 
+              pathConstraintsUsedThisPath[`${pos.row}-${pos.col}`] = true;
+            }
+          });
+          
+          // Update best path if this one scores better
+          if (pathScore > bestPathScore) {
+            bestPathScore = pathScore;
+            bestPathConstraintsUsed = pathConstraintsUsedThisPath;
+          } else if (pathScore === bestPathScore) {
+            for (const pos in pathConstraintsUsedThisPath) {
+            bestPathConstraintsUsed[pos] = pathConstraintsUsedThisPath[pos];
+            }
+          }
         } catch (error) {
           // Merge failed, skip this path
         }
@@ -112,16 +131,71 @@ export function scoreAnswerGroup(words: string[], board: Tile[][]): { scores: Re
       // Record this answer's best score and add to total
       scoresByWord[answerObj.word] = bestPathScore;
       totalScore += bestPathScore;
+      
+      // Accumulate which wildcard constraints are actually used by the best paths
+      Object.keys(bestPathConstraintsUsed).forEach(key => {
+        pathConstraintsUsed[key] = true;
+      });
     }
+    // Check if this constraint set actually uses the specific constrained wildcard tiles
+    let constraintSetUsesAllConstrainedWildcards = false;
+    
+    // Find wildcard positions on the board to map them to first/second
+    const wildcardPositions: Array<{row: number, col: number, isFirst: boolean}> = [];
+    for (let row = 0; row < 4; row++) {
+      for (let col = 0; col < 4; col++) {
+        if (board[row][col].isWildcard) {
+          wildcardPositions.push({ 
+            row, 
+            col, 
+            isFirst: row < 2 && col < 2 // Backend logic for determining first wildcard
+          });
+        }
+      }
+    }
+    
+    const firstWildcardKey = wildcardPositions.find(w => w.isFirst) ? 
+      `${wildcardPositions.find(w => w.isFirst)!.row}-${wildcardPositions.find(w => w.isFirst)!.col}` : null;
+    const secondWildcardKey = wildcardPositions.find(w => !w.isFirst) ? 
+      `${wildcardPositions.find(w => !w.isFirst)!.row}-${wildcardPositions.find(w => !w.isFirst)!.col}` : null;
+    
+    // Validate wildcard usage based on constraint type
+    switch (pathConstraint.type) {
+      case PathConstraintType.Unconstrained:
+        constraintSetUsesAllConstrainedWildcards = true; // Always valid for unconstrained
+        break;
+      case PathConstraintType.FirstDecided:
+        // Must use the first wildcard
+        constraintSetUsesAllConstrainedWildcards = firstWildcardKey ? pathConstraintsUsed[firstWildcardKey] === true : false;
+        break;
+      case PathConstraintType.SecondDecided:
+        // Must use the second wildcard
+        constraintSetUsesAllConstrainedWildcards = secondWildcardKey ? pathConstraintsUsed[secondWildcardKey] === true : false;
+        break;
+      case PathConstraintType.BothDecided:
+        // Must use both wildcards
+        constraintSetUsesAllConstrainedWildcards = firstWildcardKey && secondWildcardKey ? 
+          (pathConstraintsUsed[firstWildcardKey] === true && pathConstraintsUsed[secondWildcardKey] === true) : false;
+        break;
+    }
+    
+    console.log("constraint check", pathConstraint, totalScore, maxTotalScore, constraintSetUsesAllConstrainedWildcards, pathConstraintsUsed)
     
     // If this constraint set gives us a better total score, use it
     if (totalScore > maxTotalScore) {
       maxTotalScore = totalScore;
       bestScoresByWord = scoresByWord;
-      optimalConstraintSets = [pathConstraint];
+      // Only use this constraint set if it properly uses the required wildcards
+      if (constraintSetUsesAllConstrainedWildcards) {
+        optimalConstraintSets = [pathConstraint];
+      } else {
+        optimalConstraintSets = [];
+      }
     } else if (totalScore === maxTotalScore) {
-      // If this constraint set ties for the best score, add it to the list
-      optimalConstraintSets.push(pathConstraint);
+      // Only add to optimal constraint sets if it properly uses the required wildcards
+      if (constraintSetUsesAllConstrainedWildcards) {
+        optimalConstraintSets.push(pathConstraint);
+      }
     }
   }
 

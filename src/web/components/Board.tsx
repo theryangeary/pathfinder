@@ -20,7 +20,6 @@ function Board({ board, highlightedPaths, wildcardConstraints, answers, validAns
     // Use the new notation system that considers current typing context
     if (board.length > 0) {
       const notation = getWildcardNotation(board, wildcardConstraints, currentWord, highlightedPaths, answers, validAnswers);
-      console.log(notation);
       return notation[constraintKey] || '*';
     }
     

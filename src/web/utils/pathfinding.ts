@@ -28,7 +28,7 @@ function isDiagonalMove(pos1: Position, pos2: Position): boolean {
   return rowDiff === 1 && colDiff === 1;
 }
 
-function getWildcardPositions(board: Tile[][]): Position[] {
+export function getWildcardPositions(board: Tile[][]): Position[] {
   const wildcardPositions: Position[] = [];
   for (let row = 0; row < 4; row++) {
     for (let col = 0; col < 4; col++) {
