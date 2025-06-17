@@ -390,7 +390,7 @@ export function findBestPath(board: Tile[][], word: string, wildcardConstraints:
   return pathsToConsider[0];
 }
 
-export function findPathsForHighlighting(board: Tile[][], word: string): Position[][] {
+export function findPathsForHighlighting(board: Tile[][], word: string, constraints: Record<string, string>): Position[][] {
   const allPaths = findAllPaths(board, word);
   
   if (allPaths.paths.length === 0) return [];
@@ -414,7 +414,7 @@ export function findPathsForHighlighting(board: Tile[][], word: string): Positio
   }
   
   // Rule 2: Only wildcard paths exist, highlight all paths
-  return pathsWithWildcards.map((v) => v.path);
+  return pathsWithWildcards.filter((v) => v.path.filter((pos) => `${pos.row}-${pos.col}` in constraints ? constraints[`${pos.row}-${pos.col}`].includes(board[pos.row][pos.col].letter) : true)).map((v) => v.path);
 }
 
 interface PathAnalysis {

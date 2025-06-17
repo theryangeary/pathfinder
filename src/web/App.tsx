@@ -395,15 +395,16 @@ function App() {
 
     // Use new validation that skips invalid words
     const validation = validateAllAnswers(newAnswers);
+    const constraints = convertConstraintSetsToConstraints(validation.constraintSets);
     
     setValidAnswers(validation.validAnswers);
     setScores(validation.scores);
-    setWildcardConstraints(convertConstraintSetsToConstraints(validation.constraintSets));
+    setWildcardConstraints(constraints);
     setValidPaths(validation.paths);
 
     // Set highlighted paths for the current input
     if (value && index >= 0) {
-      const paths = findPathsForHighlighting(board, value);
+      const paths = findPathsForHighlighting(board, value, constraints);
       setHighlightedPaths(paths);
       setCurrentInputIndex(index);
     } else {
