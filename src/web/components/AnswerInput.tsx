@@ -15,6 +15,7 @@ interface AnswerInputProps {
 
 interface AnswerInputHandle {
   focus: () => void;
+  getElement: () => HTMLInputElement | null;
 }
 
 const AnswerInput = forwardRef<AnswerInputHandle, AnswerInputProps>(function AnswerInput({ 
@@ -33,7 +34,8 @@ const AnswerInput = forwardRef<AnswerInputHandle, AnswerInputProps>(function Ans
   const statusIcon = value.length <= 0 ? '' : isValid ? '✅' : '❌';
 
   useImperativeHandle(ref, () => ({
-    focus: () => inputRef.current?.focus()
+    focus: () => inputRef.current?.focus(),
+    getElement: () => inputRef.current
   }));
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>): void => {
