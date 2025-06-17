@@ -2,8 +2,6 @@ import { AnswerGroupConstraintSet, PathConstraintSet, PathConstraintType, Positi
 
 interface PathScore {
   wildcardCount: number;
-  diagonalCount: number;
-  lastDiagonalIndex: number;
 }
 export interface PathWithConstraints {
   path: Position[];
@@ -327,8 +325,6 @@ export function findAllPathsGivenWildcards(board: Tile[][], word: string, wildca
 
 function scorePathByPreference(board: Tile[][], path: Position[]): PathScore {
   let wildcardCount = 0;
-  let diagonalCount = 0;
-  let lastDiagonalIndex = -1;
 
   for (let i = 0; i < path.length; i++) {
     const { row, col } = path[i];
@@ -337,17 +333,10 @@ function scorePathByPreference(board: Tile[][], path: Position[]): PathScore {
     if (tile.isWildcard) {
       wildcardCount++;
     }
-
-    if (i > 0 && isDiagonalMove(path[i - 1], path[i])) {
-      diagonalCount++;
-      lastDiagonalIndex = i;
-    }
   }
 
   return {
-    wildcardCount,
-    diagonalCount,
-    lastDiagonalIndex: lastDiagonalIndex === -1 ? 0 : lastDiagonalIndex
+    wildcardCount
   };
 }
 
@@ -376,15 +365,7 @@ export function findBestPath(board: Tile[][], word: string, wildcardConstraints:
     const scoreA = scorePathByPreference(board, a);
     const scoreB = scorePathByPreference(board, b);
 
-    if (scoreA.wildcardCount !== scoreB.wildcardCount) {
-      return scoreA.wildcardCount - scoreB.wildcardCount;
-    }
-
-    if (scoreA.diagonalCount !== scoreB.diagonalCount) {
-      return scoreA.diagonalCount - scoreB.diagonalCount;
-    }
-
-    return scoreB.lastDiagonalIndex - scoreA.lastDiagonalIndex;
+    return scoreA.wildcardCount - scoreB.wildcardCount;
   });
 
   return pathsToConsider[0];
@@ -425,8 +406,15 @@ export function findPathsForHighlighting(board: Tile[][], word: string, constrai
     }
     pathsUsingCorrectWildcards.push(path);
   }
+  pathsUsingCorrectWildcards.sort((a, b) => {
+    const scoreA = scorePathByPreference(board, a.path);
+    const scoreB = scorePathByPreference(board, b.path);
+
+    return scoreA.wildcardCount - scoreB.wildcardCount;
+  });
+
   let a = pathsUsingCorrectWildcards.map((v) => v.path);
-  return a
+  return [a[0]]
 }
 
 interface PathAnalysis {
