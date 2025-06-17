@@ -9,9 +9,9 @@ import PathfinderLogo from './components/Logo';
 import { useUser } from './hooks/useUser';
 import { generateBoard } from './utils/boardGeneration';
 import { AnswerGroupConstraintSet, mergeAllAnswerGroupConstraintSets, UnsatisfiableConstraint } from './utils/constraintResolution';
+import { Position, Tile } from './utils/models';
 import { Answer, findAllPaths, findBestPath, findPathsForHighlighting } from './utils/pathfinding';
 import { scoreAnswerGroup } from './utils/scoring';
-import { Position, Tile } from './utils/models';
 
 
 function App() {
@@ -315,7 +315,10 @@ function App() {
     // Step 4: All valid words can coexist - populate results
     // Use scoreAnswerGroup to get optimal scores for all words
     const validWords = validWordsInfo.map(info => info.sanitizedWord);
-    const { scores: scoresByWord } = scoreAnswerGroup(validWords, board);
+    const { scores: scoresByWord, optimalConstraintSets } = scoreAnswerGroup(validWords, board);
+    
+    // Use the optimal constraint sets from scoreAnswerGroup instead of manually merging
+    finalConstraintSet = { pathConstraintSets: optimalConstraintSets };
     
     for (const info of validWordsInfo) {
       const { index, originalWord, sanitizedWord } = info;
@@ -343,6 +346,12 @@ function App() {
     
     if (constraintSets.pathConstraintSets.length === 0) {
       return constraints;
+    }
+
+    // Check if any of the PathConstraintsSets is "Unconstrained" and if so, return empty constraints
+    // this is because if there is a way to form the highest possible score set without using wildcards, that is the optimal use of the wildcards.
+    if (constraintSets.pathConstraintSets.some(pathSet => pathSet.type === 'Unconstrained')) {
+      return {};
     }
     
     // Use the first constraint set (they should all be compatible if validation passed)
