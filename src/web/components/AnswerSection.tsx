@@ -204,137 +204,28 @@ function AnswerSection({
           Total: {scores.reduce((sum, score) => sum + score, 0)}
         </div>
       </div>
-{isKeyboardVisible ? (
-        // Carousel mode - show only current answer with navigation
-        <>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: '5px 0', width: '100%', boxSizing: 'border-box' }}>
-            <button
-              onClick={goToPrevious}
-              onMouseDown={(e) => e.preventDefault()}
-              onTouchStart={(e) => e.preventDefault()}
-              disabled={currentCarouselIndex === 0 || !isInputEnabled(currentCarouselIndex - 1)}
-              style={{
-                padding: '8px 8px',
-                fontSize: '18px',
-                backgroundColor: (currentCarouselIndex === 0 || !isInputEnabled(currentCarouselIndex - 1)) ? '#f0f0f0' : '#4CAF50',
-                color: (currentCarouselIndex === 0 || !isInputEnabled(currentCarouselIndex - 1)) ? '#999' : 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: (currentCarouselIndex === 0 || !isInputEnabled(currentCarouselIndex - 1)) ? 'not-allowed' : 'pointer',
-                minWidth: '40px',
-                width: '40px',
-                height: '40px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-              }}
-            >
-              ←
-            </button>
-            
-            <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
-              <AnswerInput
-                key={currentCarouselIndex}
-                ref={(el) => { inputRefs.current[currentCarouselIndex] = el; }}
-                index={currentCarouselIndex}
-                value={answers[currentCarouselIndex]}
-                onChange={onAnswerChange}
-                isValid={validAnswers[currentCarouselIndex]}
-                isEnabled={currentCarouselIndex === 0 || validAnswers.slice(0, currentCarouselIndex).every(valid => valid) || validAnswers[currentCarouselIndex]}
-                score={scores[currentCarouselIndex] || 0}
-                onEnterPress={handleEnterPress}
-                onFocus={handleAnswerFocus}
-                onBlur={handleAnswerBlur}
-                isGameCompleted={isGameCompleted}
-              />
-            </div>
-            
-            <button
-              onClick={goToNext}
-              onMouseDown={(e) => e.preventDefault()}
-              onTouchStart={(e) => e.preventDefault()}
-              disabled={currentCarouselIndex === answers.length - 1 || !isInputEnabled(currentCarouselIndex + 1)}
-              style={{
-                padding: '8px 8px',
-                fontSize: '18px',
-                backgroundColor: (currentCarouselIndex === answers.length - 1 || !isInputEnabled(currentCarouselIndex + 1)) ? '#f0f0f0' : '#4CAF50',
-                color: (currentCarouselIndex === answers.length - 1 || !isInputEnabled(currentCarouselIndex + 1)) ? '#999' : 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: (currentCarouselIndex === answers.length - 1 || !isInputEnabled(currentCarouselIndex + 1)) ? 'not-allowed' : 'pointer',
-                minWidth: '40px',
-                width: '40px',
-                height: '40px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0
-              }}
-            >
-              →
-            </button>
-          </div>
-          
-          {/* Carousel indicator */}
-          <div style={{ 
-            display: 'flex', 
-            justifyContent: 'center', 
-            gap: '8px', 
-            margin: '5px 0' 
-          }}>
-            {answers.map((_, index) => (
-              <button
-                key={index}
-                onClick={() => {
-                  if (isInputEnabled(index)) {
-                    setIsNavigating(true);
-                    setCurrentCarouselIndex(index);
-                  }
-                }}
-                onMouseDown={(e) => e.preventDefault()}
-                onTouchStart={(e) => e.preventDefault()}
-                disabled={!isInputEnabled(index)}
-                style={{
-                  width: '12px',
-                  height: '12px',
-                  borderRadius: '50%',
-                  border: 'none',
-                  backgroundColor: index === currentCarouselIndex ? '#4CAF50' : 
-                                   isInputEnabled(index) ? '#ddd' : '#f8f8f8',
-                  cursor: isInputEnabled(index) ? 'pointer' : 'not-allowed',
-                  padding: 0,
-                  opacity: isInputEnabled(index) ? 1 : 0.4
-                }}
-              />
-            ))}
-          </div>
-        </>
-      ) : (
-        // Normal mode - show all answers
-        answers.map((answer, index) => {
-          const isValid = validAnswers[index];
-          const isEnabled = index === 0 || validAnswers.slice(0, index).every(valid => valid) || isValid;
-          const score = scores[index] || 0;
-          
-          return (
-            <AnswerInput
-              key={index}
-              ref={(el) => { inputRefs.current[index] = el; }}
-              index={index}
-              value={answer}
-              onChange={onAnswerChange}
-              isValid={isValid}
-              isEnabled={isEnabled}
-              score={score}
-              onEnterPress={handleEnterPress}
-              onFocus={onAnswerFocus}
-              onBlur={onAnswerBlur}
-              isGameCompleted={isGameCompleted}
-            />
-          );
-        })
-      )}
+      {answers.map((answer, index) => {
+        const isValid = validAnswers[index];
+        const isEnabled = index === 0 || validAnswers.slice(0, index).every(valid => valid) || isValid;
+        const score = scores[index] || 0;
+        
+        return (
+          <AnswerInput
+            key={index}
+            ref={(el) => { inputRefs.current[index] = el; }}
+            index={index}
+            value={answer}
+            onChange={onAnswerChange}
+            isValid={isValid}
+            isEnabled={isEnabled}
+            score={score}
+            onEnterPress={handleEnterPress}
+            onFocus={onAnswerFocus}
+            onBlur={onAnswerBlur}
+            isGameCompleted={isGameCompleted}
+          />
+        );
+      })}
       
       <div style={{ display: 'flex', justifyContent: 'center', marginTop: '20px' }}>
         <button
@@ -382,7 +273,7 @@ function AnswerSection({
         validAnswers={validAnswers}
         validPaths={validPaths}
       /> */}
-    </div>
+    // </div>
   );
 }
 
