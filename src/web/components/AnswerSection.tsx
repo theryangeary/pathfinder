@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Position, Tile } from '../utils/models';
 import AnswerInput, { AnswerInputHandle } from './AnswerInput';
 
@@ -205,21 +205,26 @@ function AnswerSection({
 {isKeyboardVisible ? (
         // Carousel mode - show only current answer with navigation
         <>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: '10px 0' }}>
+          <div style={{ display: 'flex', alignItems: 'center' }}>
             <button
               onClick={goToPrevious}
               onMouseDown={(e) => e.preventDefault()}
               onTouchStart={(e) => e.preventDefault()}
               disabled={currentCarouselIndex === 0 || !isInputEnabled(currentCarouselIndex - 1)}
               style={{
-                padding: '8px 12px',
+                padding: '8px 8px',
                 fontSize: '18px',
                 backgroundColor: (currentCarouselIndex === 0 || !isInputEnabled(currentCarouselIndex - 1)) ? '#f0f0f0' : '#4CAF50',
                 color: (currentCarouselIndex === 0 || !isInputEnabled(currentCarouselIndex - 1)) ? '#999' : 'white',
                 border: 'none',
                 borderRadius: '4px',
                 cursor: (currentCarouselIndex === 0 || !isInputEnabled(currentCarouselIndex - 1)) ? 'not-allowed' : 'pointer',
-                minWidth: '40px'
+                minWidth: '40px',
+                width: '40px',
+                height: '40px',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flex: 1
               }}
             >
               ←
@@ -248,14 +253,19 @@ function AnswerSection({
               onTouchStart={(e) => e.preventDefault()}
               disabled={currentCarouselIndex === answers.length - 1 || !isInputEnabled(currentCarouselIndex + 1)}
               style={{
-                padding: '8px 12px',
+                padding: '8px 8px',
                 fontSize: '18px',
                 backgroundColor: (currentCarouselIndex === answers.length - 1 || !isInputEnabled(currentCarouselIndex + 1)) ? '#f0f0f0' : '#4CAF50',
                 color: (currentCarouselIndex === answers.length - 1 || !isInputEnabled(currentCarouselIndex + 1)) ? '#999' : 'white',
                 border: 'none',
                 borderRadius: '4px',
                 cursor: (currentCarouselIndex === answers.length - 1 || !isInputEnabled(currentCarouselIndex + 1)) ? 'not-allowed' : 'pointer',
-                minWidth: '40px'
+                minWidth: '40px',
+                width: '40px',
+                height: '40px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
               }}
             >
               →
@@ -267,7 +277,7 @@ function AnswerSection({
             display: 'flex', 
             justifyContent: 'center', 
             gap: '8px', 
-            margin: '10px 0' 
+            margin: '5px 0' 
           }}>
             {answers.map((_, index) => (
               <button
