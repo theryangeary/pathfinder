@@ -273,7 +273,7 @@ function AnswerSection({
         validAnswers={validAnswers}
         validPaths={validPaths}
       /> */}
-    // </div>
+    </div>
   );
 }
 
