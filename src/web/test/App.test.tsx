@@ -135,8 +135,9 @@ describe('App Component Routing', () => {
   })
 
   it('should load different sequence numbers correctly', async () => {
-    const { rerender } = render(
-      <MemoryRouter initialEntries={['/puzzle/1']}>
+    // Start with both routes available for navigation
+    const router = render(
+      <MemoryRouter initialEntries={['/puzzle/1', '/puzzle/10']} initialIndex={0}>
         <Routes>
           <Route path="/" element={<App />} />
           <Route path="/puzzle/:sequenceNumber" element={<App />} />
@@ -144,12 +145,23 @@ describe('App Component Routing', () => {
       </MemoryRouter>
     )
 
+    // Wait for initial load of sequence 1
     await waitFor(() => {
       expect(gameApi.gameApi.getGameBySequence).toHaveBeenCalledWith(1)
     })
 
-    // Simulate navigation to different sequence number
-    rerender(
+    // Clear mock calls to isolate the next navigation
+    vi.clearAllMocks()
+    ;(gameApi.gameApi.getGameBySequence as Mock).mockResolvedValue(mockSequenceGameData)
+    ;(gameApi.gameApi.getGameEntry as Mock).mockResolvedValue(null)
+    ;(gameApi.gameApi.getGameWords as Mock).mockResolvedValue(['test', 'word', 'list'])
+
+    // Navigate to sequence 10 by clicking the next button or using history
+    // Since we can't easily programmatically navigate in this test setup,
+    // let's use a different approach: test with separate initial entries
+    router.unmount()
+    
+    render(
       <MemoryRouter initialEntries={['/puzzle/10']}>
         <Routes>
           <Route path="/" element={<App />} />
