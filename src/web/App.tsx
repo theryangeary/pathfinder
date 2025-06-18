@@ -611,8 +611,10 @@ function App() {
                 <span> · {new Date().toISOString().split('T')[0]}</span>
               )}
             </>
+          ) : currentGame ? (
+            <>Puzzle #{currentGame.sequence_number} · {currentGame.date}</>
           ) : (
-            <>Puzzle #{currentGame?.sequence_number || 'N/A'} · {currentGame?.date}</>
+            <>Puzzle #N/A</>
           )}
         </div>
         

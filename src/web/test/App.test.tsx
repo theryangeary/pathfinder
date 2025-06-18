@@ -126,9 +126,11 @@ describe('App Component Routing', () => {
     })
 
     await waitFor(() => {
-      expect(screen.getByText((content, element) => {
+      const elements = screen.getAllByText((content, element) => {
         return element?.textContent?.includes('Puzzle #5')
-      })).toBeInTheDocument()
+      })
+      expect(elements.length).toBeGreaterThan(0)
+      expect(elements[0]).toBeInTheDocument()
     })
   })
 
