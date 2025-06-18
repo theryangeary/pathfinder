@@ -103,6 +103,7 @@ pub mod test_utils {
         create_test_board("testh*ngar*astop")        
     }
 
+    #[cfg(feature = "database-tests")]
     pub async fn setup_app(pool: sqlx::Pool<sqlx::Postgres>) -> (ApiState, Router) {
         let repository = crate::db::Repository::new(pool);
 
@@ -210,7 +211,7 @@ pub mod test_utils {
     }
 
     /// Helper for async database test setup
-    #[cfg(feature = "integration-tests")]
+    #[cfg(feature = "database-tests")]
     pub async fn setup_test_database() -> sqlx::PgPool {
         use crate::db::setup_database;
 
@@ -221,7 +222,7 @@ pub mod test_utils {
     }
 
     /// Helper for creating API test state
-    #[cfg(feature = "integration-tests")]
+    #[cfg(feature = "database-tests")]
     pub async fn create_test_api_state() -> crate::http_api::ApiState {
         use crate::db::Repository;
 

@@ -413,7 +413,7 @@ impl Repository {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "database-tests"))]
 mod tests {
     use sqlx::{Pool, Postgres};
 

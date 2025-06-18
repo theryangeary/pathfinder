@@ -947,7 +947,7 @@ async fn health_check() -> Result<Json<serde_json::Value>, StatusCode> {
     })))
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "database-tests"))]
 mod tests {
     use super::*;
     use axum::http::StatusCode;
