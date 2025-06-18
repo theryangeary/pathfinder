@@ -526,7 +526,7 @@ function App() {
   return (
     <div style={{ 
       fontFamily: 'Arial, sans-serif', 
-      maxWidth: '800px', 
+      maxWidth: '300px', 
       margin: '0 auto', 
       padding: '20px',
       display: 'flex',
