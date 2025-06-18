@@ -1,7 +1,7 @@
 // API client for word game backend
 
 const API_BASE_URL = import.meta.env.PROD
-  ? '/api'  // In production, use relative path (nginx proxy)
+  ? 'https://pathfinder-game.fly.dev/api'  // In production, use relative path (nginx proxy)
   : 'http://localhost:3001/api';  // In development, use direct backend URL
 
 export interface ApiGame {
