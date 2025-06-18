@@ -73,7 +73,10 @@ const AnswerInput = forwardRef<AnswerInputHandle, AnswerInputProps>(function Ans
           border: '2px solid #ddd',
           borderRadius: '4px',
           fontSize: '16px',
-          minWidth: '200px',
+          minWidth: '150px',
+          width: '100%',
+          maxWidth: '100%',
+          boxSizing: 'border-box',
           backgroundColor: isGameCompleted ? '#fcfcfc' : (isEnabled ? '#fff' : '#f5f5f5'),
           cursor: isGameCompleted ? 'default' : 'text'
         }}
@@ -82,7 +85,7 @@ const AnswerInput = forwardRef<AnswerInputHandle, AnswerInputProps>(function Ans
         style={{ 
           minWidth: '40px', 
           fontWeight: 'bold',
-          color: isValid ? '#4caf50' : '#666'
+          color: isValid ? '#4caf50' : '#666',
         }}
       >
         {score}

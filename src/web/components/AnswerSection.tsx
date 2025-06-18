@@ -174,12 +174,14 @@ function AnswerSection({
     }
   };
   return (
-    <div style={{ marginTop: '20px' }}>
+    <div style={{ marginTop: '20px', width: '100%', boxSizing: 'border-box' }}>
       <div style={{ 
         display: 'flex', 
         justifyContent: 'space-between', 
         alignItems: 'center',
-        marginBottom: '10px'
+        marginBottom: '10px',
+        width: '100%',
+        boxSizing: 'border-box'
       }}>
         <h3 style={{ margin: 0 }}>
           Answers:
@@ -205,7 +207,7 @@ function AnswerSection({
 {isKeyboardVisible ? (
         // Carousel mode - show only current answer with navigation
         <>
-          <div style={{ display: 'flex', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: '5px 0', width: '100%', boxSizing: 'border-box' }}>
             <button
               onClick={goToPrevious}
               onMouseDown={(e) => e.preventDefault()}
@@ -222,15 +224,16 @@ function AnswerSection({
                 minWidth: '40px',
                 width: '40px',
                 height: '40px',
+                display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                flex: 1
+                flexShrink: 0,
               }}
             >
               ←
             </button>
             
-            <div style={{ flex: 1 }}>
+            <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
               <AnswerInput
                 key={currentCarouselIndex}
                 ref={(el) => { inputRefs.current[currentCarouselIndex] = el; }}
@@ -265,7 +268,8 @@ function AnswerSection({
                 height: '40px',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center'
+                justifyContent: 'center',
+                flexShrink: 0
               }}
             >
               →
