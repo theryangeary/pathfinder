@@ -680,8 +680,8 @@ describe('convertConstraintSetsToConstraints', () => {
     const result = convertConstraintSetsToConstraints(constraintSets, testBoard)
     
     expect(result).toEqual({
-      '1-1': 'M / P',
-      '2-2': 'N / O'
+      '1-1': 'M / P / *',
+      '2-2': 'N / O / *'
     })
   })
   
@@ -698,7 +698,7 @@ describe('convertConstraintSetsToConstraints', () => {
     
     expect(result).toEqual({
       '1-1': 'T',
-      '2-2': 'U / V'
+      '2-2': 'U / V / *'
     })
   })
   
@@ -713,8 +713,8 @@ describe('convertConstraintSetsToConstraints', () => {
     const result = convertConstraintSetsToConstraints(constraintSets, testBoard)
     
     expect(result).toEqual({
-      '1-1': 'Z',
-      '2-2': 'Z'
+      '1-1': 'Z / *',
+      '2-2': 'Z / *'
     })
   })
   
@@ -746,8 +746,8 @@ describe('convertConstraintSetsToConstraints', () => {
     const result = convertConstraintSetsToConstraints(constraintSets, testBoard)
     
     expect(result).toEqual({
-      '1-1': 'A / D',
-      '2-2': 'B / C'
+      '1-1': 'A / D / *',
+      '2-2': 'B / C / *'
     })
   })
   
@@ -774,8 +774,8 @@ describe('convertConstraintSetsToConstraints', () => {
     
     // Should convert to uppercase
     expect(result).toEqual({
-      '1-1': 'A / B',
-      '2-2': 'C / D'
+      '1-1': 'A / B / *',
+      '2-2': 'C / D / *'
     })
   })
   
@@ -791,7 +791,7 @@ describe('convertConstraintSetsToConstraints', () => {
     
     // Should only include valid letters
     expect(result).toEqual({
-      '1-1': 'A'
+      '1-1': 'A / *'
     })
   })
 })
