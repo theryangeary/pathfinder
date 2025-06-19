@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
+  convertConstraintSetsToConstraints,
   mergeAllAnswerGroupConstraintSets,
   mergePathConstraintSets,
-  UnsatisfiableConstraint,
-  convertConstraintSetsToConstraints
+  UnsatisfiableConstraint
 } from '../utils/constraintResolution'
 import {
   AnswerGroupConstraintSet,
@@ -664,7 +664,7 @@ describe('convertConstraintSetsToConstraints', () => {
     
     expect(result).toEqual({
       '1-1': 'A / B',
-      '2-2': 'X / Y'
+      '2-2': 'X / Y / *'
     })
   })
   
