@@ -383,7 +383,7 @@ function App() {
         const currentConstraints = value !== undefined 
           ? validateAllAnswers([...answers.slice(0, index), value, ...answers.slice(index + 1)], index).constraintSets
           : wildcardConstraints;
-        const paths = findPathsForHighlighting(board, currentValue, convertConstraintSetsToConstraints(currentConstraints, board));
+        const paths = findPathsForHighlighting(board, currentValue, currentConstraints);
         setHighlightedPaths(paths);
       } else {
         setHighlightedPaths([]);

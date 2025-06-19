@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { PathConstraintType } from '../utils/models'
-import { findAllPaths, findAllPathsGivenWildcards, findBestPath, getWildcardConstraintsFromPath } from '../utils/pathfinding'
+import { findAllPaths, findAllPathsGivenWildcards, findBestPath, getWildcardConstraintsFromPath, isPathCompatibleWithConstraints } from '../utils/pathfinding'
 import { testBoard } from './util.test'
 
 
@@ -164,5 +164,196 @@ describe('Pathfinding Tests', () => {
       expect(constraints['1-1']).toBe('t')
       expect(constraints['2-2']).toBe('e')
     }
+  })
+
+  describe('isPathCompatibleWithConstraints', () => {
+    it('should return true for paths that dont use wildcards with any constraint type', () => {
+      const board = testBoard('tarae*oros*sotvi')
+      
+      // Path that doesn't use any wildcards: 'tar' using positions (0,0), (0,1), (0,2)
+      const pathWithConstraints = {
+        path: [
+          { row: 0, col: 0 }, // 't'
+          { row: 0, col: 1 }, // 'a'  
+          { row: 0, col: 2 }  // 'r'
+        ],
+        constraints: { type: PathConstraintType.Unconstrained }
+      }
+      
+      // Test with different constraint types - should all return true since path uses no wildcards
+      const unconstrainedConstraint = { type: PathConstraintType.Unconstrained }
+      const firstDecidedConstraint = { type: PathConstraintType.FirstDecided, firstLetter: 'E' }
+      const secondDecidedConstraint = { type: PathConstraintType.SecondDecided, secondLetter: 'L' }
+      const bothDecidedConstraint = { type: PathConstraintType.BothDecided, firstLetter: 'E', secondLetter: 'L' }
+      
+      expect(isPathCompatibleWithConstraints(pathWithConstraints, unconstrainedConstraint, board, 'tar')).toBe(true)
+      expect(isPathCompatibleWithConstraints(pathWithConstraints, firstDecidedConstraint, board, 'tar')).toBe(true)
+      expect(isPathCompatibleWithConstraints(pathWithConstraints, secondDecidedConstraint, board, 'tar')).toBe(true)
+      expect(isPathCompatibleWithConstraints(pathWithConstraints, bothDecidedConstraint, board, 'tar')).toBe(true)
+    })
+
+    it('should return true for wildcard paths with unconstrained constraint type', () => {
+      const board = testBoard('tarae*oros*sotvi')
+      
+      // Path using first wildcard: positions (1,1), (1,0), (0,1) for word 'vea'
+      const pathWithConstraints = {
+        path: [
+          { row: 1, col: 1 }, // wildcard as 'v'
+          { row: 1, col: 0 }, // 'e'
+          { row: 0, col: 1 }  // 'a'
+        ],
+        constraints: { type: PathConstraintType.FirstDecided, firstLetter: 'V' }
+      }
+      
+      const unconstrainedConstraint = { type: PathConstraintType.Unconstrained }
+      
+      expect(isPathCompatibleWithConstraints(pathWithConstraints, unconstrainedConstraint, board, 'vea')).toBe(true)
+    })
+
+    it('should return true when first wildcard usage matches FirstDecided constraint', () => {
+      const board = testBoard('tarae*oros*sotvi')
+      
+      // Path using first wildcard at (1,1) as 'V'
+      const pathWithConstraints = {
+        path: [
+          { row: 1, col: 1 }, // wildcard as 'v'
+          { row: 1, col: 0 }, // 'e'
+          { row: 0, col: 1 }  // 'a'
+        ],
+        constraints: { type: PathConstraintType.FirstDecided, firstLetter: 'V' }
+      }
+      
+      const matchingConstraint = { type: PathConstraintType.FirstDecided, firstLetter: 'V' }
+      const nonMatchingConstraint = { type: PathConstraintType.FirstDecided, firstLetter: 'E' }
+      
+      expect(isPathCompatibleWithConstraints(pathWithConstraints, matchingConstraint, board, 'vea')).toBe(true)
+      expect(isPathCompatibleWithConstraints(pathWithConstraints, nonMatchingConstraint, board, 'vea')).toBe(false)
+    })
+
+    it('should return true when second wildcard usage matches SecondDecided constraint', () => {
+      const board = testBoard('tarae*oros*sotvi')
+      
+      // Path using second wildcard at (2,2) as 'E'
+      const pathWithConstraints = {
+        path: [
+          { row: 3, col: 2 }, // 'v'
+          { row: 2, col: 2 }, // wildcard as 'e'
+          { row: 1, col: 1 }  // wildcard as 'a'
+        ],
+        constraints: { type: PathConstraintType.BothDecided, firstLetter: 'A', secondLetter: 'E' }
+      }
+      
+      const matchingConstraint = { type: PathConstraintType.SecondDecided, secondLetter: 'E' }
+      const nonMatchingConstraint = { type: PathConstraintType.SecondDecided, secondLetter: 'L' }
+      
+      expect(isPathCompatibleWithConstraints(pathWithConstraints, matchingConstraint, board, 'vea')).toBe(true)
+      expect(isPathCompatibleWithConstraints(pathWithConstraints, nonMatchingConstraint, board, 'vea')).toBe(false)
+    })
+
+    it('should return true when both wildcards match BothDecided constraint', () => {
+      const board = testBoard('tarae*oros*sotvi')
+      
+      // Path using both wildcards: first as 'A', second as 'E'
+      const pathWithConstraints = {
+        path: [
+          { row: 2, col: 2 }, // second wildcard as 'e'
+          { row: 1, col: 1 }, // first wildcard as 'a'
+          { row: 0, col: 0 }  // 't'
+        ],
+        constraints: { type: PathConstraintType.BothDecided, firstLetter: 'A', secondLetter: 'E' }
+      }
+      
+      const matchingConstraint = { type: PathConstraintType.BothDecided, firstLetter: 'A', secondLetter: 'E' }
+      const wrongFirstConstraint = { type: PathConstraintType.BothDecided, firstLetter: 'V', secondLetter: 'E' }
+      const wrongSecondConstraint = { type: PathConstraintType.BothDecided, firstLetter: 'A', secondLetter: 'L' }
+      const wrongBothConstraint = { type: PathConstraintType.BothDecided, firstLetter: 'V', secondLetter: 'L' }
+      
+      expect(isPathCompatibleWithConstraints(pathWithConstraints, matchingConstraint, board, 'eat')).toBe(true)
+      expect(isPathCompatibleWithConstraints(pathWithConstraints, wrongFirstConstraint, board, 'eat')).toBe(false)
+      expect(isPathCompatibleWithConstraints(pathWithConstraints, wrongSecondConstraint, board, 'eat')).toBe(false)
+      expect(isPathCompatibleWithConstraints(pathWithConstraints, wrongBothConstraint, board, 'eat')).toBe(false)
+    })
+
+    it('should handle paths that use only the first wildcard', () => {
+      const board = testBoard('tarae*oros*sotvi')
+      
+      // Path using only first wildcard at (1,1)
+      const pathWithConstraints = {
+        path: [
+          { row: 1, col: 1 }, // first wildcard as 'h'
+          { row: 0, col: 1 }, // 'a'
+          { row: 0, col: 2 }  // 'r'
+        ],
+        constraints: { type: PathConstraintType.FirstDecided, firstLetter: 'H' }
+      }
+      
+      // Should be compatible with constraints that allow first wildcard to be 'H'
+      const compatibleConstraints = [
+        { type: PathConstraintType.Unconstrained },
+        { type: PathConstraintType.FirstDecided, firstLetter: 'H' },
+        { type: PathConstraintType.BothDecided, firstLetter: 'H', secondLetter: 'L' }
+      ]
+      
+      const incompatibleConstraints = [
+        { type: PathConstraintType.FirstDecided, firstLetter: 'E' },
+        { type: PathConstraintType.BothDecided, firstLetter: 'E', secondLetter: 'L' }
+      ]
+      
+      compatibleConstraints.forEach(constraint => {
+        expect(isPathCompatibleWithConstraints(pathWithConstraints, constraint, board, 'har')).toBe(true)
+      })
+      
+      incompatibleConstraints.forEach(constraint => {
+        expect(isPathCompatibleWithConstraints(pathWithConstraints, constraint, board, 'har')).toBe(false)
+      })
+    })
+
+    it('should handle paths that use only the second wildcard', () => {
+      const board = testBoard('tarae*oros*sotvi')
+      
+      // Path using only second wildcard at (2,2)
+      const pathWithConstraints = {
+        path: [
+          { row: 2, col: 2 }, // second wildcard as 'w'
+          { row: 2, col: 1 }, // 'o'
+          { row: 3, col: 1 }  // 't'
+        ],
+        constraints: { type: PathConstraintType.SecondDecided, secondLetter: 'W' }
+      }
+      
+      // Should be compatible with constraints that allow second wildcard to be 'W'
+      const compatibleConstraints = [
+        { type: PathConstraintType.Unconstrained },
+        { type: PathConstraintType.SecondDecided, secondLetter: 'W' },
+        { type: PathConstraintType.BothDecided, firstLetter: 'H', secondLetter: 'W' }
+      ]
+      
+      const incompatibleConstraints = [
+        { type: PathConstraintType.SecondDecided, secondLetter: 'E' },
+        { type: PathConstraintType.BothDecided, firstLetter: 'H', secondLetter: 'E' }
+      ]
+      
+      compatibleConstraints.forEach(constraint => {
+        expect(isPathCompatibleWithConstraints(pathWithConstraints, constraint, board, 'wot')).toBe(true)
+      })
+      
+      incompatibleConstraints.forEach(constraint => {
+        expect(isPathCompatibleWithConstraints(pathWithConstraints, constraint, board, 'wot')).toBe(false)
+      })
+    })
+
+    it('should handle edge case with empty constraint set', () => {
+      const board = testBoard('tarae*oros*sotvi')
+      
+      const pathWithConstraints = {
+        path: [{ row: 0, col: 0 }, { row: 0, col: 1 }],
+        constraints: { type: PathConstraintType.Unconstrained }
+      }
+      
+      // Test with constraint set that has no letters defined
+      const emptyConstraint = { type: PathConstraintType.FirstDecided }
+      
+      expect(isPathCompatibleWithConstraints(pathWithConstraints, emptyConstraint, board, 'ta')).toBe(true)
+    })
   })
 })

@@ -371,7 +371,7 @@ export function findBestPath(board: Tile[][], word: string, wildcardConstraints:
   return pathsToConsider[0];
 }
 
-export function findPathsForHighlighting(board: Tile[][], word: string, constraints: Record<string, string>): Position[][] {
+export function findPathsForHighlighting(board: Tile[][], word: string, constraintSet: AnswerGroupConstraintSet): Position[][] {
   const allPaths = findAllPaths(board, word);
 
   if (allPaths.paths.length === 0) return [];
@@ -394,27 +394,76 @@ export function findPathsForHighlighting(board: Tile[][], word: string, constrai
     return [pathsWithoutWildcards[0].path];
   }
 
-  // Rule 2: Only wildcard paths exist, highlight all paths that are still valid when any of the displayed wildcard constraints are valid
-  let pathsUsingCorrectWildcards = [];
-  outer: for (const path of pathsWithWildcards) {
-    for (const pos of path.path) {
-      if (`${pos.row}-${pos.col}` in constraints) {
-        if (!constraints[`${pos.row}-${pos.col}`].includes(word[path.path.indexOf(pos)].toUpperCase())) {
-          continue outer
-        }
+  // Rule 2: Only wildcard paths exist, highlight paths that are compatible with current constraints
+  const validPaths = [];
+  
+  // If no constraint sets exist, all paths are valid
+  if (!constraintSet || !constraintSet.pathConstraintSets || constraintSet.pathConstraintSets.length === 0) {
+    // this shouldn't really happen, if there is a non-wildcard option it will have returned on Rule 1
+    validPaths.push(...pathsWithWildcards);
+  } else {
+    for (const path of pathsWithWildcards) {
+      // Check if this path is compatible with any of the constraint sets
+      const isCompatible = constraintSet.pathConstraintSets.some(constraintSetItem => 
+        isPathCompatibleWithConstraints(path, constraintSetItem, board, word)
+      );
+      console.log("iscompat", isCompatible);
+      
+      if (isCompatible) {
+        validPaths.push(path);
       }
     }
-    pathsUsingCorrectWildcards.push(path);
   }
-  pathsUsingCorrectWildcards.sort((a, b) => {
+
+  validPaths.sort((a, b) => {
     const scoreA = scorePathByPreference(board, a.path);
     const scoreB = scorePathByPreference(board, b.path);
 
     return scoreA.wildcardCount - scoreB.wildcardCount;
   });
 
-  let a = pathsUsingCorrectWildcards.map((v) => v.path);
-  return [a[0]]
+  return validPaths.length > 0 ? [validPaths[0].path] : [];
+}
+
+export function isPathCompatibleWithConstraints(
+  pathWithConstraints: PathWithConstraints, 
+  constraintSet: PathConstraintSet, 
+  board: Tile[][], 
+  word: string
+): boolean {
+  // Check if the path's constraints can be merged with the given constraint set
+  const mergedConstraints = mergeConstraints(pathWithConstraints.constraints, constraintSet);
+  console.log("mc", mergedConstraints);
+  // If constraints cannot be merged, they are incompatible
+  if (mergedConstraints === null) {
+    return false;
+  }
+  
+  // Additional validation: check that the path actually uses wildcards as specified by constraints
+  for (let i = 0; i < pathWithConstraints.path.length; i++) {
+    const pos = pathWithConstraints.path[i];
+    console.log(i, word, pos);
+    
+    if (board[pos.row][pos.col].isWildcard) {
+      const wordLetter = word[i].toUpperCase();
+      const isFirst = isFirstWildcard(pos);
+      
+      // Check if wildcard usage matches the merged constraints
+      if (isFirst && mergedConstraints.firstLetter) {
+        if (mergedConstraints.firstLetter.toUpperCase() !== wordLetter) {
+          console.log("bad1", mergedConstraints.firstLetter, wordLetter);
+          return false;
+        }
+      } else if (!isFirst && mergedConstraints.secondLetter) {
+        if (mergedConstraints.secondLetter.toUpperCase() !== wordLetter) {
+          console.log("bad2", mergedConstraints.secondLetter, wordLetter);
+          return false;
+        }
+      }
+    }
+  }
+  
+  return true;
 }
 
 interface PathAnalysis {
