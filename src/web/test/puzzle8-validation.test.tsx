@@ -119,9 +119,10 @@ describe('Puzzle #8 Validation Tests', () => {
 
     // Wait for the game to load
     await waitFor(() => {
-      expect(screen.getByText((content, element) => {
+      const elements = screen.getAllByText((content, element) => {
         return element?.textContent?.includes('Puzzle #8')
-      })).toBeInTheDocument()
+      })
+      expect(elements.length).toBeGreaterThan(0)
     })
 
     // Find the third answer input (index 2, for "sed")
@@ -155,9 +156,10 @@ describe('Puzzle #8 Validation Tests', () => {
 
     // Wait for the game to load
     await waitFor(() => {
-      expect(screen.getByText((content, element) => {
+      const elements = screen.getAllByText((content, element) => {
         return element?.textContent?.includes('Puzzle #8')
-      })).toBeInTheDocument()
+      })
+      expect(elements.length).toBeGreaterThan(0)
     })
 
     const answerInputs = screen.getAllByRole('textbox')
@@ -198,9 +200,10 @@ describe('Puzzle #8 Validation Tests', () => {
     )
 
     await waitFor(() => {
-      expect(screen.getByText((content, element) => {
+      const elements = screen.getAllByText((content, element) => {
         return element?.textContent?.includes('Puzzle #8')
-      })).toBeInTheDocument()
+      })
+      expect(elements.length).toBeGreaterThan(0)
     })
 
     const answerInputs = screen.getAllByRole('textbox')
@@ -241,9 +244,10 @@ describe('Puzzle #8 Validation Tests', () => {
     )
 
     await waitFor(() => {
-      expect(screen.getByText((content, element) => {
+      const elements = screen.getAllByText((content, element) => {
         return element?.textContent?.includes('Puzzle #8')
-      })).toBeInTheDocument()
+      })
+      expect(elements.length).toBeGreaterThan(0)
     })
 
     const answerInputs = screen.getAllByRole('textbox')
