@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { PathConstraintType } from '../utils/models'
-import { findAllPaths, findAllPathsGivenWildcards, findBestPath, getWildcardConstraintsFromPath, isPathCompatibleWithConstraints } from '../utils/pathfinding'
+import { findAllPaths, findAllPathsGivenConstraints, findBestPath, getWildcardConstraintsFromPath, isPathCompatibleWithConstraints } from '../utils/pathfinding'
 import { testBoard } from './util.test'
 
 
@@ -45,7 +45,7 @@ describe('Pathfinding Tests', () => {
   it('should find exactly 3 paths for "vea" on tarae*oros*sotvi board', () => {
     const board = testBoard('tarae*oros*sotvi')
 
-    const paths = findAllPathsGivenWildcards(board, 'vea')
+    const paths = findAllPathsGivenConstraints(board, 'vea')
 
     // Should find exactly 3 paths for 'vea'
     expect(paths).toHaveLength(3)
@@ -86,8 +86,7 @@ describe('Pathfinding Tests', () => {
     const board = testBoard('tarae*oros*sotvi')
 
     // Test with a wildcard constraint - constrain wildcard at (1,1) to be 'v'
-    const wildcardConstraints = { '1-1': 'v' }
-    const paths = findAllPathsGivenWildcards(board, 'vea', wildcardConstraints)
+    const paths = findAllPathsGivenConstraints(board, 'vea')
 
     // Should only find paths that use the wildcard at (1,1) as 'v'
     // This should eliminate some paths found without constraints
@@ -107,7 +106,7 @@ describe('Pathfinding Tests', () => {
     const board = testBoard('tarae*oros*sotvi')
 
     // Try to find paths for a word that can't be formed on this board
-    const paths = findAllPathsGivenWildcards(board, 'xyz')
+    const paths = findAllPathsGivenConstraints(board, 'xyz')
 
     // Should find no paths
     expect(paths).toHaveLength(0)
