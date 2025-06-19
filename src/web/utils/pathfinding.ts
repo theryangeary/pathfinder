@@ -433,7 +433,6 @@ export function isPathCompatibleWithConstraints(
 ): boolean {
   // Check if the path's constraints can be merged with the given constraint set
   const mergedConstraints = mergeConstraints(pathWithConstraints.constraints, constraintSet);
-  console.log("mc", mergedConstraints);
   // If constraints cannot be merged, they are incompatible
   if (mergedConstraints === null) {
     return false;
@@ -451,12 +450,10 @@ export function isPathCompatibleWithConstraints(
       // Check if wildcard usage matches the merged constraints
       if (isFirst && mergedConstraints.firstLetter) {
         if (mergedConstraints.firstLetter.toUpperCase() !== wordLetter) {
-          console.log("bad1", mergedConstraints.firstLetter, wordLetter);
           return false;
         }
       } else if (!isFirst && mergedConstraints.secondLetter) {
         if (mergedConstraints.secondLetter.toUpperCase() !== wordLetter) {
-          console.log("bad2", mergedConstraints.secondLetter, wordLetter);
           return false;
         }
       }
