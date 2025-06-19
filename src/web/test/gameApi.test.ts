@@ -117,6 +117,10 @@ describe('GameApi', () => {
 
   describe('getDailyGame', () => {
     it('should call correct endpoint without date parameter', async () => {
+      // Mock Date to return a fixed date for consistent testing
+      const mockDate = new Date('2025-06-08T12:00:00Z')
+      vi.spyOn(global, 'Date').mockImplementation(() => mockDate)
+
       const mockGameData = {
         id: 'daily-game-id',
         date: '2025-06-08',
@@ -157,7 +161,7 @@ describe('GameApi', () => {
         json: async () => mockGameData,
       })
 
-      const result = await gameApi.getDailyGame('2025-06-07')
+      const result = await gameApi.getGameByDate('2025-06-07')
 
       expect(mockFetch).toHaveBeenCalledWith(
         'http://localhost:3001/api/game/date/2025-06-07',
@@ -197,7 +201,7 @@ describe('GameApi', () => {
         json: async () => gameDataFromDate,
       })
 
-      const dateResult = await gameApi.getDailyGame('2025-06-08')
+      const dateResult = await gameApi.getGameByDate('2025-06-08')
 
       // Both should return the same structure
       expect(sequenceResult).toEqual(dateResult)
