@@ -1,31 +1,16 @@
-import { Position, Tile as TileType } from '../utils/models';
-import { getWildcardNotation } from '../utils/pathfinding';
+import { AnswerGroupConstraintSet, Position, Tile as TileType } from '../utils/models';
 import Tile from './Tile';
 
 interface BoardProps {
   board: TileType[][];
   highlightedPaths: Position[][];
-  wildcardConstraints: Record<string, string>;
+  wildcardConstraints: AnswerGroupConstraintSet;
   answers: string[];
   validAnswers: boolean[];
   currentWord: string;
 }
 
 function Board({ board, highlightedPaths, wildcardConstraints, answers, validAnswers, currentWord }: BoardProps) {
-  const getWildcardDisplay = (tile: TileType): string | null => {
-    if (!tile.isWildcard) return null;
-    
-    const constraintKey = `${tile.row}-${tile.col}`;
-    
-    // Use the new notation system that considers current typing context
-    if (board.length > 0) {
-      const notation = getWildcardNotation(board, wildcardConstraints, currentWord, highlightedPaths, answers, validAnswers);
-      return notation[constraintKey] || '*';
-    }
-    
-    const constraint = wildcardConstraints[constraintKey];
-    return constraint ? constraint.toUpperCase() : '*';
-  };
 
   // Show empty tiles if board is empty
   const boardToRender = board.length === 0 
@@ -85,7 +70,8 @@ function Board({ board, highlightedPaths, wildcardConstraints, answers, validAns
               tile={tile}
               isHighlighted={isHighlighted}
               isLastLetter={isLastLetter}
-              wildcardValue={getWildcardDisplay(tile)}
+              board={board}
+              wildcardConstraints={wildcardConstraints}
             />
           );
         })

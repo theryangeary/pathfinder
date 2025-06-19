@@ -24,7 +24,7 @@ function App() {
   const [answers, setAnswers] = useState<string[]>(['', '', '', '', '']);
   const [validAnswers, setValidAnswers] = useState<boolean[]>([false, false, false, false, false]);
   const [scores, setScores] = useState<number[]>([0, 0, 0, 0, 0]);
-  const [wildcardConstraints, setWildcardConstraints] = useState<Record<string, string>>({});
+  const [wildcardConstraints, setWildcardConstraints] = useState<AnswerGroupConstraintSet>({ pathConstraintSets: [] });
   const [highlightedPaths, setHighlightedPaths] = useState<Position[][]>([]);
   const [currentInputIndex, setCurrentInputIndex] = useState<number>(-1);
   const [showHeatmapModal, setShowHeatmapModal] = useState<boolean>(false);
@@ -150,7 +150,7 @@ function App() {
         setValidAnswers(validation.validAnswers);
         setScores(validation.scores);
         setValidPaths(validation.paths);
-        setWildcardConstraints(convertConstraintSetsToConstraints(validation.constraintSets, board));
+        setWildcardConstraints(validation.constraintSets);
       } else {
         setIsGameCompleted(false);
         setGameStats(null);
@@ -158,7 +158,7 @@ function App() {
         setScores([0,0,0,0,0]);
         setValidPaths([]);
         setAnswers(['','','','','']);
-        setWildcardConstraints({});
+        setWildcardConstraints({ pathConstraintSets: [] });
       }
     } catch (error) {
       console.warn('Failed to load existing game entry:', error);
@@ -359,11 +359,9 @@ function App() {
       const validation = validateAllAnswers(newAnswers, index);
       shouldHighlight = validation.constraintSets.pathConstraintSets.length > 0
       if (shouldHighlight) {
-        const constraints = convertConstraintSetsToConstraints(validation.constraintSets, board);
-        
         setValidAnswers(validation.validAnswers);
         setScores(validation.scores);
-        setWildcardConstraints(constraints);
+        setWildcardConstraints(validation.constraintSets);
         setValidPaths(validation.paths);
       }
     }
@@ -383,9 +381,9 @@ function App() {
       // Set highlighted paths for the current input
       if (currentValue && currentValue.length > 0) {
         const currentConstraints = value !== undefined 
-          ? convertConstraintSetsToConstraints(validateAllAnswers([...answers.slice(0, index), value, ...answers.slice(index + 1)], index).constraintSets, board)
+          ? validateAllAnswers([...answers.slice(0, index), value, ...answers.slice(index + 1)], index).constraintSets
           : wildcardConstraints;
-        const paths = findPathsForHighlighting(board, currentValue, currentConstraints);
+        const paths = findPathsForHighlighting(board, currentValue, convertConstraintSetsToConstraints(currentConstraints, board));
         setHighlightedPaths(paths);
       } else {
         setHighlightedPaths([]);

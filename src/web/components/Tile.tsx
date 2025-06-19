@@ -1,16 +1,28 @@
-import { Tile as TileType } from '../utils/models';
+import { convertConstraintSetsToConstraints } from '../utils/constraintResolution';
+import { AnswerGroupConstraintSet, Tile as TileType } from '../utils/models';
 import { getLetterPoints } from '../utils/scoring';
 
 interface TileProps {
   tile: TileType;
   isHighlighted: boolean;
   isLastLetter: boolean;
-  wildcardValue: string | null;
+  board: TileType[][];
+  wildcardConstraints: AnswerGroupConstraintSet;
 }
 
-function Tile({ tile, isHighlighted, isLastLetter, wildcardValue }: TileProps) {
+function Tile({ tile, isHighlighted, isLastLetter, board, wildcardConstraints}: TileProps) {
+  // Compute wildcard notation for this tile
+  const getWildcardNotation = (): string => {
+    if (!tile.isWildcard) return '';
+    
+    // Convert AnswerGroupConstraintSet to Record<string, string> for display
+    const constraints = convertConstraintSetsToConstraints(wildcardConstraints, board);
+    const constraintKey = `${tile.row}-${tile.col}`;
+    return constraints[constraintKey] || '*';
+  };
+  
   const displayLetter = tile.isWildcard 
-    ? (wildcardValue || '*')
+    ? getWildcardNotation()
     : tile.letter.toUpperCase();
 
   // Calculate point value for non-wildcard tiles

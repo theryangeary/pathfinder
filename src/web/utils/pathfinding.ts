@@ -537,42 +537,6 @@ export function getWildcardConstraintsFromPath(board: Tile[][], word: string, pa
   return constraints;
 }
 
-export function getWildcardNotation(board: Tile[][], wildcardConstraints: Record<string, string>, currentWord: string, highlightedPaths: Position[][], answers: string[], validAnswers: boolean[]): Record<string, string> {
-  return wildcardConstraints;
-}
-
-function analyzeForcedConstraints(board: Tile[][], answers: string[], validAnswers: boolean[], _wildcardPositions: Array<{ row: number, col: number, key: string }>): Record<string, string> {
-  const forcedConstraints: Record<string, string> = {};
-
-  if (!answers || !validAnswers) return forcedConstraints;
-
-  // Build up constraints iteratively, respecting the order answers were entered
-  let currentConstraints: Record<string, string> = {};
-
-  for (let i = 0; i < answers.length; i++) {
-    if (!validAnswers[i] || !answers[i]) continue;
-
-    const word = answers[i];
-
-    // Find all paths that are compatible with current constraints
-    const compatiblePaths = findAllPathsGivenWildcards(board, word, currentConstraints);
-
-    if (compatiblePaths.length === 0) continue;
-
-    // Get the best path (this is what was actually used for this answer)
-    const bestPath = findBestPath(board, word, currentConstraints);
-    if (!bestPath) continue;
-
-    // Extract constraints from the best path
-    const pathConstraints = getWildcardConstraintsFromPath(board, word, bestPath);
-
-    // Merge into current constraints
-    currentConstraints = { ...currentConstraints, ...pathConstraints };
-  }
-
-  // The current constraints represent what each wildcard is forced to be
-  return currentConstraints;
-}
 
 export function getWildcardAmbiguity(board: Tile[][], _wildcardConstraints: Record<string, string>, answers: string[], validAnswers: boolean[]): Record<string, string[] | null> {
   // Find wildcard positions
