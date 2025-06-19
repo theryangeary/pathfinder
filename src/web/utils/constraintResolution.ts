@@ -271,10 +271,10 @@ export function convertConstraintSetsToConstraints(constraintSets: AnswerGroupCo
   let uniqueFirstLetters = [...new Set(constraintSets.pathConstraintSets.filter(constraint => constraint.type == PathConstraintType.FirstDecided || constraint.type == PathConstraintType.BothDecided).map(constraint => constraint.firstLetter?.toUpperCase()).filter(Boolean))];
   let uniqueSecondLetters = [...new Set(constraintSets.pathConstraintSets.filter(constraint => constraint.type == PathConstraintType.SecondDecided || constraint.type == PathConstraintType.BothDecided).map(constraint => constraint.secondLetter?.toUpperCase()).filter(Boolean))];
   
-  if (constraintSets.pathConstraintSets.filter(constraint => constraint.type == PathConstraintType.Unconstrained || constraint.type == PathConstraintType.SecondDecided).length > 0) {
+  if (uniqueFirstLetters.length > 0 && constraintSets.pathConstraintSets.filter(constraint => constraint.type == PathConstraintType.Unconstrained || constraint.type == PathConstraintType.SecondDecided).length > 0) {
     uniqueFirstLetters.push("*");
   }
-  if (constraintSets.pathConstraintSets.filter(constraint => constraint.type == PathConstraintType.Unconstrained || constraint.type == PathConstraintType.FirstDecided).length > 0) {
+  if (uniqueSecondLetters.length > 0 && constraintSets.pathConstraintSets.filter(constraint => constraint.type == PathConstraintType.Unconstrained || constraint.type == PathConstraintType.FirstDecided).length > 0) {
     uniqueSecondLetters.push("*");
   }
   
