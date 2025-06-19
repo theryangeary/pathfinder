@@ -9,7 +9,7 @@ import PathfinderLogo from './components/Logo';
 import { useUser } from './hooks/useUser';
 import { useVirtualKeyboard } from './hooks/useVirtualKeyboard';
 import { generateBoard } from './utils/boardGeneration';
-import { convertConstraintSetsToConstraints, mergeAllAnswerGroupConstraintSets, UnsatisfiableConstraint } from './utils/constraintResolution';
+import { mergeAllAnswerGroupConstraintSets, UnsatisfiableConstraint } from './utils/constraintResolution';
 import { AnswerGroupConstraintSet, Position, Tile } from './utils/models';
 import { Answer, findAllPaths, findBestPath, findPathsForHighlighting } from './utils/pathfinding';
 import { scoreAnswerGroup } from './utils/scoring';
