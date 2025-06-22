@@ -1,9 +1,9 @@
 use crate::db::storage_types::{DbAnswer, DbPosition, DbStoredAnswers};
 use crate::http_api::{ApiAnswer, ApiPosition};
 
-/// Conversion functions between HTTP API types and stable database types.
-/// These provide a compatibility layer that allows API types to evolve
-/// while maintaining backwards compatibility with stored data.
+// Conversion functions between HTTP API types and stable database types.
+// These provide a compatibility layer that allows API types to evolve
+// while maintaining backwards compatibility with stored data.
 
 impl From<ApiAnswer> for DbAnswer {
     fn from(api: ApiAnswer) -> Self {

@@ -926,7 +926,7 @@ mod tests {
     use axum::http::StatusCode;
     use tower::util::ServiceExt;
 
-    use crate::{db::models::NewGameAnswer, test_utils::test_utils::*};
+    use crate::{db::models::NewGameAnswer, test_utils::*};
 
     #[sqlx::test]
     async fn test_get_game_by_sequence_exists(pool: sqlx::Pool<sqlx::Postgres>) {
@@ -1209,7 +1209,7 @@ mod tests {
             },
         ];
 
-        let (created_game, game_answers) = state.repository.create_game_with_answers(new_game, test_answers).await.unwrap();
+        let (created_game, _game_answers) = state.repository.create_game_with_answers(new_game, test_answers).await.unwrap();
 
         // Test the paths endpoint
         let request = create_test_request(
@@ -1266,7 +1266,7 @@ mod tests {
             },
         ];
 
-        let (created_game, game_answers) = state.repository.create_game_with_answers(new_game, test_answers).await.unwrap();
+        let (created_game, _game_answers) = state.repository.create_game_with_answers(new_game, test_answers).await.unwrap();
 
         // Test the word paths endpoint for a valid word
         let request = create_test_request(

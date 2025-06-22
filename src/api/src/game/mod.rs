@@ -389,7 +389,7 @@ impl GameEngine {
 
 #[cfg(test)]
 mod tests {
-    use crate::test_utils::test_utils;
+    use crate::test_utils;
 
     use super::*;
     use rand::SeedableRng;
@@ -941,10 +941,10 @@ mod tests {
         board
     }
 
-    fn create_test_wordlist_with_diode_scenario() -> Vec<&'static str> {
+    fn create_test_wordlist_with_diode() -> Vec<&'static str> {
         vec![
             "ran", "rod", "diode", "best", "test", "redo", "bet", "door", "ore", "do", "od", "re",
-            "to", "ar", "or", "an", "no", "it", "id", "di", "io", "oi",
+            "to", "ar", "or", "an", "no", "it", "id", "di", "io", "oi", "radio"
         ]
     }
 
@@ -956,8 +956,31 @@ mod tests {
         ]
     }
 
-    fn create_diode_scenario_board() -> Board {
-        test_utils::create_test_board("iaroo*nhdo*terbe")
+    #[tokio::test]
+    async fn test_diode_validate_answer_group() {
+        let words = create_test_wordlist_with_diode();
+        let engine = GameEngine::new(words);
+        let board = test_utils::create_test_board("iaroo*nhdo*terbe");
+        // iaro
+        // o*nh
+        // do*t
+        // erbe
+
+
+        // Test that 'biscuit' can coexist with a set of valid other words
+        let result = engine.validate_answer_group(
+            &board,
+            vec![
+                "diode".to_string(),
+                "redo".to_string(),
+                "radio".to_string(),
+            ],
+        );
+        assert!(
+            result.is_ok(),
+            "diode should be valid on the test board: {:?}",
+            result
+        );
     }
 
     #[tokio::test]

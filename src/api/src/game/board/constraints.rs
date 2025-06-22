@@ -187,10 +187,7 @@ impl AnswerGroupConstraintSet {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_utils::test_utils::*;
-
-    const X: &str = "1_1";
-    const Y: &str = "2_2";
+    use crate::test_utils::*;
 
     struct PathConstraintSetTestCase {
         name: &'static str,

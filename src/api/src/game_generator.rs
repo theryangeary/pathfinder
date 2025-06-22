@@ -210,7 +210,6 @@ mod tests {
     use chrono::NaiveDate;
     use std::io::Write;
     use tempfile::NamedTempFile;
-    
 
     fn create_test_wordlist() -> NamedTempFile {
         let mut temp_file = NamedTempFile::new().unwrap();
@@ -248,9 +247,7 @@ mod tests {
     fn test_game_engine_creation() {
         tokio_test::block_on(async {
             let (_game_engine, _temp_file) = create_test_game_generator_without_db().await;
-
-            // Game engine should be created successfully
-            assert!(true); // Constructor completed without panicking
+            // Constructor completed without panicking
         });
     }
 
