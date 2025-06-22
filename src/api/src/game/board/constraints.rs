@@ -122,10 +122,9 @@ impl TryFrom<&Vec<Answer>> for AnswerGroupConstraintSet {
 
         match AnswerGroupConstraintSet::merge_all(constraint_sets) {
             Ok(constraint_set) => {
-                dbg!(&constraint_set);
-                return Ok(constraint_set);
+                Ok(constraint_set)
             }
-            Err(_) => return Err(UnsatisfiableConstraint),
+            Err(_) => Err(UnsatisfiableConstraint),
         }
     }
 
@@ -220,8 +219,8 @@ impl Constraint {
                     let h1: HashSet<char> = options.iter().cloned().collect();
                     let h2: HashSet<char> = options2.iter().cloned().collect();
                     let v: Vec<char> = h1.intersection(&h2).cloned().collect();
-                    if v.len() == 0 {
-                        return Err(UnsatisfiableConstraint);
+                    if v.is_empty() {
+                        Err(UnsatisfiableConstraint)
                     } else if v.len() == 1 {
                         return Ok(Constraint::Decided(v[0]));
                     } else {

@@ -128,7 +128,7 @@ impl GameEngine {
     fn validate_answer_group(&self, board: &Board, answers: Vec<String>) -> Result<(), String> {
         // First validate that all words exist in the dictionary
         for answer in &answers {
-            if !self.is_valid_word_in_dictionary(&answer) {
+            if !self.is_valid_word_in_dictionary(answer) {
                 return Err(format!("Word '{}' is not in the dictionary", answer));
             }
         }
@@ -140,9 +140,9 @@ impl GameEngine {
 
         // Ensure constraints can be satisfied
         if AnswerGroupConstraintSet::is_valid_set(answers_with_all_paths) {
-            return Ok(());
+            Ok(())
         } else {
-            return Err("Some answers have conflicting wildcard constraints".to_string());
+            Err("Some answers have conflicting wildcard constraints".to_string())
         }
     }
 
@@ -194,7 +194,7 @@ impl GameEngine {
                 // Check all paths for this answer to find the one that works with current constraints
                 for path in &answer_obj.paths {
                     // Check if this path's constraints are compatible with the current path_constraint
-                    if let Ok(_) = path.constraints.merge(*path_constraint) {
+                    if path.constraints.merge(*path_constraint).is_ok() {
                         let path_score: u32 = path
                             .tiles
                             .iter()
@@ -378,7 +378,7 @@ impl GameEngine {
             let new_row = row as i32 + dr;
             let new_col = col as i32 + dc;
 
-            if new_row >= 0 && new_row < 4 && new_col >= 0 && new_col < 4 {
+            if (0..4).contains(&new_row) && (0..4).contains(&new_col) {
                 let new_row = new_row as usize;
                 let new_col = new_col as usize;
 

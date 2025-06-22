@@ -25,7 +25,6 @@ impl Trie {
         match word.chars().next() {
             None => {
                 self.finish = true;
-                return;
             }
             Some(c) => {
                 // Find existing entry or create new one
@@ -107,7 +106,7 @@ impl From<PathBuf> for Trie {
         buf.lines()
             .map(|l| l.expect("failed to parse line"))
             .for_each(|w| result.insert(&w));
-        return result;
+        result
     }
 }
 

@@ -195,10 +195,8 @@ fn determine_endpoint_type(uri: &Uri, method: &str) -> EndpointType {
     }
 
     // Write operations
-    if matches!(method, "POST" | "PUT" | "DELETE") {
-        if path.contains("/submit") || path.contains("/validate") {
-            return EndpointType::Write;
-        }
+    if matches!(method, "POST" | "PUT" | "DELETE") && (path.contains("/submit") || path.contains("/validate")) {
+        return EndpointType::Write;
     }
 
     // Default to read operations

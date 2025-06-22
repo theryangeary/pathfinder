@@ -120,7 +120,7 @@ fn generate_session_id() -> String {
     let mut bytes = [0u8; 32]; // 256 bits of entropy
     rng.fill(&mut bytes)
         .expect("Failed to generate random bytes");
-    general_purpose::URL_SAFE_NO_PAD.encode(&bytes)
+    general_purpose::URL_SAFE_NO_PAD.encode(bytes)
 }
 
 fn is_valid_session_id(session_id: &str) -> bool {

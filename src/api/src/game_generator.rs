@@ -10,9 +10,7 @@ use anyhow::Result;
 use chrono::{Duration, Utc};
 use rand::SeedableRng;
 use rand_seeder::Seeder;
-use serde_json;
 use tracing::{error, info, warn};
-use uuid;
 
 #[derive(Clone)]
 pub struct GameGenerator {

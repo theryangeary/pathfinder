@@ -25,8 +25,8 @@ impl Repository {
         )
         .bind(&user.id)
         .bind(&user.cookie_token)
-        .bind(&user.created_at)
-        .bind(&user.last_seen)
+        .bind(user.created_at)
+        .bind(user.last_seen)
         .execute(&self.pool)
         .await?;
 
@@ -95,9 +95,9 @@ impl Repository {
             .bind(&game.id)
             .bind(&game.date)
             .bind(&game.board_data)
-            .bind(&game.threshold_score)
-            .bind(&game.sequence_number)
-            .bind(&game.created_at)
+            .bind(game.threshold_score)
+            .bind(game.sequence_number)
+            .bind(game.created_at)
             .execute(&self.pool)
             .await?;
 
@@ -220,8 +220,8 @@ impl Repository {
             let now = Utc::now();
             sqlx::query("UPDATE game_entries SET answers_data = $1, total_score = $2, completed = $3, updated_at = $4 WHERE id = $5")
                 .bind(&new_entry.answers_data)
-                .bind(&new_entry.total_score)
-                .bind(&new_entry.completed)
+                .bind(new_entry.total_score)
+                .bind(new_entry.completed)
                 .bind(now)
                 .bind(&existing_entry.id)
                 .execute(&self.pool)
@@ -252,10 +252,10 @@ impl Repository {
                 .bind(&entry.user_id)
                 .bind(&entry.game_id)
                 .bind(&entry.answers_data)
-                .bind(&entry.total_score)
-                .bind(&entry.completed)
-                .bind(&entry.created_at)
-                .bind(&entry.updated_at)
+                .bind(entry.total_score)
+                .bind(entry.completed)
+                .bind(entry.created_at)
+                .bind(entry.updated_at)
                 .execute(&self.pool)
                 .await?;
 
@@ -318,7 +318,7 @@ impl Repository {
                 .bind(&answer.word)
                 .bind(&answer.path)
                 .bind(&answer.path_constraint_set)
-                .bind(&answer.created_at)
+                .bind(answer.created_at)
                 .execute(&mut *tx)
                 .await?;
 
@@ -349,9 +349,9 @@ impl Repository {
             .bind(&game.id)
             .bind(&game.date)
             .bind(&game.board_data)
-            .bind(&game.threshold_score)
-            .bind(&game.sequence_number)
-            .bind(&game.created_at)
+            .bind(game.threshold_score)
+            .bind(game.sequence_number)
+            .bind(game.created_at)
             .execute(&mut *tx)
             .await?;
 
@@ -376,7 +376,7 @@ impl Repository {
                 .bind(&answer.word)
                 .bind(&answer.path)
                 .bind(&answer.path_constraint_set)
-                .bind(&answer.created_at)
+                .bind(answer.created_at)
                 .execute(&mut *tx)
                 .await?;
 

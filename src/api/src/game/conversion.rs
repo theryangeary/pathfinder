@@ -137,7 +137,7 @@ impl From<&AnswerGroupConstraintSet> for SerializableAnswerGroupConstraintSet {
             path_constraint_sets: constraints
                 .path_constraint_sets
                 .iter()
-                .map(|pcs| SerializablePathConstraintSet::from(pcs))
+                .map(SerializablePathConstraintSet::from)
                 .collect(),
         }
     }

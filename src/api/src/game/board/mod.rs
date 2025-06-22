@@ -146,15 +146,15 @@ impl Board {
                 .collect::<Vec<PathConstraintSet>>(),
         );
 
-        return answer::Answer {
-            paths: paths,
+        answer::Answer {
+            paths,
             word: word.into(),
             constraints_set: answer_group_constraint_set_for_this_one_answer,
-        };
+        }
     }
 
     pub fn contains(&self, answer: &answer::Answer) -> bool {
-        answer.paths.len() > 0
+        !answer.paths.is_empty()
     }
 
     pub fn paths_for_word_from_position(
@@ -219,7 +219,7 @@ impl Board {
             }
         }
         visited.remove(&(row_number, column_number));
-        return result;
+        result
     }
 
     /// Get all paths for each answer
