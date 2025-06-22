@@ -62,7 +62,7 @@ export const useVirtualKeyboard = (): VirtualKeyboardState => {
       // Initial check
       handleResize();
 
-      window.addEventListener('resize', handleResize);
+      (<any>window).addEventListener('resize', handleResize);
       
       return () => {
         window.removeEventListener('resize', handleResize);

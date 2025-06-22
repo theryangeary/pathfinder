@@ -5,12 +5,9 @@ interface BoardProps {
   board: TileType[][];
   highlightedPaths: Position[][];
   wildcardConstraints: AnswerGroupConstraintSet;
-  answers: string[];
-  validAnswers: boolean[];
-  currentWord: string;
 }
 
-function Board({ board, highlightedPaths, wildcardConstraints, answers, validAnswers, currentWord }: BoardProps) {
+function Board({ board, highlightedPaths, wildcardConstraints}: BoardProps) {
 
   // Show empty tiles if board is empty
   const boardToRender = board.length === 0 

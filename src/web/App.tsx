@@ -518,9 +518,6 @@ function App() {
           board={board} 
           highlightedPaths={highlightedPaths}
           wildcardConstraints={wildcardConstraints}
-          answers={answers}
-          validAnswers={validAnswers}
-          currentWord={currentInputIndex >= 0 ? answers[currentInputIndex] : ''}
         />
       )}
       

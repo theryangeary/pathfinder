@@ -584,8 +584,10 @@ function createTestBoard(): Tile[][] {
       const isWildcard = char === '*'
       
       board[row][col] = {
+        row: row,
+        col: col,
         letter: isWildcard ? '' : char.toUpperCase(),
-        score: 1, // Simplified for testing
+        points: 1, // Simplified for testing
         isWildcard
       }
     }

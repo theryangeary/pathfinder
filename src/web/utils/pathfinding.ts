@@ -431,7 +431,6 @@ export function findPathsForHighlighting(board: Tile[][], word: string, constrai
       const isCompatible = constraintSet.pathConstraintSets.some(constraintSetItem => 
         isPathCompatibleWithConstraints(path, constraintSetItem, board, word)
       );
-      console.log("iscompat", isCompatible);
       
       if (isCompatible) {
         validPaths.push(path);
@@ -465,7 +464,6 @@ export function isPathCompatibleWithConstraints(
   // Additional validation: check that the path actually uses wildcards as specified by constraints
   for (let i = 0; i < pathWithConstraints.path.length; i++) {
     const pos = pathWithConstraints.path[i];
-    console.log(i, word, pos);
     
     if (board[pos.row][pos.col].isWildcard) {
       const wordLetter = word[i].toUpperCase();
@@ -510,13 +508,10 @@ export function getWildcardConstraintsFromPath(board: Tile[][], word: string, pa
       }
     }
 
-    console.log(constraints, constraint)
     const newConstraints = mergeConstraints(constraints, constraint);
     if (newConstraints === null) {
-      console.log("null")
       return null;
     } else {
-      console.log(newConstraints);
       constraints = newConstraints;
     }
   }

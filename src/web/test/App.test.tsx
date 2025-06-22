@@ -103,8 +103,8 @@ describe('App Component Routing', () => {
     })
 
     await waitFor(() => {
-      expect(screen.getAllByText((content, element) => {
-        return element?.textContent === 'Puzzle #1 · 2025-06-08'
+      expect(screen.getAllByText((_, element) => {
+        return element?.textContent === 'Puzzle #1 · 2025-06-08' || false
       })[0]).toBeInTheDocument()
     })
   })
@@ -126,7 +126,7 @@ describe('App Component Routing', () => {
 
     await waitFor(() => {
       const elements = screen.getAllByText((_, element) => {
-        return element?.textContent?.includes('Puzzle #5')
+        return element?.textContent?.includes('Puzzle #5') || false
       })
       expect(elements.length).toBeGreaterThan(0)
       expect(elements[0]).toBeInTheDocument()
@@ -233,7 +233,7 @@ describe('App Component Routing', () => {
 
     await waitFor(() => {
       const elements = screen.getAllByText((_, element) => {
-        return element?.textContent?.includes('Puzzle #5 · 2025-06-07')
+        return element?.textContent?.includes('Puzzle #5 · 2025-06-07') || false
       })
       expect(elements.length).toBeGreaterThan(0)
       expect(elements[0]).toBeInTheDocument()
