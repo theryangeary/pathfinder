@@ -1,4 +1,4 @@
-use axum::http::{HeaderMap, HeaderValue};
+use axum::http::HeaderMap;
 use std::net::IpAddr;
 use std::str::FromStr;
 
@@ -46,10 +46,6 @@ pub fn is_origin_allowed(origin: &str, allowed_origins: &[String]) -> bool {
 
         false
     })
-}
-
-pub fn sanitize_header_value(value: &str) -> Option<HeaderValue> {
-    HeaderValue::from_str(value).ok()
 }
 
 #[cfg(test)]

@@ -82,28 +82,6 @@ impl Repository {
         Ok(())
     }
 
-    // Game operations
-    pub async fn create_game(&self, new_game: NewGame) -> Result<DbGame> {
-        let game = DbGame::new(
-            new_game.date,
-            new_game.board_data,
-            new_game.threshold_score,
-            new_game.sequence_number,
-        );
-
-        sqlx::query("INSERT INTO games (id, date, board_data, threshold_score, sequence_number, created_at) VALUES ($1, $2, $3, $4, $5, $6)")
-            .bind(&game.id)
-            .bind(&game.date)
-            .bind(&game.board_data)
-            .bind(game.threshold_score)
-            .bind(game.sequence_number)
-            .bind(game.created_at)
-            .execute(&self.pool)
-            .await?;
-
-        Ok(game)
-    }
-
     pub async fn get_game_by_date(&self, date: &str) -> Result<Option<DbGame>> {
         let row = sqlx::query("SELECT id, date, board_data, threshold_score, sequence_number, created_at FROM games WHERE date = $1")
             .bind(date)
@@ -150,25 +128,6 @@ impl Repository {
     ) -> Result<Option<DbGame>> {
         let row = sqlx::query("SELECT id, date, board_data, threshold_score, sequence_number, created_at FROM games WHERE sequence_number = $1")
             .bind(sequence_number)
-            .fetch_optional(&self.pool)
-            .await?;
-
-        if let Some(row) = row {
-            Ok(Some(DbGame {
-                id: row.get("id"),
-                date: row.get("date"),
-                board_data: row.get("board_data"),
-                threshold_score: row.get("threshold_score"),
-                sequence_number: row.get("sequence_number"),
-                created_at: row.get("created_at"),
-            }))
-        } else {
-            Ok(None)
-        }
-    }
-
-    pub async fn get_random_historical_game(&self) -> Result<Option<DbGame>> {
-        let row = sqlx::query("SELECT id, date, board_data, threshold_score, sequence_number, created_at FROM games ORDER BY RANDOM() LIMIT 1")
             .fetch_optional(&self.pool)
             .await?;
 
@@ -288,45 +247,6 @@ impl Repository {
         } else {
             Ok(None)
         }
-    }
-
-    // Game answers operations
-    pub async fn create_game_answers(
-        &self,
-        game_answers: Vec<NewGameAnswer>,
-    ) -> Result<Vec<DbGameAnswer>> {
-        if game_answers.is_empty() {
-            return Ok(vec![]);
-        }
-
-        let mut created_answers = Vec::new();
-
-        // Use a transaction for batch insert
-        let mut tx = self.pool.begin().await?;
-
-        for new_answer in game_answers {
-            let answer = DbGameAnswer::new(
-                new_answer.game_id,
-                new_answer.word,
-                new_answer.path,
-                new_answer.path_constraint_set,
-            );
-
-            sqlx::query("INSERT INTO game_answers (id, game_id, word, path, path_constraint_set, created_at) VALUES ($1, $2, $3, $4, $5, $6)")
-                .bind(&answer.id)
-                .bind(&answer.game_id)
-                .bind(&answer.word)
-                .bind(&answer.path)
-                .bind(&answer.path_constraint_set)
-                .bind(answer.created_at)
-                .execute(&mut *tx)
-                .await?;
-
-            created_answers.push(answer);
-        }
-
-        tx.commit().await?;
-        Ok(created_answers)
     }
 
     // Create game and answers atomically

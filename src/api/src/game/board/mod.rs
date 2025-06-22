@@ -153,10 +153,6 @@ impl Board {
         }
     }
 
-    pub fn contains(&self, answer: &answer::Answer) -> bool {
-        !answer.paths.is_empty()
-    }
-
     pub fn paths_for_word_from_position(
         &self,
         word: &str,

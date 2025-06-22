@@ -222,16 +222,6 @@ impl GameEngine {
         Ok(ScoreSheet::from(best_scores_by_word))
     }
 
-    pub fn score_word(&self, word: &str) -> u32 {
-        if word.is_empty() {
-            return 0;
-        }
-
-        word.chars()
-            .map(|c| crate::game::scoring::points_for_letter(c) as u32)
-            .sum()
-    }
-
     pub fn find_word_paths(&self, board: &Board, word: &str) -> board::answer::Answer {
         board.paths_for(word)
     }

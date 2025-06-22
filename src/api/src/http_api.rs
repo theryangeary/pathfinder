@@ -11,7 +11,7 @@ use moka::future::Cache;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tower_http::{
-    cors::CorsLayer, limit::RequestBodyLimitLayer, services::ServeDir, timeout::TimeoutLayer,
+    limit::RequestBodyLimitLayer, services::ServeDir, timeout::TimeoutLayer,
 };
 
 use crate::db::{conversions::AnswerStorage, Repository};
@@ -180,32 +180,6 @@ impl ApiState {
             game_cache,
         }
     }
-}
-
-pub fn create_router(state: ApiState) -> Router {
-    Router::new()
-        .route("/api/game/date/:date", get(get_game_by_date))
-        .route(
-            "/api/game/sequence/:sequence_number",
-            get(get_game_by_sequence),
-        )
-        .route("/api/game/:game_id/words", get(get_game_words))
-        .route("/api/game/:game_id/paths", get(get_game_paths))
-        .route("/api/game/:game_id/word/:word/paths", get(get_word_paths))
-        // TODO consider if this can be removed from api, as it should really be done as part of /submit
-        .route("/api/validate", post(validate_answer))
-        .route("/api/submit", post(submit_answers))
-        .route("/api/update-progress", post(update_progress))
-        .route("/api/user", post(create_user))
-        .route("/api/game-entry/:game_id", get(get_game_entry))
-        .nest_service("/", ServeDir::new("static"))
-        .layer(
-            CorsLayer::new()
-                .allow_origin(tower_http::cors::Any)
-                .allow_methods(tower_http::cors::Any)
-                .allow_headers(tower_http::cors::Any),
-        )
-        .with_state(state)
 }
 
 pub fn create_secure_router(state: ApiState, config: SecurityConfig) -> Router {
@@ -476,13 +450,6 @@ async fn get_game_by_sequence(
     // Cache the result before returning
     state.game_cache.insert(cache_key, api_game.clone()).await;
 
-    Ok(Json(api_game))
-}
-
-fn convert_db_game_to_api_game(
-    db_game: crate::db::models::DbGame,
-) -> Result<Json<ApiGame>, StatusCode> {
-    let api_game = convert_db_game_to_api_game_direct(db_game)?;
     Ok(Json(api_game))
 }
 

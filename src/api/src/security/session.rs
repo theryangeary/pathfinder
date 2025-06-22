@@ -104,7 +104,9 @@ where
 
 #[derive(Clone, Debug)]
 pub struct SessionInfo {
+    #[allow(dead_code)]
     pub session_id: String,
+    #[allow(dead_code)]
     pub is_new: bool,
 }
 
