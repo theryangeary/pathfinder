@@ -716,11 +716,10 @@ mod tests {
                     board.set_tile(0, 0, 'c', 2, false); // One path: c(2) -> a(1) -> t(1) = 4
                     board.set_tile(0, 1, 'a', 1, false);
                     board.set_tile(0, 2, 't', 1, false);
-                    
                     board.set_tile(1, 0, 'c', 2, false); // Another path: c(2) -> a(3) -> t(5) = 10  
                     board.set_tile(1, 1, 'a', 3, false);
                     board.set_tile(1, 2, 't', 5, false);
-                    
+
                     // Fill rest with x
                     for i in 0..4 {
                         for j in 0..4 {
@@ -744,8 +743,8 @@ mod tests {
 
             match (&result, &test_case.expected_result) {
                 (Ok(actual_scores), ExpectedResult::Success { expected_scores }) => {
-                    assert_eq!(actual_scores.map.len(), expected_scores.len(), 
-                        "Test case '{}': Score count mismatch. Expected {} scores, got {}. Description: {}", 
+                    assert_eq!(actual_scores.map.len(), expected_scores.len(),
+                        "Test case '{}': Score count mismatch. Expected {} scores, got {}. Description: {}",
                         test_case.name, expected_scores.len(), actual_scores.map.len(), test_case.description);
 
                     for (expected_word, expected_score) in expected_scores {
@@ -758,14 +757,14 @@ mod tests {
                         );
 
                         let actual_score = actual_scores.map[*expected_word];
-                        assert_eq!(actual_score, *expected_score, 
-                            "Test case '{}': Score mismatch for word '{}'. Expected {}, got {}. Description: {}", 
+                        assert_eq!(actual_score, *expected_score,
+                            "Test case '{}': Score mismatch for word '{}'. Expected {}, got {}. Description: {}",
                             test_case.name, expected_word, expected_score, actual_score, test_case.description);
                     }
                 }
                 (Err(actual_error), ExpectedResult::Error { error_fragment }) => {
-                    assert!(actual_error.contains(error_fragment), 
-                        "Test case '{}': Error message mismatch. Expected to contain '{}', got '{}'. Description: {}", 
+                    assert!(actual_error.contains(error_fragment),
+                        "Test case '{}': Error message mismatch. Expected to contain '{}', got '{}'. Description: {}",
                         test_case.name, error_fragment, actual_error, test_case.description);
                 }
                 (Ok(actual_scores), ExpectedResult::Error { error_fragment }) => {
