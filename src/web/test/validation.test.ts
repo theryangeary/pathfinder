@@ -9,7 +9,7 @@ describe('test validation', () => {
             board,
             ['silo', 'seed', 'sed', 'sold', 'does'],
             true,
-            ((word: string) => true),
+            ((_: string) => true),
         );
         expect(validation.validAnswers.filter((b => !b)).length == 0).toBeTruthy
     });

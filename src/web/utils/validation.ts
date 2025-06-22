@@ -119,7 +119,7 @@ export const validateAllAnswers = (board: Tile[][], allAnswers: string[], isVali
       const { index, originalWord, sanitizedWord, isInvalid } = info;
       
       // Find the best path for this word
-      const bestPath = findBestPath(board, originalWord, {});
+      const bestPath = findBestPath(board, originalWord, finalConstraintSet);
       if (!bestPath) continue; // Should not happen since we already found paths
       
       validAnswers[index] = true;

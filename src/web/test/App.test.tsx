@@ -1,7 +1,6 @@
-import { describe, it, expect, vi, beforeEach, Mock } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { beforeEach, describe, expect, it, Mock, vi } from 'vitest'
 import App from '../App'
 import * as gameApi from '../api/gameApi'
 
@@ -126,7 +125,7 @@ describe('App Component Routing', () => {
     })
 
     await waitFor(() => {
-      const elements = screen.getAllByText((content, element) => {
+      const elements = screen.getAllByText((_, element) => {
         return element?.textContent?.includes('Puzzle #5')
       })
       expect(elements.length).toBeGreaterThan(0)
@@ -233,7 +232,7 @@ describe('App Component Routing', () => {
     )
 
     await waitFor(() => {
-      const elements = screen.getAllByText((content, element) => {
+      const elements = screen.getAllByText((_, element) => {
         return element?.textContent?.includes('Puzzle #5 · 2025-06-07')
       })
       expect(elements.length).toBeGreaterThan(0)

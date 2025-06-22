@@ -20,12 +20,6 @@ function isAdjacent(pos1: Position, pos2: Position): boolean {
   return (rowDiff <= 1 && colDiff <= 1) && !(rowDiff === 0 && colDiff === 0);
 }
 
-function isDiagonalMove(pos1: Position, pos2: Position): boolean {
-  const rowDiff = Math.abs(pos1.row - pos2.row);
-  const colDiff = Math.abs(pos1.col - pos2.col);
-  return rowDiff === 1 && colDiff === 1;
-}
-
 export function getWildcardPositions(board: Tile[][]): Position[] {
   const wildcardPositions: Position[] = [];
   for (let row = 0; row < 4; row++) {
@@ -43,6 +37,7 @@ function isFirstWildcard(pos: Position): boolean {
   return pos.row < 2 && pos.col < 2;
 }
 
+// @ts-ignore
 function isSecondWildcard(pos: Position): boolean {
   // Following backend logic: second wildcard is any wildcard that's not the first
   return !isFirstWildcard(pos);
@@ -490,110 +485,6 @@ export function isPathCompatibleWithConstraints(
   }
   
   return true;
-}
-
-interface PathAnalysis {
-  path: Position[];
-  wildcardAssignments: Record<string, string>;
-  wildcardPositions: string[];
-  wildcardCount: number;
-}
-
-function getMinimalConstraintPaths(board: Tile[][], word: string, wildcardPaths: Position[][]): Position[][] {
-  if (wildcardPaths.length === 0) return [];
-
-  // Analyze each path to understand wildcard usage patterns
-  const pathAnalysis: PathAnalysis[] = wildcardPaths.map(path => {
-    const wildcardAssignments = getWildcardConstraintsFromPath(board, word, path);
-    const wildcardPositions = Object.keys(wildcardAssignments);
-
-    return {
-      path,
-      wildcardAssignments,
-      wildcardPositions,
-      wildcardCount: wildcardPositions.length
-    };
-  });
-
-  // Group paths by wildcard count - prefer fewer wildcards
-  const pathsByWildcardCount: Record<number, PathAnalysis[]> = {};
-  pathAnalysis.forEach(analysis => {
-    const count = analysis.wildcardCount;
-    if (!pathsByWildcardCount[count]) {
-      pathsByWildcardCount[count] = [];
-    }
-    pathsByWildcardCount[count].push(analysis);
-  });
-
-  // Find the minimum wildcard count that has valid paths
-  const minWildcardCount = Math.min(...Object.keys(pathsByWildcardCount).map(Number));
-  const minimalPaths = pathsByWildcardCount[minWildcardCount];
-
-  // Apply Rule 2a: Check if wildcards are necessary
-  const necessaryPaths: PathAnalysis[] = [];
-
-  for (const pathAnalysis of minimalPaths) {
-    const { path, wildcardAssignments } = pathAnalysis;
-    let pathIsNecessary = true;
-
-    // For each wildcard used in this path, check if there's an alternative non-wildcard tile
-    for (const [wildcardKey, letter] of Object.entries(wildcardAssignments)) {
-      const [row, col] = wildcardKey.split('-').map(Number);
-      const wildcardIndex = path.findIndex(pos => pos.row === row && pos.col === col);
-
-      if (wildcardIndex === -1) continue;
-
-      const prevPos = wildcardIndex > 0 ? path[wildcardIndex - 1] : null;
-      const nextPos = wildcardIndex < path.length - 1 ? path[wildcardIndex + 1] : null;
-
-      // Check if there's a non-wildcard tile with the same letter that's adjacent to both prev and next
-      const hasAlternative = checkForNonWildcardAlternative(board, letter, prevPos, nextPos, path, wildcardIndex);
-
-      if (hasAlternative) {
-        pathIsNecessary = false;
-        break;
-      }
-    }
-
-    if (pathIsNecessary) {
-      necessaryPaths.push(pathAnalysis);
-    }
-  }
-
-  // If no paths are necessary, use all minimal paths (Rule 2b applies)
-  const finalPaths = necessaryPaths.length > 0 ? necessaryPaths : minimalPaths;
-
-  return finalPaths.map(analysis => analysis.path);
-}
-
-function checkForNonWildcardAlternative(board: Tile[][], letter: string, prevPos: Position | null, nextPos: Position | null, currentPath: Position[], _wildcardIndex: number): boolean {
-  // Find all non-wildcard tiles with the target letter
-  const alternatives: Position[] = [];
-  for (let row = 0; row < 4; row++) {
-    for (let col = 0; col < 4; col++) {
-      const tile = board[row][col];
-      if (!tile.isWildcard && tile.letter.toLowerCase() === letter.toLowerCase()) {
-        alternatives.push({ row, col });
-      }
-    }
-  }
-
-  // Check if any alternative can connect to both prev and next positions
-  for (const alt of alternatives) {
-    // Skip if this position is already used in the path
-    if (currentPath.some(pos => pos.row === alt.row && pos.col === alt.col)) {
-      continue;
-    }
-
-    let canReachPrev = !prevPos || isAdjacent(prevPos, alt);
-    let canReachNext = !nextPos || isAdjacent(alt, nextPos);
-
-    if (canReachPrev && canReachNext) {
-      return true;
-    }
-  }
-
-  return false;
 }
 
 export function getWildcardConstraintsFromPath(board: Tile[][], word: string, path: Position[]): Record<string, string> {

@@ -1,4 +1,5 @@
 // API client for word game backend
+/// <reference types="vite/types/importMeta.d.ts" />
 
 const API_BASE_URL = import.meta.env.PROD
   ? 'https://pathfinder-game.fly.dev/api'  // In production, use relative path (nginx proxy)

@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { Position, Tile } from '../utils/models';
 import AnswerInput, { AnswerInputHandle } from './AnswerInput';
 
 interface AnswerSectionProps {
@@ -14,8 +13,6 @@ interface AnswerSectionProps {
   isWordListLoading?: boolean;
   isGameCompleted?: boolean;
   isOffline?: boolean;
-  board: Tile[][];
-  validPaths: (Position[] | null)[];
 }
 
 function AnswerSection({ 
@@ -30,8 +27,6 @@ function AnswerSection({
   isWordListLoading = false,
   isGameCompleted = false,
   isOffline = false,
-  board,
-  validPaths
 }: AnswerSectionProps) {
   const inputRefs = useRef<(AnswerInputHandle | null)[]>([]);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
@@ -42,14 +37,14 @@ function AnswerSection({
     const detectKeyboard = () => {
       if (window.visualViewport) {
         const initialHeight = window.visualViewport.height;
-        let timeoutId: number;
+        let timeoutId: NodeJS.Timeout;
         
         const handleViewportChange = () => {
           // Clear any pending timeout to debounce the detection
           clearTimeout(timeoutId);
           
           timeoutId = setTimeout(() => {
-            const currentHeight = window.visualViewport.height;
+            let currentHeight = window.visualViewport ? window.visualViewport.height : 0;
             const heightDifference = initialHeight - currentHeight;
             const keyboardVisible = heightDifference > 100; // Threshold for keyboard detection
             
@@ -76,7 +71,7 @@ function AnswerSection({
         window.visualViewport.addEventListener('resize', handleViewportChange);
         return () => {
           clearTimeout(timeoutId);
-          window.visualViewport.removeEventListener('resize', handleViewportChange);
+          window.visualViewport?.removeEventListener('resize', handleViewportChange);
         };
       }
     };
@@ -113,6 +108,7 @@ function AnswerSection({
     return index === 0 || validAnswers.slice(0, index).every(valid => valid) || isValid;
   };
 
+  // @ts-ignore 
   const goToPrevious = () => {
     const targetIndex = currentCarouselIndex - 1;
     if (targetIndex >= 0 && isInputEnabled(targetIndex)) {
@@ -129,6 +125,7 @@ function AnswerSection({
     }
   };
 
+  // @ts-ignore 
   const handleAnswerFocus = (index: number) => {
     if (isKeyboardVisible) {
       setCurrentCarouselIndex(index);
@@ -136,6 +133,7 @@ function AnswerSection({
     onAnswerFocus(index);
   };
 
+  // @ts-ignore 
   const handleAnswerBlur = (index: number) => {
     // Don't handle blur events during navigation to prevent keyboard closure
     if (isNavigating) {
@@ -266,13 +264,6 @@ function AnswerSection({
           {isSubmitting ? 'Submitting...' : (isGameCompleted || isOffline ? 'View Stats' : 'Submit Answers')}
         </button>
       </div>
-      
-      {/* <ConstraintDisplay 
-        board={board}
-        answers={answers}
-        validAnswers={validAnswers}
-        validPaths={validPaths}
-      /> */}
     </div>
   );
 }

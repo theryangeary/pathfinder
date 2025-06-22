@@ -242,7 +242,7 @@ function App() {
       // Set highlighted paths for the current input
       if (currentValue && currentValue.length > 0) {
         const currentConstraints = value !== undefined 
-          ? validateAllAnswers([...answers.slice(0, index), value, ...answers.slice(index + 1)], isValidWordLoaded, isValidWordFn, index).constraintSets
+          ? validateAllAnswers(board, [...answers.slice(0, index), value, ...answers.slice(index + 1)], isValidWordLoaded, isValidWordFn, index).constraintSets
           : wildcardConstraints;
         const paths = findPathsForHighlighting(board, currentValue, currentConstraints);
         setHighlightedPaths(paths);
@@ -550,8 +550,6 @@ function App() {
         isWordListLoading={!isValidWordLoaded}
         isGameCompleted={isGameCompleted}
         isOffline={!!apiError}
-        board={board}
-        validPaths={validPaths}
       />
       
       <HeatmapModal

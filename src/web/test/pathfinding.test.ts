@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { PathConstraintType } from '../utils/models'
+import { AnswerGroupConstraintSet, PathConstraintType } from '../utils/models'
 import { findAllPaths, findAllPathsGivenConstraints, findBestPath, getWildcardConstraintsFromPath, isPathCompatibleWithConstraints } from '../utils/pathfinding'
 import { testBoard } from './util.test'
 
@@ -123,7 +123,7 @@ describe('Pathfinding Tests', () => {
     // - 'data' needs the first wildcard (1,1) to be 't'
     // Expected final state: wildcard (1,1) = 't', wildcard (2,2) = 'e'
 
-    let constraints: Record<string, string> = {}
+    let constraints: AnswerGroupConstraintSet =  { pathConstraintSets: [] };
 
     // 1. Enter 'day' - should not constrain any wildcards
     const dayPath = findBestPath(board, 'day', constraints)
