@@ -11,6 +11,8 @@ import {
   PathConstraintType,
   Tile
 } from '../utils/models'
+import { validateAllAnswers } from '../utils/validation'
+import { testBoard } from './util.test'
 
 // Helper function to create AnswerGroupConstraintSet from PathConstraintSets
 function answerGroupFrom(pathConstraintSets: PathConstraintSet[]): AnswerGroupConstraintSet {
@@ -793,5 +795,21 @@ describe('convertConstraintSetsToConstraints', () => {
     expect(result).toEqual({
       '1-1': 'A / *'
     })
+  })
+})
+
+describe('should constrain correctly', () => {
+  it('should resolve year and sev to the same "e"', () => {
+    const board = testBoard('eadux*ysta*tnhrv');
+    const inputs = ['day', 'year', 'sev', 'data'];
+    const validation = validateAllAnswers(board, inputs, true, ((_)=>true))
+    expect(validation.validAnswers.slice(0,inputs.length).every((v) => v)).toBeTruthy()
+    const constraints = validation.constraintSets
+    expect(constraints).toStrictEqual(
+      {pathConstraintSets: [
+        {type: PathConstraintType.BothDecided, firstLetter: 't', secondLetter: 'e'},
+        {type: PathConstraintType.BothDecided, firstLetter: 'a', secondLetter: 'e'}
+      ]},
+    )
   })
 })
