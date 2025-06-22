@@ -138,7 +138,7 @@ export function mergePathConstraintSets(a: PathConstraintSet, b: PathConstraintS
 // Intersection of two AnswerGroupConstraintSets
 export function intersectAnswerGroupConstraintSets(a: AnswerGroupConstraintSet, b: AnswerGroupConstraintSet): AnswerGroupConstraintSet {
   const resultSets: PathConstraintSet[] = [];
-  
+  console.log(a, b);
   for (const aConstraint of a.pathConstraintSets) {
     for (const bConstraint of b.pathConstraintSets) {
       try {
@@ -196,10 +196,13 @@ export function getAnswerGroupConstraintSets(
   for (let i = 0; i < answers.length; i++) {
     if (validAnswers[i] && validPaths[i] && answers[i]) {
       const constraints = getWildcardConstraintsFromPath(board, answers[i], validPaths[i]!);
-      const pathConstraintSet = constraintsToPathConstraintSet(constraints, board);
+      if (constraints === null) {
+        // this is unexpected given we expect already validated Answers and Paths
+        throw UnsatisfiableConstraint;
+      }
       
       constraintSets.push({
-        pathConstraintSets: [pathConstraintSet]
+        pathConstraintSets: [constraints]
       });
     }
   }

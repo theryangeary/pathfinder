@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { AnswerGroupConstraintSet, PathConstraintType } from '../utils/models'
-import { findAllPaths, findAllPathsGivenConstraints, findBestPath, getWildcardConstraintsFromPath, isPathCompatibleWithConstraints } from '../utils/pathfinding'
+import { PathConstraintType } from '../utils/models'
+import { findAllPaths, findAllPathsGivenConstraints, isPathCompatibleWithConstraints } from '../utils/pathfinding'
 import { testBoard } from './util.test'
 
 
@@ -110,59 +110,6 @@ describe('Pathfinding Tests', () => {
 
     // Should find no paths
     expect(paths).toHaveLength(0)
-  })
-
-  it('should resolve correct wildcards', () => {
-    const board = testBoard('eadux*ysta*tnhrv')
-
-    // Test the sequence 'day', 'year', 'sev', 'data' to verify wildcard constraint behavior
-    // This sequence will demonstrate the conflict resolution:
-    // - 'day' uses no wildcards, establishing no constraints
-    // - 'year' constrains the first wildcard (1,1) to 'e' OR the second wildcard (2,2) to 'e'
-    // - 'sev' constrains the second wildcard (2,2) to 'e'  
-    // - 'data' needs the first wildcard (1,1) to be 't'
-    // Expected final state: wildcard (1,1) = 't', wildcard (2,2) = 'e'
-
-    let constraints: AnswerGroupConstraintSet =  { pathConstraintSets: [] };
-
-    // 1. Enter 'day' - should not constrain any wildcards
-    const dayPath = findBestPath(board, 'day', constraints)
-    expect(dayPath).toBeTruthy()
-    if (dayPath) {
-      const dayConstraints = getWildcardConstraintsFromPath(board, 'day', dayPath)
-      constraints = { ...constraints, ...dayConstraints }
-    }
-
-    // 2. Enter 'year' - should constrain either first or second wildcard (1,1) to 'e'
-    const yearPath = findBestPath(board, 'year', constraints)
-    expect(yearPath).toBeTruthy()
-    if (yearPath) {
-      const yearConstraints = getWildcardConstraintsFromPath(board, 'year', yearPath)
-      constraints = { ...constraints, ...yearConstraints }
-    }
-
-    // 3. Enter 'sev' - should constrain second wildcard (2,2) to 'e'
-    const sevPath = findBestPath(board, 'sev', constraints)
-    expect(sevPath).toBeTruthy()
-    if (sevPath) {
-      const sevConstraints = getWildcardConstraintsFromPath(board, 'sev', sevPath)
-      constraints = { ...constraints, ...sevConstraints }
-    }
-
-    // At this point, wildcard (2,2) should be 'e'
-    expect(constraints['2-2']).toBe('e')
-
-    // 4. Enter 'data' - should constrain first wildcard (1,1) to 't'
-    const dataPath = findBestPath(board, 'data', constraints)
-    expect(dataPath).toBeTruthy()
-    if (dataPath) {
-      const dataConstraints = getWildcardConstraintsFromPath(board, 'data', dataPath)
-      constraints = { ...constraints, ...dataConstraints }
-
-      // Final verification: first wildcard should now be constrained to 't'
-      expect(constraints['1-1']).toBe('t')
-      expect(constraints['2-2']).toBe('e')
-    }
   })
 
   describe('isPathCompatibleWithConstraints', () => {

@@ -487,16 +487,37 @@ export function isPathCompatibleWithConstraints(
   return true;
 }
 
-export function getWildcardConstraintsFromPath(board: Tile[][], word: string, path: Position[]): Record<string, string> {
-  const constraints: Record<string, string> = {};
+export function getWildcardConstraintsFromPath(board: Tile[][], word: string, path: Position[]): PathConstraintSet | null {
+  let constraints: PathConstraintSet = { type: PathConstraintType.Unconstrained };
 
   for (let i = 0; i < path.length; i++) {
     const { row, col } = path[i];
     const tile = board[row][col];
+    let constraint: PathConstraintSet = { type: PathConstraintType.Unconstrained };
 
     if (tile.isWildcard) {
-      const constraintKey = `${row}-${col}`;
-      constraints[constraintKey] = word[i].toLowerCase();
+      if (isFirstWildcard(path[i])) {
+        constraint = {
+          type: PathConstraintType.FirstDecided,
+          firstLetter: word[i],
+        }
+      }
+      if (isSecondWildcard(path[i])) {
+        constraint = {
+          type: PathConstraintType.SecondDecided,
+          secondLetter: word[i],
+        }
+      }
+    }
+
+    console.log(constraints, constraint)
+    const newConstraints = mergeConstraints(constraints, constraint);
+    if (newConstraints === null) {
+      console.log("null")
+      return null;
+    } else {
+      console.log(newConstraints);
+      constraints = newConstraints;
     }
   }
 
