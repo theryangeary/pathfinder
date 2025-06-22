@@ -19,7 +19,7 @@ pub struct SecurityConfig {
 impl Default for SecurityConfig {
     fn default() -> Self {
         Self {
-            allowed_origins: vec!["http://localhost:5173".to_string()],
+            allowed_origins: vec!["http://localhost:5173".to_string(),"http://localhost".to_string()],
             cors_max_age: Duration::from_secs(300),
             rate_limit_session: 10,
             rate_limit_read: 200,

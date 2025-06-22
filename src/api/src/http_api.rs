@@ -926,7 +926,7 @@ mod tests {
     use axum::http::StatusCode;
     use tower::util::ServiceExt;
 
-    use crate::test_utils::test_utils::*;
+    use crate::{db::models::NewGameAnswer, test_utils::test_utils::*};
 
     #[sqlx::test]
     async fn test_get_game_by_sequence_exists(pool: sqlx::Pool<sqlx::Postgres>) {
@@ -937,7 +937,7 @@ mod tests {
         new_game.date = "2025-06-08".to_string();
         new_game.threshold_score = 40;
         new_game.sequence_number = 1;
-        let created_game = state.repository.create_game(new_game).await.unwrap();
+        let (created_game, _) = state.repository.create_game_with_answers(new_game, vec![]).await.unwrap();
 
         // Test the endpoint using test_utils request helper
         let request = create_test_request(axum::http::Method::GET, "/api/game/sequence/1", None);
@@ -991,7 +991,7 @@ mod tests {
         let games = vec![game1, game2, game3];
 
         for game in games {
-            state.repository.create_game(game).await.unwrap();
+            state.repository.create_game_with_answers(game, vec![]).await.unwrap();
         }
 
         // Test getting game with sequence number 1
@@ -1049,7 +1049,7 @@ mod tests {
         new_game.date = "2025-06-08".to_string();
         new_game.threshold_score = 40;
         new_game.sequence_number = 1;
-        let created_game = state.repository.create_game(new_game).await.unwrap();
+        let (created_game, _) = state.repository.create_game_with_answers(new_game, vec![]).await.unwrap();
 
         // Test the date endpoint
         let request =
@@ -1148,7 +1148,7 @@ mod tests {
         new_game.date = "2025-06-08".to_string();
         new_game.threshold_score = 40;
         new_game.sequence_number = 1;
-        let _created_game = state.repository.create_game(new_game).await.unwrap();
+        let (_created_game, _) = state.repository.create_game_with_answers(new_game, vec![]).await.unwrap();
 
         // First request - should hit database and cache
         let request1 = create_test_request(axum::http::Method::GET, "/api/game/sequence/1", None);
@@ -1186,35 +1186,30 @@ mod tests {
         new_game.date = "2025-06-08".to_string();
         new_game.threshold_score = 40;
         new_game.sequence_number = 1;
-        let created_game = state.repository.create_game(new_game).await.unwrap();
 
         // Create some test answers for the game
         let test_answers = vec![
             crate::db::models::NewGameAnswer {
-                game_id: created_game.id.clone(),
+                game_id: "a".to_string(),
                 word: "test".to_string(),
                 path: "[]".to_string(),
                 path_constraint_set: "{}".to_string(),
             },
             crate::db::models::NewGameAnswer {
-                game_id: created_game.id.clone(),
+                game_id: "a".to_string(),
                 word: "word".to_string(),
                 path: "[]".to_string(),
                 path_constraint_set: "{}".to_string(),
             },
             crate::db::models::NewGameAnswer {
-                game_id: created_game.id.clone(),
+                game_id: "a".to_string(),
                 word: "game".to_string(),
                 path: "[]".to_string(),
                 path_constraint_set: "{}".to_string(),
             },
         ];
 
-        state
-            .repository
-            .create_game_answers(test_answers)
-            .await
-            .unwrap();
+        let (created_game, game_answers) = state.repository.create_game_with_answers(new_game, test_answers).await.unwrap();
 
         // Test the paths endpoint
         let request = create_test_request(
@@ -1254,29 +1249,24 @@ mod tests {
         new_game.date = "2025-06-08".to_string();
         new_game.threshold_score = 40;
         new_game.sequence_number = 1;
-        let created_game = state.repository.create_game(new_game).await.unwrap();
 
         // Create some test answers for the game
         let test_answers = vec![
             crate::db::models::NewGameAnswer {
-                game_id: created_game.id.clone(),
+                game_id: "a".to_string(),
                 word: "test".to_string(),
                 path: "[]".to_string(),
                 path_constraint_set: "{}".to_string(),
             },
             crate::db::models::NewGameAnswer {
-                game_id: created_game.id.clone(),
+                game_id: "a".to_string(),
                 word: "word".to_string(),
                 path: "[]".to_string(),
                 path_constraint_set: "{}".to_string(),
             },
         ];
 
-        state
-            .repository
-            .create_game_answers(test_answers)
-            .await
-            .unwrap();
+        let (created_game, game_answers) = state.repository.create_game_with_answers(new_game, test_answers).await.unwrap();
 
         // Test the word paths endpoint for a valid word
         let request = create_test_request(
@@ -1319,35 +1309,30 @@ mod tests {
         new_game.date = "2025-06-08".to_string();
         new_game.threshold_score = 40;
         new_game.sequence_number = 1;
-        let created_game = state.repository.create_game(new_game).await.unwrap();
 
         // Create some test answers for the game
         let test_answers = vec![
-            crate::db::models::NewGameAnswer {
-                game_id: created_game.id.clone(),
+            NewGameAnswer {
+                game_id: "a".to_string(),
                 word: "test".to_string(),
                 path: "[]".to_string(),
                 path_constraint_set: "{}".to_string(),
             },
-            crate::db::models::NewGameAnswer {
-                game_id: created_game.id.clone(),
+            NewGameAnswer {
+                game_id: "a".to_string(),
                 word: "word".to_string(),
                 path: "[]".to_string(),
                 path_constraint_set: "{}".to_string(),
             },
-            crate::db::models::NewGameAnswer {
-                game_id: created_game.id.clone(),
+            NewGameAnswer {
+                game_id: "a".to_string(),
                 word: "game".to_string(),
                 path: "[]".to_string(),
                 path_constraint_set: "{}".to_string(),
             },
         ];
 
-        state
-            .repository
-            .create_game_answers(test_answers)
-            .await
-            .unwrap();
+        let (created_game, _) = state.repository.create_game_with_answers(new_game, test_answers).await.unwrap();
 
         // Test the words endpoint
         let request = create_test_request(

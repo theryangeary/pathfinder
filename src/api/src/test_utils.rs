@@ -2,7 +2,11 @@
 pub mod test_utils {
     use crate::db::models::*;
     use crate::game::{conversion::SerializableBoard, Board, BoardGenerator, GameEngine, Trie};
+    #[cfg(feature = "database-tests")]
+    use crate::http_api::ApiState;
 
+    #[cfg(feature = "database-tests")]
+    use axum::Router;
     use chrono::Utc;
 
     use tempfile::NamedTempFile;
@@ -128,13 +132,15 @@ pub mod test_utils {
 
     #[cfg(feature = "database-tests")]
     pub async fn setup_app(pool: sqlx::Pool<sqlx::Postgres>) -> (ApiState, Router) {
+        use crate::{http_api::create_secure_router, security::SecurityConfig};
+
         let repository = crate::db::Repository::new(pool);
 
         // Create a test game engine using test_utils
         let (game_engine, _temp_file) = create_test_game_engine();
 
         let state = ApiState::new(repository, game_engine);
-        let app = create_router(state.clone());
+        let app = create_secure_router(state.clone(), SecurityConfig::default());
 
         (state, app)
     }
@@ -263,6 +269,7 @@ pub mod test_utils {
         body: Option<&str>,
     ) -> axum::http::Request<axum::body::Body> {
         let mut builder = axum::http::Request::builder().method(method).uri(uri);
+        builder = builder.header("referer", "http://localhost");
 
         if let Some(_body_content) = body {
             builder = builder.header("content-type", "application/json");

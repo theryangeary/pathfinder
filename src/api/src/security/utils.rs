@@ -50,6 +50,8 @@ pub fn is_origin_allowed(origin: &str, allowed_origins: &[String]) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use axum::http::HeaderValue;
+
     use super::*;
 
     #[test]
