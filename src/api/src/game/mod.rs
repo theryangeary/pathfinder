@@ -113,8 +113,8 @@ impl GameEngine {
     ) -> Result<(), String> {
         // Sanitize input
         let mut sanitized_answers: Vec<ApiAnswer> = Vec::new();
-        for i in 0..answers.len() {
-            sanitized_answers.push(answers[i].clone().sanitize());
+        for answer in answers{
+            sanitized_answers.push(answer.clone().sanitize());
         }
         self.validate_answer_group(
             board,

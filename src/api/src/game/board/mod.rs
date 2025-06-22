@@ -43,7 +43,7 @@ impl Tile {
         self.is_wildcard && !self.is_first_wildcard()
     }
 
-    fn into_constraint(&self, c: char) -> PathConstraintSet {
+    fn as_constraint(&self, c: char) -> PathConstraintSet {
         if self.is_first_wildcard() {
             PathConstraintSet::FirstDecided(c)
         } else if self.is_second_wildcard() {
@@ -178,7 +178,7 @@ impl Board {
             tiles.push_back(GameTile::from(current_location));
             let path = path::Path {
                 tiles,
-                constraints: current_location.into_constraint(current_char),
+                constraints: current_location.as_constraint(current_char),
             };
             result.push(path);
             return result;
@@ -206,7 +206,7 @@ impl Board {
             for mut path in paths.into_iter() {
                 if let Ok(constraint) = path
                     .constraints
-                    .merge(current_location.into_constraint(current_char))
+                    .merge(current_location.as_constraint(current_char))
                 {
                     path.tiles.push_front(GameTile::from(current_location));
                     path.constraints = constraint;
