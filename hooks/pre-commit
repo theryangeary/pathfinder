@@ -1,0 +1,17 @@
+#!/bin/bash
+
+# Pre-commit hook: Run frontend tests
+set -e
+
+echo "Running pre-commit hook..."
+
+# Run frontend tests
+echo "Running frontend tests..."
+npm run test:run
+
+# Run backend tests with database feature
+echo "Running backend tests (including database tests)..."
+cd src/api
+cargo test --features database-tests
+
+echo "✅ Pre-commit checks passed!"
