@@ -13,7 +13,7 @@ pub struct DbUser {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DbGame {
     pub id: String,
-    pub date: String, // YYYY-MM-DD format
+    pub date: String,       // YYYY-MM-DD format
     pub board_data: String, // JSON serialized board
     pub threshold_score: i32,
     pub sequence_number: i32,
@@ -37,7 +37,7 @@ pub struct DbGameAnswer {
     pub id: String,
     pub game_id: String,
     pub word: String,
-    pub path: String, // JSON serialized path array
+    pub path: String,                // JSON serialized path array
     pub path_constraint_set: String, // JSON serialized PathConstraintSet
     pub created_at: DateTime<Utc>,
 }
@@ -86,7 +86,12 @@ impl DbUser {
 }
 
 impl DbGame {
-    pub fn new(date: String, board_data: String, threshold_score: i32, sequence_number: i32) -> Self {
+    pub fn new(
+        date: String,
+        board_data: String,
+        threshold_score: i32,
+        sequence_number: i32,
+    ) -> Self {
         Self {
             id: Uuid::new_v4().to_string(),
             date,
@@ -99,7 +104,13 @@ impl DbGame {
 }
 
 impl DbGameEntry {
-    pub fn new(user_id: String, game_id: String, answers_data: String, total_score: i32, completed: bool) -> Self {
+    pub fn new(
+        user_id: String,
+        game_id: String,
+        answers_data: String,
+        total_score: i32,
+        completed: bool,
+    ) -> Self {
         let now = Utc::now();
         Self {
             id: Uuid::new_v4().to_string(),

@@ -1,13 +1,10 @@
 #[cfg(test)]
 pub mod test_utils {
     use crate::db::models::*;
-    use crate::game::{Board, BoardGenerator, GameEngine, conversion::SerializableBoard, Trie};
-    use crate::http_api::{create_router, ApiState};
-    
-    use axum::Router;
+    use crate::game::{conversion::SerializableBoard, Board, BoardGenerator, GameEngine, Trie};
+
     use chrono::Utc;
-    
-    
+
     use tempfile::NamedTempFile;
     use uuid::Uuid;
 
@@ -83,15 +80,41 @@ pub mod test_utils {
         let mut board = Board::new();
 
         let letters = [
-            [letters.chars().nth(0), letters.chars().nth(1), letters.chars().nth(2), letters.chars().nth(3)],
-            [letters.chars().nth(4), letters.chars().nth(5), letters.chars().nth(6), letters.chars().nth(7)],
-            [letters.chars().nth(8), letters.chars().nth(9), letters.chars().nth(10), letters.chars().nth(11)],
-            [letters.chars().nth(12), letters.chars().nth(13), letters.chars().nth(14), letters.chars().nth(15)],
+            [
+                letters.chars().nth(0),
+                letters.chars().nth(1),
+                letters.chars().nth(2),
+                letters.chars().nth(3),
+            ],
+            [
+                letters.chars().nth(4),
+                letters.chars().nth(5),
+                letters.chars().nth(6),
+                letters.chars().nth(7),
+            ],
+            [
+                letters.chars().nth(8),
+                letters.chars().nth(9),
+                letters.chars().nth(10),
+                letters.chars().nth(11),
+            ],
+            [
+                letters.chars().nth(12),
+                letters.chars().nth(13),
+                letters.chars().nth(14),
+                letters.chars().nth(15),
+            ],
         ];
 
         for i in 0..4 {
             for j in 0..4 {
-                board.set_tile(i, j, letters[i][j].unwrap(), 1, letters[i][j].unwrap() == '*');
+                board.set_tile(
+                    i,
+                    j,
+                    letters[i][j].unwrap(),
+                    1,
+                    letters[i][j].unwrap() == '*',
+                );
             }
         }
 
@@ -100,7 +123,7 @@ pub mod test_utils {
 
     /// Creates a simple 4x4 test board with known letters
     pub fn create_default_test_board() -> Board {
-        create_test_board("testh*ngar*astop")        
+        create_test_board("testh*ngar*astop")
     }
 
     #[cfg(feature = "database-tests")]

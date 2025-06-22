@@ -1,4 +1,4 @@
-use crate::db::storage_types::{DbStoredAnswers, DbAnswer, DbPosition};
+use crate::db::storage_types::{DbAnswer, DbPosition, DbStoredAnswers};
 use crate::http_api::{ApiAnswer, ApiPosition};
 
 /// Conversion functions between HTTP API types and stable database types.
@@ -65,7 +65,9 @@ impl AnswerStorage {
     }
 
     /// Deserialize JSON string from database to API answers
-    pub fn deserialize_to_api_answers(json: &str) -> Result<Vec<ApiAnswer>, Box<dyn std::error::Error>> {
+    pub fn deserialize_to_api_answers(
+        json: &str,
+    ) -> Result<Vec<ApiAnswer>, Box<dyn std::error::Error>> {
         let stored = DbStoredAnswers::from_json(json)?;
         Ok(Vec::<ApiAnswer>::from(stored))
     }
@@ -74,7 +76,6 @@ impl AnswerStorage {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashMap;
 
     #[test]
     fn test_api_to_db_conversion() {
@@ -112,18 +113,16 @@ mod tests {
 
     #[test]
     fn test_versioned_storage() {
-        let api_answers = vec![
-            ApiAnswer {
-                word: "test".to_string(),
-                score: 5,
-            }
-        ];
+        let api_answers = vec![ApiAnswer {
+            word: "test".to_string(),
+            score: 5,
+        }];
 
         let json = AnswerStorage::serialize_api_answers(&api_answers).unwrap();
-        
+
         // Verify the JSON contains version information
         assert!(json.contains(r#""version":"1.0""#));
-        
+
         let deserialized = AnswerStorage::deserialize_to_api_answers(&json).unwrap();
         assert_eq!(api_answers[0].word, deserialized[0].word);
     }

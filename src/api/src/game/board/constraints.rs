@@ -114,11 +114,17 @@ impl TryFrom<&Vec<Answer>> for AnswerGroupConstraintSet {
         // Find all constraint sets that can satisfy all answers together
         let constraint_sets: Vec<_> = answer_objects
             .iter()
-            .map(|answer| {dbg!( &answer.word,&answer.constraints_set);answer.constraints_set.clone()})
+            .map(|answer| {
+                dbg!(&answer.word, &answer.constraints_set);
+                answer.constraints_set.clone()
+            })
             .collect();
 
         match AnswerGroupConstraintSet::merge_all(constraint_sets) {
-            Ok(constraint_set) => {dbg!(&constraint_set);return Ok(constraint_set);},
+            Ok(constraint_set) => {
+                dbg!(&constraint_set);
+                return Ok(constraint_set);
+            }
             Err(_) => return Err(UnsatisfiableConstraint),
         }
     }
@@ -164,11 +170,12 @@ impl AnswerGroupConstraintSet {
         match cummulative_answer_group_constraints {
             Some(mut result) => {
                 // Remove duplicates by converting to HashSet and back to Vec
-                let unique_constraints: HashSet<PathConstraintSet> = result.path_constraint_sets.into_iter().collect();
+                let unique_constraints: HashSet<PathConstraintSet> =
+                    result.path_constraint_sets.into_iter().collect();
                 result.path_constraint_sets = unique_constraints.into_iter().collect();
                 Ok(result)
             }
-            None => Err(UnsatisfiableConstraint)
+            None => Err(UnsatisfiableConstraint),
         }
     }
 
@@ -1943,11 +1950,14 @@ mod tests {
         let answer_inputs = vec!["day", "days", "year", "data"];
         let answers = answer_inputs.iter().map(|a| board.paths_for(a)).collect();
         let answer_group_constraint_set = AnswerGroupConstraintSet::try_from(&answers).unwrap();
-        
+
         assert_eq!(answer_group_constraint_set.path_constraint_sets.len(), 2);
-        
+
         // Check that both expected constraints are present (order doesn't matter due to deduplication)
-        let constraint_set: HashSet<PathConstraintSet> = answer_group_constraint_set.path_constraint_sets.into_iter().collect();
+        let constraint_set: HashSet<PathConstraintSet> = answer_group_constraint_set
+            .path_constraint_sets
+            .into_iter()
+            .collect();
         assert!(constraint_set.contains(&PathConstraintSet::BothDecided('t', 'e')));
         assert!(constraint_set.contains(&PathConstraintSet::BothDecided('a', 'e')));
     }

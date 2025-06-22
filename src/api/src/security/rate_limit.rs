@@ -9,14 +9,14 @@ use std::{
     future::Future,
     net::{IpAddr, SocketAddr},
     pin::Pin,
-    sync::{Arc, RwLock, Once},
+    sync::{Arc, Once, RwLock},
     task::{Context, Poll},
     time::{Duration, Instant},
 };
 use tower::{Layer, Service};
 use tracing::{debug, warn};
 
-use crate::security::{SecurityConfig, utils::extract_client_ip};
+use crate::security::{utils::extract_client_ip, SecurityConfig};
 
 // Simplified rate limiter - we'll implement a basic in-memory HashMap-based solution
 type SimpleRateLimiter = Arc<RwLock<HashMap<IpAddr, (Instant, u32)>>>;
@@ -47,7 +47,7 @@ impl<S> Layer<S> for RateLimitLayer {
         let session_limiter_clone = session_limiter.clone();
         let read_limiter_clone = read_limiter.clone();
         let write_limiter_clone = write_limiter.clone();
-        
+
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(Duration::from_secs(300)); // Cleanup every 5 minutes
             loop {
@@ -108,7 +108,9 @@ where
             // Extract client IP
             let client_ip = extract_client_ip(headers)
                 .or_else(|| {
-                    request.extensions().get::<ConnectInfo<SocketAddr>>()
+                    request
+                        .extensions()
+                        .get::<ConnectInfo<SocketAddr>>()
                         .map(|connect_info| connect_info.0.ip())
                 })
                 .unwrap_or_else(|| IpAddr::from([127, 0, 0, 1])); // Fallback to localhost
@@ -133,13 +135,13 @@ where
             let allowed = {
                 let mut limiter_guard = limiter.write().unwrap();
                 let entry = limiter_guard.entry(client_ip).or_insert((now, 0));
-                
+
                 // Reset counter if window has passed
                 if now.duration_since(entry.0) >= config.rate_limit_window {
                     entry.0 = now;
                     entry.1 = 0;
                 }
-                
+
                 // Check if under limit
                 if entry.1 < limit {
                     entry.1 += 1;
@@ -156,14 +158,14 @@ where
                 Ok(response)
             } else {
                 warn!("Rate limit exceeded for IP: {}", client_ip);
-                
+
                 let retry_after = config.rate_limit_window.as_secs();
                 let mut response = Response::builder()
                     .status(StatusCode::TOO_MANY_REQUESTS)
                     .header("retry-after", retry_after.to_string())
                     .body(axum::body::Body::from("Rate limit exceeded"))
                     .unwrap();
-                
+
                 add_rate_limit_headers_simple(&config, response.headers_mut(), limit);
                 Ok(response)
             }
@@ -203,19 +205,25 @@ fn determine_endpoint_type(uri: &Uri, method: &str) -> EndpointType {
     EndpointType::Read
 }
 
-fn add_rate_limit_headers_simple(
-    config: &SecurityConfig,
-    headers: &mut HeaderMap,
-    limit: u32,
-) {
+fn add_rate_limit_headers_simple(config: &SecurityConfig, headers: &mut HeaderMap, limit: u32) {
     let reset_time = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
-        .as_secs() + config.rate_limit_window.as_secs();
+        .as_secs()
+        + config.rate_limit_window.as_secs();
 
-    headers.insert("x-ratelimit-limit", axum::http::HeaderValue::from_str(&limit.to_string()).unwrap());
-    headers.insert("x-ratelimit-remaining", axum::http::HeaderValue::from_str(&(limit / 2).to_string()).unwrap());
-    headers.insert("x-ratelimit-reset", axum::http::HeaderValue::from_str(&reset_time.to_string()).unwrap());
+    headers.insert(
+        "x-ratelimit-limit",
+        axum::http::HeaderValue::from_str(&limit.to_string()).unwrap(),
+    );
+    headers.insert(
+        "x-ratelimit-remaining",
+        axum::http::HeaderValue::from_str(&(limit / 2).to_string()).unwrap(),
+    );
+    headers.insert(
+        "x-ratelimit-reset",
+        axum::http::HeaderValue::from_str(&reset_time.to_string()).unwrap(),
+    );
 }
 
 fn initialize_cleanup_task_if_needed(
@@ -227,7 +235,7 @@ fn initialize_cleanup_task_if_needed(
         let session_limiter_clone = session_limiter.clone();
         let read_limiter_clone = read_limiter.clone();
         let write_limiter_clone = write_limiter.clone();
-        
+
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(Duration::from_secs(300)); // Cleanup every 5 minutes
             loop {
@@ -242,7 +250,7 @@ fn initialize_cleanup_task_if_needed(
 
 async fn cleanup_old_entries_simple(limiter: &SimpleRateLimiter) {
     let cutoff = Instant::now() - Duration::from_secs(3600); // Remove entries older than 1 hour
-    
+
     let mut to_remove = Vec::new();
     {
         let reader = limiter.read().unwrap();
@@ -265,7 +273,7 @@ async fn cleanup_old_entries_simple(limiter: &SimpleRateLimiter) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use axum::http::{Request, Method};
+    use axum::http::{Method, Request};
     use tower::ServiceExt;
 
     async fn test_service() -> Response {
@@ -305,7 +313,7 @@ mod tests {
             rate_limit_read: 100,
             ..Default::default()
         };
-        
+
         let layer = RateLimitLayer::new(config);
         let mut service = layer.layer(tower::service_fn(|_| async { Ok(test_service().await) }));
 
@@ -326,7 +334,7 @@ mod tests {
             rate_limit_read: 1, // Very low limit
             ..Default::default()
         };
-        
+
         let layer = RateLimitLayer::new(config);
         let mut service = layer.layer(tower::service_fn(|_| async { Ok(test_service().await) }));
 

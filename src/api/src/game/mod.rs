@@ -5,8 +5,8 @@ pub mod scoring;
 pub mod trie;
 
 pub use board::Board;
-pub use trie::Trie;
 use std::collections::HashMap;
+pub use trie::Trie;
 
 // BoardGenerator for game generation
 pub struct BoardGenerator {
@@ -151,7 +151,11 @@ impl GameEngine {
     }
 
     /// score_answer_group finds all the possible AnswerGroupConstraintSets, calculates the scores for all words based on each set of constraints, and returns the HashMap of answer -> score for the highest total scoring paths that can coexist based on constraints. It returns an error if the answers cannot coexist based on constraints.
-    pub fn score_answer_group(&self, board: &Board, answers: Vec<String>) -> Result<ScoreSheet, String> {
+    pub fn score_answer_group(
+        &self,
+        board: &Board,
+        answers: Vec<String>,
+    ) -> Result<ScoreSheet, String> {
         if answers.is_empty() {
             return Ok(ScoreSheet::new());
         }
@@ -166,39 +170,48 @@ impl GameEngine {
             answer_objects.push(answer);
         }
 
-        let valid_constraint_set = if let Ok(v) = AnswerGroupConstraintSet::try_from(&answer_objects) {
-            v
-        } else {
-            return Err("Answers cannot coexist due to conflicting wildcard constraints".to_string())
-        };
+        let valid_constraint_set =
+            if let Ok(v) = AnswerGroupConstraintSet::try_from(&answer_objects) {
+                v
+            } else {
+                return Err(
+                    "Answers cannot coexist due to conflicting wildcard constraints".to_string(),
+                );
+            };
 
         // For each valid path constraint set, calculate the maximum possible score
         let mut max_total_score = 0u32;
         let mut best_scores_by_word = HashMap::new();
-        
+
         for path_constraint in &valid_constraint_set.path_constraint_sets {
             let mut total_score = 0u32;
             let mut scores_by_word = HashMap::new();
-            
+
             // For each answer, find the best scoring path that satisfies this constraint
             for answer_obj in &answer_objects {
                 let mut best_path_score = 0;
-                
+
                 // Check all paths for this answer to find the one that works with current constraints
                 for path in &answer_obj.paths {
                     // Check if this path's constraints are compatible with the current path_constraint
                     if let Ok(_) = path.constraints.merge(*path_constraint) {
-                        let path_score :u32 = path.tiles.iter().map(|tile| tile.points).sum::<i32>().try_into().unwrap();
+                        let path_score: u32 = path
+                            .tiles
+                            .iter()
+                            .map(|tile| tile.points)
+                            .sum::<i32>()
+                            .try_into()
+                            .unwrap();
                         best_path_score = best_path_score.max(path_score);
                     }
                 }
-                
+
                 // Record this answer's best score and add to total (ensuring non-negative)
                 let word_score = best_path_score;
                 scores_by_word.insert(answer_obj.word.clone(), word_score);
                 total_score += word_score;
             }
-            
+
             // If this constraint set gives us a better total score, use it
             if total_score > max_total_score {
                 max_total_score = total_score;
@@ -213,7 +226,7 @@ impl GameEngine {
         if word.is_empty() {
             return 0;
         }
-        
+
         word.chars()
             .map(|c| crate::game::scoring::points_for_letter(c) as u32)
             .sum()
@@ -391,7 +404,9 @@ mod tests {
     use super::*;
     use rand::SeedableRng;
     fn create_test_wordlist() -> Vec<&'static str> {
-        vec![            "cat", "dog", "test", "word", "game", "path", "tile", "board", "day", "days", "year", "data"
+        vec![
+            "cat", "dog", "test", "word", "game", "path", "tile", "board", "day", "days", "year",
+            "data",
         ]
     }
 
@@ -539,16 +554,18 @@ mod tests {
     }
 
     #[test] // NEW
-    fn test_score_answer_group_constraint_set_size() {
-        
-    }
+    fn test_score_answer_group_constraint_set_size() {}
 
     #[test]
     fn test_score_answer_group_comprehensive() {
         #[derive(Debug)]
         enum ExpectedResult {
-            Success { expected_scores: Vec<(&'static str, u32)> },
-            Error { error_fragment: &'static str },
+            Success {
+                expected_scores: Vec<(&'static str, u32)>,
+            },
+            Error {
+                error_fragment: &'static str,
+            },
         }
 
         struct TestCase {
@@ -724,38 +741,43 @@ mod tests {
         for test_case in test_cases {
             let engine = GameEngine::new(test_case.words);
             let result = engine.score_answer_group(&test_case.board, test_case.answers);
-            
+
             match (&result, &test_case.expected_result) {
                 (Ok(actual_scores), ExpectedResult::Success { expected_scores }) => {
                     assert_eq!(actual_scores.map.len(), expected_scores.len(), 
                         "Test case '{}': Score count mismatch. Expected {} scores, got {}. Description: {}", 
                         test_case.name, expected_scores.len(), actual_scores.map.len(), test_case.description);
-                    
+
                     for (expected_word, expected_score) in expected_scores {
-                        assert!(actual_scores.map.contains_key(*expected_word), 
-                            "Test case '{}': Missing word '{}' in results. Description: {}", 
-                            test_case.name, expected_word, test_case.description);
-                        
+                        assert!(
+                            actual_scores.map.contains_key(*expected_word),
+                            "Test case '{}': Missing word '{}' in results. Description: {}",
+                            test_case.name,
+                            expected_word,
+                            test_case.description
+                        );
+
                         let actual_score = actual_scores.map[*expected_word];
                         assert_eq!(actual_score, *expected_score, 
                             "Test case '{}': Score mismatch for word '{}'. Expected {}, got {}. Description: {}", 
                             test_case.name, expected_word, expected_score, actual_score, test_case.description);
-                        
                     }
-                },
+                }
                 (Err(actual_error), ExpectedResult::Error { error_fragment }) => {
                     assert!(actual_error.contains(error_fragment), 
                         "Test case '{}': Error message mismatch. Expected to contain '{}', got '{}'. Description: {}", 
                         test_case.name, error_fragment, actual_error, test_case.description);
-                },
+                }
                 (Ok(actual_scores), ExpectedResult::Error { error_fragment }) => {
                     panic!("Test case '{}': Expected error containing '{}', but got success with scores: {:?}. Description: {}", 
                         test_case.name, error_fragment, actual_scores.map, test_case.description);
-                },
+                }
                 (Err(actual_error), ExpectedResult::Success { .. }) => {
-                    panic!("Test case '{}': Expected success but got error: '{}'. Description: {}", 
-                        test_case.name, actual_error, test_case.description);
-                },
+                    panic!(
+                        "Test case '{}': Expected success but got error: '{}'. Description: {}",
+                        test_case.name, actual_error, test_case.description
+                    );
+                }
             }
         }
     }
@@ -764,27 +786,27 @@ mod tests {
     fn test_game_engine_score_answer_group_basic() {
         let words = create_test_wordlist();
         let engine = GameEngine::new(words);
-        
+
         // Create a simple test board
         let board = create_test_board();
-        
+
         // Test with valid words that exist on the board
         let answers = vec!["cat".to_string(), "dog".to_string()];
         let result = engine.score_answer_group(&board, answers.clone());
-        
+
         assert!(result.is_ok());
         let scores = result.unwrap();
-        
+
         // Should have scores for both words
         assert_eq!(scores.map.len(), 2);
         assert!(scores.map.contains_key("cat"));
         assert!(scores.map.contains_key("dog"));
-        
+
         // Scores should be positive (assuming the words can be formed)
         for (word, score) in &scores.map {
             println!("Word: {}, Score: {}", word, score);
         }
-        
+
         // Test with empty input
         let empty_result = engine.score_answer_group(&board, vec![]);
         assert!(empty_result.is_ok());

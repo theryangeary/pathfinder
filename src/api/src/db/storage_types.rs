@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 /// Stable database types for long-term storage compatibility.
 /// These types should remain backwards compatible and only evolve carefully.
-/// 
+///
 /// Version 1.0 - Initial stable schema
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -74,17 +74,15 @@ mod tests {
 
     #[test]
     fn test_serialize_deserialize() {
-        let answers = vec![
-            DbAnswer {
-                word: "test".to_string(),
-                score: 10,
-            }
-        ];
-        
+        let answers = vec![DbAnswer {
+            word: "test".to_string(),
+            score: 10,
+        }];
+
         let stored = DbStoredAnswers::new(answers.clone());
         let json = stored.to_json().unwrap();
         let deserialized = DbStoredAnswers::from_json(&json).unwrap();
-        
+
         assert_eq!(stored, deserialized);
         assert_eq!(deserialized.version, "1.0");
         assert_eq!(deserialized.answers, answers);
@@ -93,8 +91,9 @@ mod tests {
     #[test]
     fn test_legacy_format_compatibility() {
         // Simulate legacy format (direct Vec<DbAnswer>)
-        let legacy_json = r#"[{"word":"test","score":10,"path":[{"row":0,"col":0}],"wildcard_constraints":{}}]"#;
-        
+        let legacy_json =
+            r#"[{"word":"test","score":10,"path":[{"row":0,"col":0}],"wildcard_constraints":{}}]"#;
+
         let result = DbStoredAnswers::from_json(legacy_json).unwrap();
         assert_eq!(result.version, "1.0");
         assert_eq!(result.answers.len(), 1);
@@ -105,8 +104,11 @@ mod tests {
     fn test_version_validation() {
         let future_version_json = r#"{"version":"2.0","answers":[]}"#;
         let result = DbStoredAnswers::from_json(future_version_json);
-        
+
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Unsupported version"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Unsupported version"));
     }
 }

@@ -1,5 +1,8 @@
 use crate::game::{
-    board::{answer::Answer, constraints::{AnswerGroupConstraintSet, PathConstraintSet}},
+    board::{
+        answer::Answer,
+        constraints::{AnswerGroupConstraintSet, PathConstraintSet},
+    },
     directions,
 };
 use core::fmt;
@@ -301,10 +304,14 @@ mod tests {
         // o t v i
         let board = test_utils::create_test_board("tarae*oros*sotvi");
         let answer = board.paths_for("vea");
-        
+
         // The algorithm finds 3 valid paths for 'vea' on this board
-        assert_eq!(answer.paths.len(), 3, "Should find exactly 3 paths for 'vea'");
-        
+        assert_eq!(
+            answer.paths.len(),
+            3,
+            "Should find exactly 3 paths for 'vea'"
+        );
+
         // Extract the actual paths found
         let mut found_paths = Vec::new();
         for path in &answer.paths {
@@ -312,20 +319,24 @@ mod tests {
             let coords: Vec<(i32, i32)> = path.tiles.iter().map(|t| (t.row, t.col)).collect();
             found_paths.push(coords);
         }
-        
+
         // Verify the three actual paths found by the algorithm:
         // Path 1: [(1,1),(1,0),(0,1)] - wildcard->e->a (corrected order)
-        // Path 2: [(2,2),(1,1),(0,1)] - wildcard->wildcard->a  
+        // Path 2: [(2,2),(1,1),(0,1)] - wildcard->wildcard->a
         // Path 3: [(3,2),(2,2),(1,1)] - v->wildcard->wildcard
         let expected_paths = vec![
             vec![(1, 1), (1, 0), (0, 1)], // wildcard->e->a
             vec![(2, 2), (1, 1), (0, 1)], // wildcard->wildcard->a
             vec![(3, 2), (2, 2), (1, 1)], // v->wildcard->wildcard
         ];
-        
+
         // Verify all expected paths are present
         for expected_path in &expected_paths {
-            assert!(found_paths.contains(expected_path), "Should contain path {:?}", expected_path);
+            assert!(
+                found_paths.contains(expected_path),
+                "Should contain path {:?}",
+                expected_path
+            );
         }
     }
 }

@@ -1,4 +1,7 @@
-use crate::game::board::{Board, Row, Tile, constraints::{PathConstraintSet, AnswerGroupConstraintSet}};
+use crate::game::board::{
+    constraints::{AnswerGroupConstraintSet, PathConstraintSet},
+    Board, Row, Tile,
+};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -23,15 +26,23 @@ pub struct SerializableTile {
 impl From<&Board> for SerializableBoard {
     fn from(board: &Board) -> Self {
         Self {
-            rows: board.rows.iter().map(|row| SerializableRow {
-                tiles: row.tiles.iter().map(|tile| SerializableTile {
-                    letter: tile.letter.clone(),
-                    points: tile.points,
-                    is_wildcard: tile.is_wildcard,
-                    row: tile.row,
-                    col: tile.col,
-                }).collect()
-            }).collect()
+            rows: board
+                .rows
+                .iter()
+                .map(|row| SerializableRow {
+                    tiles: row
+                        .tiles
+                        .iter()
+                        .map(|tile| SerializableTile {
+                            letter: tile.letter.clone(),
+                            points: tile.points,
+                            is_wildcard: tile.is_wildcard,
+                            row: tile.row,
+                            col: tile.col,
+                        })
+                        .collect(),
+                })
+                .collect(),
         }
     }
 }
@@ -39,15 +50,23 @@ impl From<&Board> for SerializableBoard {
 impl From<SerializableBoard> for Board {
     fn from(board: SerializableBoard) -> Self {
         Self {
-            rows: board.rows.into_iter().map(|row| Row {
-                tiles: row.tiles.into_iter().map(|tile| Tile {
-                    letter: tile.letter,
-                    points: tile.points,
-                    is_wildcard: tile.is_wildcard,
-                    row: tile.row,
-                    col: tile.col,
-                }).collect()
-            }).collect()
+            rows: board
+                .rows
+                .into_iter()
+                .map(|row| Row {
+                    tiles: row
+                        .tiles
+                        .into_iter()
+                        .map(|tile| Tile {
+                            letter: tile.letter,
+                            points: tile.points,
+                            is_wildcard: tile.is_wildcard,
+                            row: tile.row,
+                            col: tile.col,
+                        })
+                        .collect(),
+                })
+                .collect(),
         }
     }
 }
@@ -78,13 +97,17 @@ pub enum SerializablePathConstraintSet {
 impl From<&crate::game::board::path::Path> for SerializablePath {
     fn from(path: &crate::game::board::path::Path) -> Self {
         Self {
-            tiles: path.tiles.iter().map(|tile| SerializableGameTile {
-                letter: tile.letter.clone(),
-                points: tile.points,
-                is_wildcard: tile.is_wildcard,
-                row: tile.row,
-                col: tile.col,
-            }).collect(),
+            tiles: path
+                .tiles
+                .iter()
+                .map(|tile| SerializableGameTile {
+                    letter: tile.letter.clone(),
+                    points: tile.points,
+                    is_wildcard: tile.is_wildcard,
+                    row: tile.row,
+                    col: tile.col,
+                })
+                .collect(),
             constraints: SerializablePathConstraintSet::from(&path.constraints),
         }
     }
@@ -96,7 +119,9 @@ impl From<&PathConstraintSet> for SerializablePathConstraintSet {
             PathConstraintSet::Unconstrainted => SerializablePathConstraintSet::Unconstrainted,
             PathConstraintSet::FirstDecided(c) => SerializablePathConstraintSet::FirstDecided(*c),
             PathConstraintSet::SecondDecided(c) => SerializablePathConstraintSet::SecondDecided(*c),
-            PathConstraintSet::BothDecided(c1, c2) => SerializablePathConstraintSet::BothDecided(*c1, *c2),
+            PathConstraintSet::BothDecided(c1, c2) => {
+                SerializablePathConstraintSet::BothDecided(*c1, *c2)
+            }
         }
     }
 }
@@ -109,7 +134,9 @@ pub struct SerializableAnswerGroupConstraintSet {
 impl From<&AnswerGroupConstraintSet> for SerializableAnswerGroupConstraintSet {
     fn from(constraints: &AnswerGroupConstraintSet) -> Self {
         Self {
-            path_constraint_sets: constraints.path_constraint_sets.iter()
+            path_constraint_sets: constraints
+                .path_constraint_sets
+                .iter()
                 .map(|pcs| SerializablePathConstraintSet::from(pcs))
                 .collect(),
         }

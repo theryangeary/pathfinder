@@ -14,8 +14,9 @@ use tower_http::{
     cors::CorsLayer, limit::RequestBodyLimitLayer, services::ServeDir, timeout::TimeoutLayer,
 };
 
-use crate::game::{conversion::SerializableBoard, scoring::ScoreSheet};
+use crate::db::{conversions::AnswerStorage, Repository};
 use crate::game::GameEngine;
+use crate::game::{conversion::SerializableBoard, scoring::ScoreSheet};
 use crate::game_generator::GameGenerator;
 use crate::security::{
     cors::CorsLayer as SecurityCorsLayer,
@@ -24,9 +25,6 @@ use crate::security::{
     referer::RefererLayer,
     session::{cookie_layer, SessionLayer},
     SecurityConfig,
-};
-use crate::{
-    db::{conversions::AnswerStorage, Repository},
 };
 
 // HTTP API types (simpler than protobuf for frontend)
@@ -248,13 +246,13 @@ fn is_date_in_future(date_str: &str) -> bool {
         Ok(date) => date,
         Err(_) => return true, // Invalid date format is considered "future" to reject it
     };
-    
+
     // Use UTC+14 (Pacific/Kiritimati) as the earliest timezone
     // This is the earliest timezone where a new day begins
     let earliest_tz: Tz = "Pacific/Kiritimati".parse().unwrap();
     let now_in_earliest = Utc::now().with_timezone(&earliest_tz);
     let today_in_earliest = now_in_earliest.date_naive();
-    
+
     target_date > today_in_earliest
 }
 
@@ -388,14 +386,14 @@ async fn get_word_paths(
 
     // Convert word to lowercase for case-insensitive comparison
     let word_lower = word.to_lowercase();
-    
+
     if !valid_words.contains(&word_lower) {
         return Err(StatusCode::NOT_FOUND);
     }
 
     // Find all paths for this specific word
     let answer = state.game_engine.find_word_paths(&board, &word_lower);
-    
+
     if answer.paths.is_empty() {
         return Err(StatusCode::NOT_FOUND);
     }
@@ -412,7 +410,7 @@ async fn get_game_by_date(
     if is_date_in_future(&date) {
         return Err(StatusCode::BAD_REQUEST);
     }
-    
+
     let cache_key = format!("date:{}", date);
 
     // Check cache first
@@ -468,7 +466,7 @@ async fn get_game_by_sequence(
                 return Err(StatusCode::BAD_REQUEST);
             }
             game
-        },
+        }
         Ok(None) => return Err(StatusCode::NOT_FOUND),
         Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
     };
@@ -608,7 +606,11 @@ async fn submit_answers(
     };
 
     // Check if user has already completed this game
-    match state.repository.get_game_entry(&user.id, &request.game_id).await {
+    match state
+        .repository
+        .get_game_entry(&user.id, &request.game_id)
+        .await
+    {
         Ok(Some(existing_entry)) if existing_entry.completed => {
             return Err(StatusCode::CONFLICT); // 409 Conflict - already submitted
         }
@@ -850,10 +852,14 @@ async fn get_game_entry(
                     return Err(StatusCode::INTERNAL_SERVER_ERROR);
                 }
             };
-            
+
             // Calculate stats if the game is completed
             let stats = if entry.completed {
-                match state.repository.get_game_stats(&game_id, entry.total_score).await {
+                match state
+                    .repository
+                    .get_game_stats(&game_id, entry.total_score)
+                    .await
+                {
                     Ok((total_players, user_rank, percentile, average_score, highest_score)) => {
                         Some(ApiGameStats {
                             total_players,
@@ -871,7 +877,7 @@ async fn get_game_entry(
             } else {
                 None
             };
-            
+
             Ok(Json(Some(GameEntryResponse {
                 answers,
                 completed: entry.completed,
@@ -1236,14 +1242,18 @@ mod tests {
                 path_constraint_set: "{}".to_string(),
             },
         ];
-        
-        state.repository.create_game_answers(test_answers).await.unwrap();
+
+        state
+            .repository
+            .create_game_answers(test_answers)
+            .await
+            .unwrap();
 
         // Test the paths endpoint
         let request = create_test_request(
-            axum::http::Method::GET, 
-            &format!("/api/game/{}/paths", created_game.id), 
-            None
+            axum::http::Method::GET,
+            &format!("/api/game/{}/paths", created_game.id),
+            None,
         );
         let response = app.oneshot(request).await.unwrap();
 
@@ -1255,8 +1265,11 @@ mod tests {
         let paths_response: ApiPathsResponse = serde_json::from_slice(&body).unwrap();
 
         // Verify we get the expected structure
-        assert!(paths_response.words.len() > 0, "Should have some word paths");
-        
+        assert!(
+            paths_response.words.len() > 0,
+            "Should have some word paths"
+        );
+
         // Check that each word has the expected structure
         for word_path in &paths_response.words {
             assert!(!word_path.word.is_empty(), "Word should not be empty");
@@ -1291,14 +1304,18 @@ mod tests {
                 path_constraint_set: "{}".to_string(),
             },
         ];
-        
-        state.repository.create_game_answers(test_answers).await.unwrap();
+
+        state
+            .repository
+            .create_game_answers(test_answers)
+            .await
+            .unwrap();
 
         // Test the word paths endpoint for a valid word
         let request = create_test_request(
-            axum::http::Method::GET, 
-            &format!("/api/game/{}/word/test/paths", created_game.id), 
-            None
+            axum::http::Method::GET,
+            &format!("/api/game/{}/word/test/paths", created_game.id),
+            None,
         );
         let response = app.clone().oneshot(request).await.unwrap();
 
@@ -1307,9 +1324,9 @@ mod tests {
 
         // Test with an invalid word (not in game's word list)
         let request = create_test_request(
-            axum::http::Method::GET, 
-            &format!("/api/game/{}/word/invalidword/paths", created_game.id), 
-            None
+            axum::http::Method::GET,
+            &format!("/api/game/{}/word/invalidword/paths", created_game.id),
+            None,
         );
         let response = app.clone().oneshot(request).await.unwrap();
 
@@ -1317,9 +1334,9 @@ mod tests {
 
         // Test with invalid game ID
         let request = create_test_request(
-            axum::http::Method::GET, 
-            "/api/game/invalid-game-id/word/test/paths", 
-            None
+            axum::http::Method::GET,
+            "/api/game/invalid-game-id/word/test/paths",
+            None,
         );
         let response = app.oneshot(request).await.unwrap();
 
@@ -1358,14 +1375,18 @@ mod tests {
                 path_constraint_set: "{}".to_string(),
             },
         ];
-        
-        state.repository.create_game_answers(test_answers).await.unwrap();
+
+        state
+            .repository
+            .create_game_answers(test_answers)
+            .await
+            .unwrap();
 
         // Test the words endpoint
         let request = create_test_request(
-            axum::http::Method::GET, 
-            &format!("/api/game/{}/words", created_game.id), 
-            None
+            axum::http::Method::GET,
+            &format!("/api/game/{}/words", created_game.id),
+            None,
         );
         let response = app.oneshot(request).await.unwrap();
 
@@ -1470,22 +1491,22 @@ mod tests {
     #[test]
     fn test_api_path_constraint_set_conversion() {
         use crate::game::board::constraints::PathConstraintSet;
-        
+
         // Test Unconstrainted conversion
         let internal = PathConstraintSet::Unconstrainted;
         let api: ApiPathConstraintSet = internal.into();
         assert!(matches!(api, ApiPathConstraintSet::Unconstrainted));
-        
+
         // Test FirstDecided conversion
         let internal = PathConstraintSet::FirstDecided('a');
         let api: ApiPathConstraintSet = internal.into();
         assert!(matches!(api, ApiPathConstraintSet::FirstDecided('a')));
-        
+
         // Test SecondDecided conversion
         let internal = PathConstraintSet::SecondDecided('b');
         let api: ApiPathConstraintSet = internal.into();
         assert!(matches!(api, ApiPathConstraintSet::SecondDecided('b')));
-        
+
         // Test BothDecided conversion
         let internal = PathConstraintSet::BothDecided('x', 'y');
         let api: ApiPathConstraintSet = internal.into();
@@ -1494,10 +1515,10 @@ mod tests {
 
     #[test]
     fn test_api_paths_response_serialization() {
-        use crate::game::board::path::{Path, GameTile};
         use crate::game::board::constraints::PathConstraintSet;
+        use crate::game::board::path::{GameTile, Path};
         use std::collections::VecDeque;
-        
+
         // Create a sample response structure
         let mut tiles = VecDeque::new();
         tiles.push_back(GameTile {
@@ -1521,32 +1542,33 @@ mod tests {
             row: 0,
             col: 2,
         });
-        
+
         let path = Path {
             tiles,
             constraints: PathConstraintSet::FirstDecided('a'),
         };
-        
+
         let word_paths = ApiWordPaths {
             word: "cat".to_string(),
             paths: vec![path.into()],
         };
-        
+
         let response = ApiPathsResponse {
             words: vec![word_paths],
         };
-        
+
         // Test serialization
         let json = serde_json::to_string_pretty(&response).expect("Should serialize");
-        
+
         // The JSON should contain the expected structure
         assert!(json.contains("cat"));
         assert!(json.contains("tiles"));
         assert!(json.contains("constraints"));
         assert!(json.contains("FirstDecided"));
-        
+
         // Test that we can deserialize it back
-        let deserialized: ApiPathsResponse = serde_json::from_str(&json).expect("Should deserialize");
+        let deserialized: ApiPathsResponse =
+            serde_json::from_str(&json).expect("Should deserialize");
         assert_eq!(deserialized.words.len(), 1);
         assert_eq!(deserialized.words[0].word, "cat");
         assert_eq!(deserialized.words[0].paths.len(), 1);
@@ -1555,10 +1577,10 @@ mod tests {
 
     #[test]
     fn test_api_path_conversion() {
-        use crate::game::board::path::{Path, GameTile};
         use crate::game::board::constraints::PathConstraintSet;
+        use crate::game::board::path::{GameTile, Path};
         use std::collections::VecDeque;
-        
+
         // Create a test path
         let mut tiles = VecDeque::new();
         tiles.push_back(GameTile {
@@ -1575,38 +1597,41 @@ mod tests {
             row: 0,
             col: 1,
         });
-        
+
         let internal_path = Path {
             tiles,
             constraints: PathConstraintSet::FirstDecided('c'),
         };
-        
+
         let api_path: ApiPath = internal_path.into();
-        
+
         assert_eq!(api_path.tiles.len(), 2);
         assert_eq!(api_path.tiles[0].letter, "c");
         assert_eq!(api_path.tiles[0].points, 2);
         assert_eq!(api_path.tiles[0].row, 0);
         assert_eq!(api_path.tiles[0].col, 0);
         assert!(!api_path.tiles[0].is_wildcard);
-        
+
         assert_eq!(api_path.tiles[1].letter, "a");
         assert_eq!(api_path.tiles[1].points, 1);
         assert!(!api_path.tiles[1].is_wildcard);
-        
-        assert!(matches!(api_path.constraints, ApiPathConstraintSet::FirstDecided('c')));
+
+        assert!(matches!(
+            api_path.constraints,
+            ApiPathConstraintSet::FirstDecided('c')
+        ));
     }
 
     #[test]
     fn test_word_paths_case_insensitive() {
         // Test that the endpoint handles case-insensitive word matching
         let test_words = vec!["test".to_string(), "word".to_string(), "game".to_string()];
-        
+
         // Test that lowercase matches work
         assert!(test_words.contains(&"test".to_lowercase()));
         assert!(test_words.contains(&"TEST".to_lowercase()));
         assert!(test_words.contains(&"Test".to_lowercase()));
-        
+
         // Test that non-existent words don't match
         assert!(!test_words.contains(&"invalid".to_lowercase()));
         assert!(!test_words.contains(&"NOTFOUND".to_lowercase()));
@@ -1614,10 +1639,10 @@ mod tests {
 
     #[test]
     fn test_api_word_paths_structure() {
-        use crate::game::board::path::{Path, GameTile};
         use crate::game::board::constraints::PathConstraintSet;
+        use crate::game::board::path::{GameTile, Path};
         use std::collections::VecDeque;
-        
+
         // Create a sample word paths structure
         let mut tiles = VecDeque::new();
         tiles.push_back(GameTile {
@@ -1648,57 +1673,78 @@ mod tests {
             row: 0,
             col: 2,
         });
-        
+
         let path = Path {
             tiles,
             constraints: PathConstraintSet::FirstDecided('s'),
         };
-        
+
         let word_paths = ApiWordPaths {
             word: "test".to_string(),
             paths: vec![path.into()],
         };
-        
+
         // Test serialization
         let json = serde_json::to_string_pretty(&word_paths).expect("Should serialize");
-        
+
         // The JSON should contain the expected structure
         assert!(json.contains("test"));
         assert!(json.contains("paths"));
         assert!(json.contains("tiles"));
         assert!(json.contains("constraints"));
         assert!(json.contains("FirstDecided"));
-        
+
         // Test that we can deserialize it back
         let deserialized: ApiWordPaths = serde_json::from_str(&json).expect("Should deserialize");
         assert_eq!(deserialized.word, "test");
         assert_eq!(deserialized.paths.len(), 1);
         assert_eq!(deserialized.paths[0].tiles.len(), 4);
-        assert!(matches!(deserialized.paths[0].constraints, ApiPathConstraintSet::FirstDecided('s')));
+        assert!(matches!(
+            deserialized.paths[0].constraints,
+            ApiPathConstraintSet::FirstDecided('s')
+        ));
     }
 
     #[test]
     fn test_is_date_in_future() {
         // Test with today's date (should not be in future)
         let today = Utc::now().format("%Y-%m-%d").to_string();
-        assert!(!is_date_in_future(&today), "Today should not be considered future");
+        assert!(
+            !is_date_in_future(&today),
+            "Today should not be considered future"
+        );
 
         // Test with yesterday's date (should not be in future)
         let yesterday = (Utc::now() - chrono::Duration::days(1))
             .format("%Y-%m-%d")
             .to_string();
-        assert!(!is_date_in_future(&yesterday), "Yesterday should not be considered future");
+        assert!(
+            !is_date_in_future(&yesterday),
+            "Yesterday should not be considered future"
+        );
 
         // Test with a clearly future date (should be in future)
         let future_date = (Utc::now() + chrono::Duration::days(10))
             .format("%Y-%m-%d")
             .to_string();
-        assert!(is_date_in_future(&future_date), "Future date should be considered future");
+        assert!(
+            is_date_in_future(&future_date),
+            "Future date should be considered future"
+        );
 
         // Test with invalid date format (should be considered future for safety)
-        assert!(is_date_in_future("invalid-date"), "Invalid date should be considered future");
-        assert!(is_date_in_future("2024-13-45"), "Invalid date should be considered future");
-        assert!(is_date_in_future("not-a-date"), "Invalid date should be considered future");
+        assert!(
+            is_date_in_future("invalid-date"),
+            "Invalid date should be considered future"
+        );
+        assert!(
+            is_date_in_future("2024-13-45"),
+            "Invalid date should be considered future"
+        );
+        assert!(
+            is_date_in_future("not-a-date"),
+            "Invalid date should be considered future"
+        );
     }
 
     #[tokio::test]

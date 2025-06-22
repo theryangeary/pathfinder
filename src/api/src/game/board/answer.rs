@@ -32,11 +32,11 @@ impl Display for Answer {
 mod tests {
     use super::*;
     use crate::game::board::{
-        constraints::{Constraint, PathConstraintSet},
+        constraints::PathConstraintSet,
         path::{GameTile, Path},
     };
 
-    use std::collections::{HashMap, VecDeque};
+    use std::collections::VecDeque;
 
     fn create_test_tile(row: i32, col: i32, letter: char, points: i32) -> GameTile {
         GameTile {

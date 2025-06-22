@@ -39,10 +39,7 @@ impl SecurityConfig {
         let mut config = Self::default();
 
         if let Ok(origins) = env::var("ALLOWED_ORIGINS") {
-            config.allowed_origins = origins
-                .split(',')
-                .map(|s| s.trim().to_string())
-                .collect();
+            config.allowed_origins = origins.split(',').map(|s| s.trim().to_string()).collect();
         }
 
         if let Ok(max_age) = env::var("CORS_MAX_AGE") {

@@ -3,13 +3,13 @@ use axum::{
     response::Response,
 };
 use std::convert::Infallible;
-use tower::{Layer, Service};
-use std::task::{Context, Poll};
-use std::pin::Pin;
 use std::future::Future;
-use tracing::{warn, debug};
+use std::pin::Pin;
+use std::task::{Context, Poll};
+use tower::{Layer, Service};
+use tracing::{debug, warn};
 
-use crate::security::{SecurityConfig, utils::is_origin_allowed};
+use crate::security::{utils::is_origin_allowed, SecurityConfig};
 
 #[derive(Clone)]
 pub struct RefererLayer {
@@ -84,7 +84,7 @@ fn validate_referer(
     uri: &axum::http::Uri,
 ) -> Result<(), Response> {
     let referer = headers.get("referer").and_then(|v| v.to_str().ok());
-    
+
     // Skip referer validation for specific endpoints if configured
     let path = uri.path();
     if should_skip_referer_check(path) {
@@ -96,13 +96,17 @@ fn validate_referer(
         Some(referer_value) => {
             // Extract origin from referer URL
             if let Ok(referer_url) = url::Url::parse(referer_value) {
-                let referer_origin = format!("{}://{}", referer_url.scheme(), 
-                    referer_url.host_str().unwrap_or(""));
-                
+                let referer_origin = format!(
+                    "{}://{}",
+                    referer_url.scheme(),
+                    referer_url.host_str().unwrap_or("")
+                );
+
                 // Add port if it's not the default for the scheme
                 let referer_origin = if let Some(port) = referer_url.port() {
-                    if (referer_url.scheme() == "https" && port != 443) ||
-                       (referer_url.scheme() == "http" && port != 80) {
+                    if (referer_url.scheme() == "https" && port != 443)
+                        || (referer_url.scheme() == "http" && port != 80)
+                    {
                         format!("{}:{}", referer_origin, port)
                     } else {
                         referer_origin
@@ -115,12 +119,18 @@ fn validate_referer(
                     debug!("Referer validation passed for: {}", referer_value);
                     Ok(())
                 } else {
-                    warn!("Referer validation failed - invalid referer: {}", referer_value);
+                    warn!(
+                        "Referer validation failed - invalid referer: {}",
+                        referer_value
+                    );
                     log_suspicious_request(headers, uri, "Invalid referer");
                     Err(create_referer_error_response("Invalid referer"))
                 }
             } else {
-                warn!("Referer validation failed - malformed referer: {}", referer_value);
+                warn!(
+                    "Referer validation failed - malformed referer: {}",
+                    referer_value
+                );
                 log_suspicious_request(headers, uri, "Malformed referer");
                 Err(create_referer_error_response("Malformed referer"))
             }
@@ -140,20 +150,20 @@ fn validate_referer(
 
 fn should_skip_referer_check(path: &str) -> bool {
     // Skip referer check for API endpoints that might be called directly
-    matches!(path, 
-        "/health" | 
-        "/api/health" |
-        "/metrics" |
-        "/api/metrics"
+    matches!(
+        path,
+        "/health" | "/api/health" | "/metrics" | "/api/metrics"
     )
 }
 
 fn log_suspicious_request(headers: &HeaderMap, uri: &axum::http::Uri, reason: &str) {
-    let user_agent = headers.get("user-agent")
+    let user_agent = headers
+        .get("user-agent")
         .and_then(|v| v.to_str().ok())
         .unwrap_or("unknown");
-    
-    let x_forwarded_for = headers.get("x-forwarded-for")
+
+    let x_forwarded_for = headers
+        .get("x-forwarded-for")
         .and_then(|v| v.to_str().ok())
         .unwrap_or("unknown");
 
@@ -180,7 +190,7 @@ fn create_referer_error_response(message: &str) -> Response {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use axum::http::{Request, Method};
+    use axum::http::{Method, Request};
     use tower::ServiceExt;
 
     async fn test_service() -> Response {
@@ -197,7 +207,7 @@ mod tests {
             strict_referer: true,
             ..Default::default()
         };
-        
+
         let layer = RefererLayer::new(config);
         let mut service = layer.layer(tower::service_fn(|_| async { Ok(test_service().await) }));
 
@@ -219,7 +229,7 @@ mod tests {
             strict_referer: true,
             ..Default::default()
         };
-        
+
         let layer = RefererLayer::new(config);
         let mut service = layer.layer(tower::service_fn(|_| async { Ok(test_service().await) }));
 
@@ -241,7 +251,7 @@ mod tests {
             strict_referer: true,
             ..Default::default()
         };
-        
+
         let layer = RefererLayer::new(config);
         let mut service = layer.layer(tower::service_fn(|_| async { Ok(test_service().await) }));
 
@@ -264,7 +274,7 @@ mod tests {
             strict_referer: false,
             ..Default::default()
         };
-        
+
         let layer = RefererLayer::new(config);
         let mut service = layer.layer(tower::service_fn(|_| async { Ok(test_service().await) }));
 
@@ -286,7 +296,7 @@ mod tests {
             strict_referer: true,
             ..Default::default()
         };
-        
+
         let layer = RefererLayer::new(config);
         let mut service = layer.layer(tower::service_fn(|_| async { Ok(test_service().await) }));
 

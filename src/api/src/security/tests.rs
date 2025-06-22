@@ -4,11 +4,11 @@ mod integration_tests {
     use crate::security::SecurityConfig;
     use axum::{
         body::Body,
-        http::{Request, Method, StatusCode},
+        http::{Method, Request, StatusCode},
         Router,
     };
-    use tower::ServiceExt;
     use std::time::Duration;
+    use tower::ServiceExt;
 
     fn create_test_config() -> SecurityConfig {
         SecurityConfig {
@@ -35,7 +35,7 @@ mod integration_tests {
 
     fn create_test_router() -> Router {
         let config = create_test_config();
-        
+
         Router::new()
             .route("/test", axum::routing::get(test_handler))
             .route("/test", axum::routing::post(test_handler))
@@ -43,21 +43,29 @@ mod integration_tests {
             .route("/health", axum::routing::get(test_handler))
             .layer(
                 tower::ServiceBuilder::new()
-                    .layer(crate::security::headers::SecurityHeadersLayer::new(config.clone()))
+                    .layer(crate::security::headers::SecurityHeadersLayer::new(
+                        config.clone(),
+                    ))
                     .layer(crate::security::session::SessionLayer::new(config.clone()))
                     .layer(crate::security::session::cookie_layer())
                     .layer(crate::security::referer::RefererLayer::new(config.clone()))
                     .layer(crate::security::cors::CorsLayer::new(config.clone()))
-                    .layer(crate::security::rate_limit::RateLimitLayer::new(config.clone()))
-                    .layer(tower_http::timeout::TimeoutLayer::new(config.request_timeout))
-                    .layer(tower_http::limit::RequestBodyLimitLayer::new(config.max_request_size))
+                    .layer(crate::security::rate_limit::RateLimitLayer::new(
+                        config.clone(),
+                    ))
+                    .layer(tower_http::timeout::TimeoutLayer::new(
+                        config.request_timeout,
+                    ))
+                    .layer(tower_http::limit::RequestBodyLimitLayer::new(
+                        config.max_request_size,
+                    )),
             )
     }
 
     #[tokio::test]
     async fn test_security_middleware_integration() {
         let app = create_test_router();
-        
+
         let request = Request::builder()
             .method(Method::GET)
             .uri("/test")
@@ -66,20 +74,23 @@ mod integration_tests {
             .unwrap();
 
         let response = app.oneshot(request).await.unwrap();
-        
+
         // Should succeed with all security headers
         assert_eq!(response.status(), StatusCode::OK);
-        
+
         let headers = response.headers();
         assert!(headers.contains_key("x-content-type-options"));
         assert!(headers.contains_key("strict-transport-security"));
-        assert_eq!(headers.get("access-control-allow-origin").unwrap(), "https://example.com");
+        assert_eq!(
+            headers.get("access-control-allow-origin").unwrap(),
+            "https://example.com"
+        );
     }
 
     #[tokio::test]
     async fn test_cors_blocks_unauthorized_origin() {
         let app = create_test_router();
-        
+
         let request = Request::builder()
             .method(Method::GET)
             .uri("/test")
@@ -94,7 +105,7 @@ mod integration_tests {
     #[tokio::test]
     async fn test_referer_validation_blocks_invalid_referer() {
         let app = create_test_router();
-        
+
         let request = Request::builder()
             .method(Method::POST)
             .uri("/test")
@@ -110,7 +121,7 @@ mod integration_tests {
     #[tokio::test]
     async fn test_rate_limiting_works() {
         let app = create_test_router();
-        
+
         // Make requests up to the limit
         for _ in 0..3 {
             let request = Request::builder()
@@ -142,7 +153,7 @@ mod integration_tests {
     #[tokio::test]
     async fn test_health_check_bypasses_rate_limiting() {
         let app = create_test_router();
-        
+
         // Make many requests to health endpoint - should not be rate limited
         for _ in 0..10 {
             let request = Request::builder()
@@ -159,10 +170,10 @@ mod integration_tests {
     #[tokio::test]
     async fn test_request_size_limit() {
         let app = create_test_router();
-        
+
         // Create a request body larger than the limit (1024 bytes)
         let large_body = "x".repeat(2048);
-        
+
         let request = Request::builder()
             .method(Method::POST)
             .uri("/test")
@@ -179,7 +190,7 @@ mod integration_tests {
     #[tokio::test]
     async fn test_session_creation_and_validation() {
         let app = create_test_router();
-        
+
         let request = Request::builder()
             .method(Method::GET)
             .uri("/test")
@@ -189,11 +200,11 @@ mod integration_tests {
 
         let response = app.oneshot(request).await.unwrap();
         assert_eq!(response.status(), StatusCode::OK);
-        
+
         // Check if session cookie was set
         let set_cookie_header = response.headers().get("set-cookie");
         assert!(set_cookie_header.is_some());
-        
+
         let cookie_value = set_cookie_header.unwrap().to_str().unwrap();
         assert!(cookie_value.contains("session_id="));
         assert!(cookie_value.contains("HttpOnly"));
@@ -204,7 +215,7 @@ mod integration_tests {
     #[tokio::test]
     async fn test_security_headers_present() {
         let app = create_test_router();
-        
+
         let request = Request::builder()
             .method(Method::GET)
             .uri("/test")
@@ -214,23 +225,29 @@ mod integration_tests {
 
         let response = app.oneshot(request).await.unwrap();
         let headers = response.headers();
-        
+
         // Check all required security headers
         assert_eq!(headers.get("x-content-type-options").unwrap(), "nosniff");
         assert_eq!(headers.get("x-frame-options").unwrap(), "DENY");
         assert_eq!(headers.get("x-xss-protection").unwrap(), "1; mode=block");
         assert!(headers.contains_key("strict-transport-security"));
         assert!(headers.contains_key("content-security-policy"));
-        assert_eq!(headers.get("referrer-policy").unwrap(), "strict-origin-when-cross-origin");
+        assert_eq!(
+            headers.get("referrer-policy").unwrap(),
+            "strict-origin-when-cross-origin"
+        );
         assert!(headers.contains_key("permissions-policy"));
-        assert_eq!(headers.get("x-permitted-cross-domain-policies").unwrap(), "none");
+        assert_eq!(
+            headers.get("x-permitted-cross-domain-policies").unwrap(),
+            "none"
+        );
         assert_eq!(headers.get("x-dns-prefetch-control").unwrap(), "off");
     }
 
     #[tokio::test]
     async fn test_preflight_cors_request() {
         let app = create_test_router();
-        
+
         let request = Request::builder()
             .method(Method::OPTIONS)
             .uri("/test")
@@ -242,10 +259,21 @@ mod integration_tests {
 
         let response = app.oneshot(request).await.unwrap();
         assert_eq!(response.status(), StatusCode::NO_CONTENT);
-        
+
         let headers = response.headers();
-        assert_eq!(headers.get("access-control-allow-origin").unwrap(), "https://example.com");
-        assert!(headers.get("access-control-allow-methods").unwrap().to_str().unwrap().contains("POST"));
-        assert_eq!(headers.get("access-control-allow-credentials").unwrap(), "true");
+        assert_eq!(
+            headers.get("access-control-allow-origin").unwrap(),
+            "https://example.com"
+        );
+        assert!(headers
+            .get("access-control-allow-methods")
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .contains("POST"));
+        assert_eq!(
+            headers.get("access-control-allow-credentials").unwrap(),
+            "true"
+        );
     }
 }

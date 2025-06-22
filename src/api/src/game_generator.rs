@@ -1,5 +1,11 @@
-use crate::db::{models::{NewGame, NewGameAnswer}, Repository};
-use crate::game::{BoardGenerator, GameEngine, conversion::{SerializablePath, SerializableAnswerGroupConstraintSet}};
+use crate::db::{
+    models::{NewGame, NewGameAnswer},
+    Repository,
+};
+use crate::game::{
+    conversion::{SerializableAnswerGroupConstraintSet, SerializablePath},
+    BoardGenerator, GameEngine,
+};
 use anyhow::Result;
 use chrono::{Duration, Utc};
 use rand::SeedableRng;
@@ -44,7 +50,7 @@ impl GameGenerator {
                 info!("Game already exists for date: {}", date_str);
             }
         }
-        
+
         // Generate games for the past 7 days, in case this is the first launch or the app has had downtime.
         for days_back in 1..=7 {
             let target_date = today - Duration::days(8) + Duration::days(days_back);
@@ -86,9 +92,10 @@ impl GameGenerator {
                 {
                     Ok((board, valid_answers)) => {
                         // Convert board to JSON for storage
-                        let serializable_board = crate::game::conversion::SerializableBoard::from(&board);
+                        let serializable_board =
+                            crate::game::conversion::SerializableBoard::from(&board);
                         let board_data = serde_json::to_string(&serializable_board)?;
-                        
+
                         let sequence_number = self.repository.get_next_sequence_number().await?;
                         let new_game = NewGame {
                             date: date.to_string(),
@@ -101,24 +108,32 @@ impl GameGenerator {
                         let mut game_answers = Vec::new();
                         // Use a temporary game_id that will be replaced by the actual ID
                         let temp_game_id = uuid::Uuid::new_v4().to_string();
-                        
+
                         for answer in &valid_answers {
                             for path in &answer.paths {
                                 let serializable_path = SerializablePath::from(path);
-                                let serializable_constraints = SerializableAnswerGroupConstraintSet::from(&answer.constraints_set);
-                                
+                                let serializable_constraints =
+                                    SerializableAnswerGroupConstraintSet::from(
+                                        &answer.constraints_set,
+                                    );
+
                                 game_answers.push(NewGameAnswer {
                                     game_id: temp_game_id.clone(), // Will be replaced in the atomic create
                                     word: answer.word.clone(),
                                     path: serde_json::to_string(&serializable_path)?,
-                                    path_constraint_set: serde_json::to_string(&serializable_constraints)?,
+                                    path_constraint_set: serde_json::to_string(
+                                        &serializable_constraints,
+                                    )?,
                                 });
                             }
                         }
-                        
+
                         // Create game and answers atomically
-                        let (game, _created_answers) = self.repository.create_game_with_answers(new_game, game_answers).await?;
-                        
+                        let (game, _created_answers) = self
+                            .repository
+                            .create_game_with_answers(new_game, game_answers)
+                            .await?;
+
                         info!(
                             "Successfully generated game for {} after {} attempts with threshold {} and {} valid answers",
                             date, generation_attempt, threshold_score, valid_answers.len()
@@ -156,7 +171,10 @@ impl GameGenerator {
         &self,
         rng: &mut R,
         threshold_score: i32,
-    ) -> Result<(crate::game::board::Board, Vec<crate::game::board::answer::Answer>)> {
+    ) -> Result<(
+        crate::game::board::Board,
+        Vec<crate::game::board::answer::Answer>,
+    )> {
         let board_generator = BoardGenerator::new();
         let board = board_generator.generate_board(rng);
 

@@ -138,7 +138,6 @@ export function mergePathConstraintSets(a: PathConstraintSet, b: PathConstraintS
 // Intersection of two AnswerGroupConstraintSets
 export function intersectAnswerGroupConstraintSets(a: AnswerGroupConstraintSet, b: AnswerGroupConstraintSet): AnswerGroupConstraintSet {
   const resultSets: PathConstraintSet[] = [];
-  console.log(a, b);
   for (const aConstraint of a.pathConstraintSets) {
     for (const bConstraint of b.pathConstraintSets) {
       try {
