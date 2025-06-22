@@ -1228,7 +1228,7 @@ mod tests {
 
         // Verify we get the expected structure
         assert!(
-            paths_response.words.len() > 0,
+            !paths_response.words.is_empty(),
             "Should have some word paths"
         );
 
@@ -1577,7 +1577,7 @@ mod tests {
     #[test]
     fn test_word_paths_case_insensitive() {
         // Test that the endpoint handles case-insensitive word matching
-        let test_words = vec!["test".to_string(), "word".to_string(), "game".to_string()];
+        let test_words = ["test".to_string(), "word".to_string(), "game".to_string()];
 
         // Test that lowercase matches work
         assert!(test_words.contains(&"test".to_lowercase()));

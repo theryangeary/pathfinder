@@ -1267,7 +1267,7 @@ mod tests {
     #[test]
     fn test_try_from_vec_answer() {
         let board = create_test_board("eadux*ysta*tnhrv");
-        let answer_inputs = vec!["day", "days", "year", "data"];
+        let answer_inputs = ["day", "days", "year", "data"];
         let answers = answer_inputs.iter().map(|a| board.paths_for(a)).collect();
         let answer_group_constraint_set = AnswerGroupConstraintSet::try_from(&answers).unwrap();
 

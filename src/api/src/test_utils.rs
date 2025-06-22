@@ -85,7 +85,7 @@ pub mod test_utils {
 
         let letters = [
             [
-                letters.chars().nth(0),
+                letters.chars().next(),
                 letters.chars().nth(1),
                 letters.chars().nth(2),
                 letters.chars().nth(3),

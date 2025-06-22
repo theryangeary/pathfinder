@@ -268,16 +268,16 @@ mod tests {
         // S A * I  <- wildcard at (2,2)
         // I N A L
         let board = test_utils::create_test_board("tmitc*otsa*iinal");
-        for word in vec!["tmit", "crot", "sani", "inal", "tmittotcsarilani"] {
+        for word in ["tmit", "crot", "sani", "inal", "tmittotcsarilani"] {
             assert!(
-                board.paths_for(word).paths.len() > 0,
+                !board.paths_for(word).paths.is_empty(),
                 "Should find paths for {} on this board",
                 word
             );
         }
-        for bad_word in vec!["abcd", "zzzz", "icgz"] {
+        for bad_word in ["abcd", "zzzz", "icgz"] {
             assert!(
-                board.paths_for(bad_word).paths.len() == 0,
+                board.paths_for(bad_word).paths.is_empty(),
                 "Should find paths for {} on this board",
                 bad_word
             );
@@ -288,7 +288,7 @@ mod tests {
     fn test_biscuit_on_biscuit_board() {
         let board = test_utils::create_test_board("ebnlp*icai*sseer");
         let answer = board.paths_for("biscuit");
-        assert!(answer.paths.len() > 0, "Should find biscuit on this board");
+        assert!(!answer.paths.is_empty(), "Should find biscuit on this board");
     }
 
     #[test]

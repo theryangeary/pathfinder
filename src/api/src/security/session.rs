@@ -207,11 +207,11 @@ mod tests {
     #[test]
     fn test_mask_session_id() {
         let id = "abcdefghijklmnopqrstuvwxyz1234567890ABCDEF";
-        let masked = mask_session_id(&id);
+        let masked = mask_session_id(id);
         assert_eq!(masked, "abcd...CDEF");
 
         let short_id = "abc";
-        let masked_short = mask_session_id(&short_id);
+        let masked_short = mask_session_id(short_id);
         assert_eq!(masked_short, "****");
     }
 
