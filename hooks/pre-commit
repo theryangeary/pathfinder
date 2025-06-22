@@ -1,17 +1,28 @@
 #!/bin/bash
 
-# Pre-commit hook: Run frontend tests
+# Pre-commit hook: Run linting and tests
 set -e
 
 echo "Running pre-commit hook..."
+
+# TypeScript type checking
+echo "Running TypeScript type checking..."
+npx tsc --noEmit
 
 # Run frontend tests
 echo "Running frontend tests..."
 npm run test:run
 
+# Run Rust formatting check
+echo "Checking Rust formatting..."
+cargo fmt --check
+
+# Run Rust linting (clippy)
+echo "Running Rust clippy..."
+cargo clippy --all-targets --all-features -- -D warnings
+
 # Run backend tests with database feature
 echo "Running backend tests (including database tests)..."
-cd src/api
 cargo test --features database-tests
 
 echo "✅ Pre-commit checks passed!"

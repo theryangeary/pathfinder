@@ -1,12 +1,12 @@
 #!/bin/bash
 
 # Git hooks installation script
-# This script copies the git hooks from the hooks/ directory to .git/hooks/
-# and makes them executable.
+# This script creates delegating hooks in .git/hooks/ that invoke the checked-in versions
+# from the hooks/ directory, ensuring they stay in sync automatically.
 
 set -e
 
-echo "Installing git hooks..."
+echo "Installing delegating git hooks..."
 
 # Check if we're in a git repository
 if [ ! -d ".git" ]; then
@@ -20,30 +20,45 @@ if [ ! -d "hooks" ]; then
     exit 1
 fi
 
-# Install pre-commit hook
+# Create delegating pre-commit hook
 if [ -f "hooks/pre-commit" ]; then
-    cp hooks/pre-commit .git/hooks/pre-commit
+    cat > .git/hooks/pre-commit << 'EOF'
+#!/bin/bash
+
+# Pre-commit hook: Invoke the checked-in version
+exec ./hooks/pre-commit "$@"
+EOF
     chmod +x .git/hooks/pre-commit
-    echo "✅ Installed pre-commit hook"
+    chmod +x hooks/pre-commit
+    echo "✅ Installed delegating pre-commit hook"
 else
     echo "Warning: hooks/pre-commit not found"
 fi
 
-# Install pre-push hook
+# Create delegating pre-push hook
 if [ -f "hooks/pre-push" ]; then
-    cp hooks/pre-push .git/hooks/pre-push
+    cat > .git/hooks/pre-push << 'EOF'
+#!/bin/bash
+
+# Pre-push hook: Invoke the checked-in version
+exec ./hooks/pre-push "$@"
+EOF
     chmod +x .git/hooks/pre-push
-    echo "✅ Installed pre-push hook"
+    chmod +x hooks/pre-push
+    echo "✅ Installed delegating pre-push hook"
 else
     echo "Warning: hooks/pre-push not found"
 fi
 
 echo ""
-echo "Git hooks installed successfully!"
+echo "Delegating git hooks installed successfully!"
 echo ""
 echo "The following hooks are now active:"
-echo "- pre-commit: Runs frontend tests before commits"
-echo "- pre-push: Runs all tests (frontend + backend with database) before pushes"
+echo "- pre-commit: Runs linting and tests before commits"
+echo "- pre-push: Runs linting and all tests before pushes"
+echo ""
+echo "These hooks automatically invoke the checked-in versions in hooks/"
+echo "so they will always stay in sync with your repository."
 echo ""
 echo "To skip hooks temporarily, use:"
 echo "  git commit --no-verify"

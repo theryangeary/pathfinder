@@ -1,17 +1,31 @@
 #!/bin/bash
 
-# Pre-push hook: Run all tests including database tests
+# Pre-push hook: Run linting and all tests including database tests
 set -e
 
 echo "Running pre-push hook..."
+
+# TypeScript type checking
+echo "Running TypeScript type checking..."
+npx tsc --noEmit
 
 # Run frontend tests
 echo "Running frontend tests..."
 npm run test:run
 
+# Run Rust formatting check
+echo "Checking Rust formatting..."
+cd src/api
+cargo fmt --check
+
+# Run Rust linting (clippy)
+echo "Running Rust clippy..."
+cargo clippy --all-targets --all-features -- -D warnings
+
 # Run backend tests with database feature
 echo "Running backend tests (including database tests)..."
-cd src/api
 cargo test --features database-tests
+
+cd ../..
 
 echo "✅ Pre-push checks passed!"
