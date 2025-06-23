@@ -3,6 +3,9 @@
 echo "=== Word Game Integration Test ==="
 echo
 
+# Track test failures
+FAILED_TESTS=0
+
 # Test backend API endpoints
 echo "1. Testing daily game endpoint..."
 response=$(curl -s http://localhost:3001/api/game)
@@ -13,6 +16,7 @@ if echo "$response" | grep -q '"id"'; then
 else
     echo "✗ Game API failed"
     echo "Response: $response"
+    FAILED_TESTS=$((FAILED_TESTS + 1))
 fi
 
 echo
@@ -26,6 +30,7 @@ if echo "$user_response" | grep -q '"user_id"'; then
 else
     echo "✗ User creation API failed"
     echo "Response: $user_response"
+    FAILED_TESTS=$((FAILED_TESTS + 1))
 fi
 
 echo
@@ -40,6 +45,7 @@ if echo "$validation_response" | grep -q '"is_valid"'; then
 else
     echo "✗ Word validation API failed"
     echo "Response: $validation_response"
+    FAILED_TESTS=$((FAILED_TESTS + 1))
 fi
 
 echo
@@ -49,6 +55,7 @@ if curl -s http://localhost:5174/ > /dev/null; then
     echo "✓ Frontend is accessible on http://localhost:5174"
 else
     echo "✗ Frontend not accessible"
+    FAILED_TESTS=$((FAILED_TESTS + 1))
 fi
 
 echo
@@ -61,6 +68,7 @@ if [ -f src/api/backend.log ]; then
     else
         echo "⚠ Found $error_count errors in backend logs:"
         grep -i error src/api/backend.log | tail -3
+        FAILED_TESTS=$((FAILED_TESTS + 1))
     fi
 else
     echo "⚠ Backend log file not found"
@@ -69,8 +77,12 @@ fi
 echo
 echo "=== Integration Test Complete ==="
 echo
-echo "Next steps:"
-echo "1. Open http://localhost:5174 in your browser"
-echo "2. Verify the game loads and shows a daily puzzle"
-echo "3. Try entering words and check validation"
-echo "4. Complete a full game and submit answers"
+
+if [ $FAILED_TESTS -eq 0 ]; then
+    echo "✅ All integration tests passed!"
+    exit 0
+else
+    echo "❌ $FAILED_TESTS integration test(s) failed!"
+    echo "Please fix the failing tests before proceeding."
+    exit 1
+fi
