@@ -7,24 +7,39 @@ echo "Running pre-push hook..."
 
 # TypeScript type checking
 echo "Running TypeScript type checking..."
-npx tsc --noEmit
+if ! npx tsc --noEmit > /tmp/tsc.log 2>&1; then
+    cat /tmp/tsc.log
+    exit 1
+fi
 
 # Run frontend tests
 echo "Running frontend tests..."
-npm run test:run
+if ! npm run test:run > /tmp/test.log 2>&1; then
+    cat /tmp/test.log
+    exit 1
+fi
 
 # Run Rust formatting check
 echo "Checking Rust formatting..."
 cd src/api
-cargo fmt --check
+if ! cargo fmt --check > /tmp/fmt.log 2>&1; then
+    cat /tmp/fmt.log
+    exit 1
+fi
 
 # Run Rust linting (clippy)
 echo "Running Rust clippy..."
-cargo clippy --all-targets --all-features -- -D warnings
+if ! cargo clippy --all-targets --all-features -- -D warnings > /tmp/clippy.log 2>&1; then
+    cat /tmp/clippy.log
+    exit 1
+fi
 
 # Run backend tests with database feature
 echo "Running backend tests (including database tests)..."
-cargo test --features database-tests
+if ! cargo test --features database-tests > /tmp/test-backend.log 2>&1; then
+    cat /tmp/test-backend.log
+    exit 1
+fi
 
 cd ../..
 
