@@ -14,7 +14,7 @@ FROM rust:1.87-alpine AS backend-builder
 RUN apk add --no-cache musl-dev pkgconfig openssl-dev
 
 WORKDIR /app
-COPY src/api/Cargo.toml src/api/Cargo.lock ./
+COPY src/api/Cargo.toml Cargo.lock ./
 COPY src/api/src ./src
 COPY src/api/migrations ./migrations
 COPY ./wordlist ./wordlist
