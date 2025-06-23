@@ -96,8 +96,6 @@ function App() {
       const game = sequenceNumber 
         ? await gameApi.getGameBySequence(parseInt(sequenceNumber))
         : await gameApi.getDailyGame();
-      console.log('Received game:', game);
-      console.log('Sequence number:', game.sequence_number);
       setCurrentGame(game);
       const newBoard = convertApiBoardToBoard(game.board);
       setBoard(newBoard);
@@ -163,7 +161,6 @@ function App() {
       console.warn('Failed to load existing game entry:', error);
       // If this is a 401 error, the user is invalid, clear localStorage
       if (error instanceof Error && error.message.includes('401')) {
-        console.log('User appears to be invalid, clearing localStorage and creating new user');
         clearUser();
       }
     }
