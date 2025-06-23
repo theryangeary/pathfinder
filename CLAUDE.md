@@ -108,8 +108,11 @@ Starts Vite development server with hot reload at `http://localhost:5173`
 (Automatically generates wordlist first)
 
 ### Backend Development  
+
+
+- Always run `cargo` commands from the root of the repository. This is a cargo "workspace" and Cargo.toml in the root will make cargo find the Cargo.toml at src/api
+
 ```bash
-cd src/api
 cargo run
 ```
 Starts backend HTTP API server on `http://localhost:3001`
