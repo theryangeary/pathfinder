@@ -10,9 +10,7 @@ use chrono_tz::Tz;
 use moka::future::Cache;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use tower_http::{
-    limit::RequestBodyLimitLayer, services::ServeDir, timeout::TimeoutLayer,
-};
+use tower_http::{limit::RequestBodyLimitLayer, services::ServeDir, timeout::TimeoutLayer};
 
 use crate::db::{conversions::AnswerStorage, Repository};
 use crate::game::GameEngine;
@@ -937,7 +935,11 @@ mod tests {
         new_game.date = "2025-06-08".to_string();
         new_game.threshold_score = 40;
         new_game.sequence_number = 1;
-        let (created_game, _) = state.repository.create_game_with_answers(new_game, vec![]).await.unwrap();
+        let (created_game, _) = state
+            .repository
+            .create_game_with_answers(new_game, vec![])
+            .await
+            .unwrap();
 
         // Test the endpoint using test_utils request helper
         let request = create_test_request(axum::http::Method::GET, "/api/game/sequence/1", None);
@@ -991,7 +993,11 @@ mod tests {
         let games = vec![game1, game2, game3];
 
         for game in games {
-            state.repository.create_game_with_answers(game, vec![]).await.unwrap();
+            state
+                .repository
+                .create_game_with_answers(game, vec![])
+                .await
+                .unwrap();
         }
 
         // Test getting game with sequence number 1
@@ -1049,7 +1055,11 @@ mod tests {
         new_game.date = "2025-06-08".to_string();
         new_game.threshold_score = 40;
         new_game.sequence_number = 1;
-        let (created_game, _) = state.repository.create_game_with_answers(new_game, vec![]).await.unwrap();
+        let (created_game, _) = state
+            .repository
+            .create_game_with_answers(new_game, vec![])
+            .await
+            .unwrap();
 
         // Test the date endpoint
         let request =
@@ -1148,7 +1158,11 @@ mod tests {
         new_game.date = "2025-06-08".to_string();
         new_game.threshold_score = 40;
         new_game.sequence_number = 1;
-        let (_created_game, _) = state.repository.create_game_with_answers(new_game, vec![]).await.unwrap();
+        let (_created_game, _) = state
+            .repository
+            .create_game_with_answers(new_game, vec![])
+            .await
+            .unwrap();
 
         // First request - should hit database and cache
         let request1 = create_test_request(axum::http::Method::GET, "/api/game/sequence/1", None);
@@ -1209,7 +1223,11 @@ mod tests {
             },
         ];
 
-        let (created_game, _game_answers) = state.repository.create_game_with_answers(new_game, test_answers).await.unwrap();
+        let (created_game, _game_answers) = state
+            .repository
+            .create_game_with_answers(new_game, test_answers)
+            .await
+            .unwrap();
 
         // Test the paths endpoint
         let request = create_test_request(
@@ -1266,7 +1284,11 @@ mod tests {
             },
         ];
 
-        let (created_game, _game_answers) = state.repository.create_game_with_answers(new_game, test_answers).await.unwrap();
+        let (created_game, _game_answers) = state
+            .repository
+            .create_game_with_answers(new_game, test_answers)
+            .await
+            .unwrap();
 
         // Test the word paths endpoint for a valid word
         let request = create_test_request(
@@ -1332,7 +1354,11 @@ mod tests {
             },
         ];
 
-        let (created_game, _) = state.repository.create_game_with_answers(new_game, test_answers).await.unwrap();
+        let (created_game, _) = state
+            .repository
+            .create_game_with_answers(new_game, test_answers)
+            .await
+            .unwrap();
 
         // Test the words endpoint
         let request = create_test_request(
@@ -1417,11 +1443,6 @@ mod tests {
         );
     }
 
-    fn create_diode_scenario_board_data() -> String {
-        // JSON representation of the puzzle #4 board that caused the bug
-        r#"{"rows":[{"tiles":[{"letter":"i","points":1,"is_wildcard":false,"row":0,"col":0},{"letter":"a","points":1,"is_wildcard":false,"row":0,"col":1},{"letter":"r","points":1,"is_wildcard":false,"row":0,"col":2},{"letter":"o","points":1,"is_wildcard":false,"row":0,"col":3}]},{"tiles":[{"letter":"o","points":1,"is_wildcard":false,"row":1,"col":0},{"letter":"*","points":0,"is_wildcard":true,"row":1,"col":1},{"letter":"n","points":1,"is_wildcard":false,"row":1,"col":2},{"letter":"h","points":3,"is_wildcard":false,"row":1,"col":3}]},{"tiles":[{"letter":"d","points":2,"is_wildcard":false,"row":2,"col":0},{"letter":"o","points":1,"is_wildcard":false,"row":2,"col":1},{"letter":"*","points":0,"is_wildcard":true,"row":2,"col":2},{"letter":"t","points":1,"is_wildcard":false,"row":2,"col":3}]},{"tiles":[{"letter":"e","points":1,"is_wildcard":false,"row":3,"col":0},{"letter":"r","points":1,"is_wildcard":false,"row":3,"col":1},{"letter":"b","points":3,"is_wildcard":false,"row":3,"col":2},{"letter":"e","points":1,"is_wildcard":false,"row":3,"col":3}]}]}"#.to_string()
-    }
-
     fn create_puzzle8_board_data() -> String {
         // JSON representation of the puzzle #8 board from user screenshot
         // H I S S
@@ -1429,15 +1450,6 @@ mod tests {
         // L E * D  <- wildcard at (2,2)
         // S E E O
         r#"{"rows":[{"tiles":[{"letter":"h","points":3,"is_wildcard":false,"row":0,"col":0},{"letter":"i","points":1,"is_wildcard":false,"row":0,"col":1},{"letter":"s","points":1,"is_wildcard":false,"row":0,"col":2},{"letter":"s","points":1,"is_wildcard":false,"row":0,"col":3}]},{"tiles":[{"letter":"c","points":2,"is_wildcard":false,"row":1,"col":0},{"letter":"*","points":0,"is_wildcard":true,"row":1,"col":1},{"letter":"l","points":2,"is_wildcard":false,"row":1,"col":2},{"letter":"o","points":1,"is_wildcard":false,"row":1,"col":3}]},{"tiles":[{"letter":"l","points":2,"is_wildcard":false,"row":2,"col":0},{"letter":"e","points":1,"is_wildcard":false,"row":2,"col":1},{"letter":"*","points":0,"is_wildcard":true,"row":2,"col":2},{"letter":"d","points":2,"is_wildcard":false,"row":2,"col":3}]},{"tiles":[{"letter":"s","points":1,"is_wildcard":false,"row":3,"col":0},{"letter":"e","points":1,"is_wildcard":false,"row":3,"col":1},{"letter":"e","points":1,"is_wildcard":false,"row":3,"col":2},{"letter":"o","points":1,"is_wildcard":false,"row":3,"col":3}]}]}"#.to_string()
-    }
-
-    fn create_puzzle9_board_data() -> String {
-        // JSON representation of the puzzle #9 board from user screenshot
-        // T M I T
-        // C * O T  <- wildcard at (1,1)
-        // S A * I  <- wildcard at (2,2)
-        // I N A L
-        r#"{"rows":[{"tiles":[{"letter":"t","points":1,"is_wildcard":false,"row":0,"col":0},{"letter":"m","points":3,"is_wildcard":false,"row":0,"col":1},{"letter":"i","points":1,"is_wildcard":false,"row":0,"col":2},{"letter":"t","points":1,"is_wildcard":false,"row":0,"col":3}]},{"tiles":[{"letter":"c","points":2,"is_wildcard":false,"row":1,"col":0},{"letter":"*","points":0,"is_wildcard":true,"row":1,"col":1},{"letter":"o","points":1,"is_wildcard":false,"row":1,"col":2},{"letter":"t","points":1,"is_wildcard":false,"row":1,"col":3}]},{"tiles":[{"letter":"s","points":1,"is_wildcard":false,"row":2,"col":0},{"letter":"a","points":1,"is_wildcard":false,"row":2,"col":1},{"letter":"*","points":0,"is_wildcard":true,"row":2,"col":2},{"letter":"i","points":1,"is_wildcard":false,"row":2,"col":3}]},{"tiles":[{"letter":"i","points":1,"is_wildcard":false,"row":3,"col":0},{"letter":"n","points":1,"is_wildcard":false,"row":3,"col":1},{"letter":"a","points":1,"is_wildcard":false,"row":3,"col":2},{"letter":"l","points":2,"is_wildcard":false,"row":3,"col":3}]}]}"#.to_string()
     }
 
     #[test]

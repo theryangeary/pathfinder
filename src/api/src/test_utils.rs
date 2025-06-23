@@ -1,45 +1,12 @@
 use crate::db::models::*;
-use crate::game::{conversion::SerializableBoard, Board, BoardGenerator, GameEngine, Trie};
+use crate::game::{conversion::SerializableBoard, Board, GameEngine};
 #[cfg(feature = "database-tests")]
 use crate::http_api::ApiState;
 
 #[cfg(feature = "database-tests")]
 use axum::Router;
-use chrono::Utc;
 
 use tempfile::NamedTempFile;
-use uuid::Uuid;
-
-/// Creates a test user with default values
-pub fn create_test_user() -> DbUser {
-    DbUser {
-        id: Uuid::new_v4().to_string(),
-        cookie_token: format!("test_cookie_{}", Uuid::new_v4()),
-        created_at: Utc::now(),
-        last_seen: Utc::now(),
-    }
-}
-
-/// Creates a new user for database insertion
-pub fn create_new_test_user() -> NewUser {
-    NewUser {
-        cookie_token: format!("test_cookie_{}", Uuid::new_v4()),
-    }
-}
-
-/// Creates a test game with default values
-pub fn create_test_game() -> DbGame {
-    let board = create_default_test_board();
-    let serializable: SerializableBoard = (&board).into();
-    DbGame {
-        id: Uuid::new_v4().to_string(),
-        date: "2024-01-01".to_string(),
-        board_data: serde_json::to_string(&serializable).unwrap(),
-        threshold_score: 100,
-        sequence_number: 1,
-        created_at: Utc::now(),
-    }
-}
 
 /// Creates a new game for database insertion
 pub fn create_new_test_game() -> NewGame {
@@ -112,8 +79,6 @@ pub async fn setup_app(pool: sqlx::Pool<sqlx::Postgres>) -> (ApiState, Router) {
     (state, app)
 }
 
-
-
 pub fn create_test_board_data() -> String {
     // Use test_utils board and serialize it
     let board = create_default_test_board();
@@ -148,10 +113,6 @@ pub fn create_test_game_engine() -> (GameEngine, NamedTempFile) {
     let game_engine = GameEngine::new(wordlist_file.path().to_path_buf());
     (game_engine, wordlist_file)
 }
-
-
-
-
 
 /// Helper for creating test HTTP requests
 pub fn create_test_request(

@@ -399,7 +399,10 @@ mod tests {
             sequence_number: 1,
         };
 
-        let (created_game, _) = repo.create_game_with_answers(new_game, vec![]).await.unwrap();
+        let (created_game, _) = repo
+            .create_game_with_answers(new_game, vec![])
+            .await
+            .unwrap();
 
         // Test getting the game by sequence number
         let retrieved_game = repo.get_game_by_sequence_number(1).await.unwrap();
@@ -489,7 +492,9 @@ mod tests {
             threshold_score: 40,
             sequence_number: 1,
         };
-        repo.create_game_with_answers(new_game, vec![]).await.unwrap();
+        repo.create_game_with_answers(new_game, vec![])
+            .await
+            .unwrap();
 
         // Test getting next sequence number after creating one game
         let next_seq = repo.get_next_sequence_number().await.unwrap();
@@ -502,7 +507,9 @@ mod tests {
             threshold_score: 35,
             sequence_number: 5,
         };
-        repo.create_game_with_answers(new_game, vec![]).await.unwrap();
+        repo.create_game_with_answers(new_game, vec![])
+            .await
+            .unwrap();
 
         // Test getting next sequence number - should be max + 1
         let next_seq = repo.get_next_sequence_number().await.unwrap();
@@ -524,7 +531,9 @@ mod tests {
             threshold_score: 40,
             sequence_number: 1,
         };
-        repo.create_game_with_answers(new_game, vec![]).await.unwrap();
+        repo.create_game_with_answers(new_game, vec![])
+            .await
+            .unwrap();
 
         // Test when game exists for date
         let exists = repo.game_exists_for_date("2025-06-08").await.unwrap();
@@ -550,7 +559,10 @@ mod tests {
             threshold_score: 40,
             sequence_number: 1,
         };
-        let (created_game, _) = repo.create_game_with_answers(new_game, vec![]).await.unwrap();
+        let (created_game, _) = repo
+            .create_game_with_answers(new_game, vec![])
+            .await
+            .unwrap();
 
         // Test getting existing game by date
         let retrieved_game = repo.get_game_by_date("2025-06-08").await.unwrap();

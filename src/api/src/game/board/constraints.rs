@@ -121,9 +121,7 @@ impl TryFrom<&Vec<Answer>> for AnswerGroupConstraintSet {
             .collect();
 
         match AnswerGroupConstraintSet::merge_all(constraint_sets) {
-            Ok(constraint_set) => {
-                Ok(constraint_set)
-            }
+            Ok(constraint_set) => Ok(constraint_set),
             Err(_) => Err(UnsatisfiableConstraint),
         }
     }

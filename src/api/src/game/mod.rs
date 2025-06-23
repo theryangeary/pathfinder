@@ -113,7 +113,7 @@ impl GameEngine {
     ) -> Result<(), String> {
         // Sanitize input
         let mut sanitized_answers: Vec<ApiAnswer> = Vec::new();
-        for answer in answers{
+        for answer in answers {
             sanitized_answers.push(answer.clone().sanitize());
         }
         self.validate_answer_group(
@@ -944,7 +944,7 @@ mod tests {
     fn create_test_wordlist_with_diode() -> Vec<&'static str> {
         vec![
             "ran", "rod", "diode", "best", "test", "redo", "bet", "door", "ore", "do", "od", "re",
-            "to", "ar", "or", "an", "no", "it", "id", "di", "io", "oi", "radio"
+            "to", "ar", "or", "an", "no", "it", "id", "di", "io", "oi", "radio",
         ]
     }
 
@@ -966,15 +966,10 @@ mod tests {
         // do*t
         // erbe
 
-
         // Test that 'biscuit' can coexist with a set of valid other words
         let result = engine.validate_answer_group(
             &board,
-            vec![
-                "diode".to_string(),
-                "redo".to_string(),
-                "radio".to_string(),
-            ],
+            vec!["diode".to_string(), "redo".to_string(), "radio".to_string()],
         );
         assert!(
             result.is_ok(),

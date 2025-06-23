@@ -288,7 +288,10 @@ mod tests {
     fn test_biscuit_on_biscuit_board() {
         let board = test_utils::create_test_board("ebnlp*icai*sseer");
         let answer = board.paths_for("biscuit");
-        assert!(!answer.paths.is_empty(), "Should find biscuit on this board");
+        assert!(
+            !answer.paths.is_empty(),
+            "Should find biscuit on this board"
+        );
     }
 
     #[test]

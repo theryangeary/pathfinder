@@ -21,7 +21,6 @@ use crate::security::{utils::extract_client_ip, SecurityConfig};
 // Simplified rate limiter - we'll implement a basic in-memory HashMap-based solution
 type SimpleRateLimiter = Arc<RwLock<HashMap<IpAddr, (Instant, u32)>>>;
 
-
 #[derive(Clone)]
 pub struct RateLimitLayer {
     config: SecurityConfig,
@@ -120,7 +119,6 @@ where
                         .map(|connect_info| connect_info.0.ip())
                 })
                 .unwrap_or_else(|| IpAddr::from([127, 0, 0, 1])); // Fallback to localhost
-
 
             // Determine rate limit type based on endpoint
             let (limiter, limit) = match determine_endpoint_type(uri, method.as_str()) {
@@ -227,7 +225,6 @@ fn add_rate_limit_headers_simple(config: &SecurityConfig, headers: &mut HeaderMa
         axum::http::HeaderValue::from_str(&reset_time.to_string()).unwrap(),
     );
 }
-
 
 async fn cleanup_old_entries_simple(limiter: &SimpleRateLimiter) {
     let cutoff = Instant::now() - Duration::from_secs(3600); // Remove entries older than 1 hour
