@@ -67,7 +67,7 @@ where
             // Only check referer for state-changing operations
             if matches!(method, Method::POST | Method::PUT | Method::DELETE) {
                 if let Err(response) = validate_referer(&config, &headers, &uri) {
-                    return Ok(response);
+                    return Ok(*response);
                 }
             }
 
@@ -82,7 +82,7 @@ fn validate_referer(
     config: &SecurityConfig,
     headers: &HeaderMap,
     uri: &axum::http::Uri,
-) -> Result<(), Response> {
+) -> Result<(), Box<Response>> {
     let referer = headers.get("referer").and_then(|v| v.to_str().ok());
 
     // Skip referer validation for specific endpoints if configured
@@ -124,7 +124,7 @@ fn validate_referer(
                         referer_value
                     );
                     log_suspicious_request(headers, uri, "Invalid referer");
-                    Err(create_referer_error_response("Invalid referer"))
+                    Err(Box::new(create_referer_error_response("Invalid referer")))
                 }
             } else {
                 warn!(
@@ -132,14 +132,14 @@ fn validate_referer(
                     referer_value
                 );
                 log_suspicious_request(headers, uri, "Malformed referer");
-                Err(create_referer_error_response("Malformed referer"))
+                Err(Box::new(create_referer_error_response("Malformed referer")))
             }
         }
         None => {
             if config.strict_referer {
                 warn!("Referer validation failed - missing referer for {}", path);
                 log_suspicious_request(headers, uri, "Missing referer");
-                Err(create_referer_error_response("Missing referer"))
+                Err(Box::new(create_referer_error_response("Missing referer")))
             } else {
                 debug!("Allowing request without referer (strict_referer=false)");
                 Ok(())
