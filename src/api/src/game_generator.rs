@@ -2,10 +2,7 @@ use crate::db::{
     models::{NewGame, NewGameAnswer},
     Repository,
 };
-use crate::game::{
-    conversion::{SerializableAnswerGroupConstraintSet, SerializablePath},
-    BoardGenerator, GameEngine,
-};
+use crate::game::{BoardGenerator, GameEngine};
 use anyhow::Result;
 use chrono::{Duration, Utc};
 use rand::SeedableRng;
@@ -108,22 +105,10 @@ impl GameGenerator {
                         let temp_game_id = uuid::Uuid::new_v4().to_string();
 
                         for answer in &valid_answers {
-                            for path in &answer.paths {
-                                let serializable_path = SerializablePath::from(path);
-                                let serializable_constraints =
-                                    SerializableAnswerGroupConstraintSet::from(
-                                        &answer.constraints_set,
-                                    );
-
-                                game_answers.push(NewGameAnswer {
-                                    game_id: temp_game_id.clone(), // Will be replaced in the atomic create
-                                    word: answer.word.clone(),
-                                    path: serde_json::to_string(&serializable_path)?,
-                                    path_constraint_set: serde_json::to_string(
-                                        &serializable_constraints,
-                                    )?,
-                                });
-                            }
+                            game_answers.push(NewGameAnswer {
+                                game_id: temp_game_id.clone(), // Will be replaced in the atomic create
+                                word: answer.word.clone(),
+                            });
                         }
 
                         // Create game and answers atomically

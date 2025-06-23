@@ -283,22 +283,17 @@ impl Repository {
         // Create all the game answers
         let mut created_answers = Vec::new();
         for new_answer in game_answers {
-            let answer = DbGameAnswer::new(
-                new_answer.game_id,
-                new_answer.word,
-                new_answer.path,
-                new_answer.path_constraint_set,
-            );
+            let answer = DbGameAnswer::new(new_answer.game_id, new_answer.word);
 
-            sqlx::query("INSERT INTO game_answers (id, game_id, word, path, path_constraint_set, created_at) VALUES ($1, $2, $3, $4, $5, $6)")
-                .bind(&answer.id)
-                .bind(&answer.game_id)
-                .bind(&answer.word)
-                .bind(&answer.path)
-                .bind(&answer.path_constraint_set)
-                .bind(answer.created_at)
-                .execute(&mut *tx)
-                .await?;
+            sqlx::query(
+                "INSERT INTO game_answers (id, game_id, word, created_at) VALUES ($1, $2, $3, $4)",
+            )
+            .bind(&answer.id)
+            .bind(&answer.game_id)
+            .bind(&answer.word)
+            .bind(answer.created_at)
+            .execute(&mut *tx)
+            .await?;
 
             created_answers.push(answer);
         }

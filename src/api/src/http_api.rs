@@ -1206,20 +1206,14 @@ mod tests {
             crate::db::models::NewGameAnswer {
                 game_id: "a".to_string(),
                 word: "test".to_string(),
-                path: "[]".to_string(),
-                path_constraint_set: "{}".to_string(),
             },
             crate::db::models::NewGameAnswer {
                 game_id: "a".to_string(),
                 word: "word".to_string(),
-                path: "[]".to_string(),
-                path_constraint_set: "{}".to_string(),
             },
             crate::db::models::NewGameAnswer {
                 game_id: "a".to_string(),
                 word: "game".to_string(),
-                path: "[]".to_string(),
-                path_constraint_set: "{}".to_string(),
             },
         ];
 
@@ -1273,14 +1267,10 @@ mod tests {
             crate::db::models::NewGameAnswer {
                 game_id: "a".to_string(),
                 word: "test".to_string(),
-                path: "[]".to_string(),
-                path_constraint_set: "{}".to_string(),
             },
             crate::db::models::NewGameAnswer {
                 game_id: "a".to_string(),
                 word: "word".to_string(),
-                path: "[]".to_string(),
-                path_constraint_set: "{}".to_string(),
             },
         ];
 
@@ -1337,20 +1327,14 @@ mod tests {
             NewGameAnswer {
                 game_id: "a".to_string(),
                 word: "test".to_string(),
-                path: "[]".to_string(),
-                path_constraint_set: "{}".to_string(),
             },
             NewGameAnswer {
                 game_id: "a".to_string(),
                 word: "word".to_string(),
-                path: "[]".to_string(),
-                path_constraint_set: "{}".to_string(),
             },
             NewGameAnswer {
                 game_id: "a".to_string(),
                 word: "game".to_string(),
-                path: "[]".to_string(),
-                path_constraint_set: "{}".to_string(),
             },
         ];
 

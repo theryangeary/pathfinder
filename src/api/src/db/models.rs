@@ -37,8 +37,6 @@ pub struct DbGameAnswer {
     pub id: String,
     pub game_id: String,
     pub word: String,
-    pub path: String,                // JSON serialized path array
-    pub path_constraint_set: String, // JSON serialized PathConstraintSet
     pub created_at: DateTime<Utc>,
 }
 
@@ -69,8 +67,6 @@ pub struct NewGameEntry {
 pub struct NewGameAnswer {
     pub game_id: String,
     pub word: String,
-    pub path: String,
-    pub path_constraint_set: String,
 }
 
 impl DbUser {
@@ -126,13 +122,11 @@ impl DbGameEntry {
 }
 
 impl DbGameAnswer {
-    pub fn new(game_id: String, word: String, path: String, path_constraint_set: String) -> Self {
+    pub fn new(game_id: String, word: String) -> Self {
         Self {
             id: Uuid::new_v4().to_string(),
             game_id,
             word,
-            path,
-            path_constraint_set,
             created_at: Utc::now(),
         }
     }
