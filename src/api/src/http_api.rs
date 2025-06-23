@@ -204,8 +204,8 @@ pub fn create_secure_router(state: ApiState, config: SecurityConfig) -> Router {
         .layer(RateLimitLayer::new(config.clone()))
         .layer(SecurityCorsLayer::new(config.clone()))
         .layer(RefererLayer::new(config.clone()))
-        .layer(cookie_layer())
         .layer(SessionLayer::new(config.clone()))
+        .layer(cookie_layer())
         .layer(SecurityHeadersLayer::new(config.clone()))
         .with_state(state)
 }

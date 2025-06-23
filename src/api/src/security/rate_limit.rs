@@ -9,7 +9,7 @@ use std::{
     future::Future,
     net::{IpAddr, SocketAddr},
     pin::Pin,
-    sync::{Arc, Once, RwLock},
+    sync::{Arc, RwLock},
     task::{Context, Poll},
     time::{Duration, Instant},
 };
@@ -21,29 +21,22 @@ use crate::security::{utils::extract_client_ip, SecurityConfig};
 // Simplified rate limiter - we'll implement a basic in-memory HashMap-based solution
 type SimpleRateLimiter = Arc<RwLock<HashMap<IpAddr, (Instant, u32)>>>;
 
-// Global cleanup task state
-static CLEANUP_TASK_INITIALIZED: Once = Once::new();
 
 #[derive(Clone)]
 pub struct RateLimitLayer {
     config: SecurityConfig,
+    session_limiter: SimpleRateLimiter,
+    read_limiter: SimpleRateLimiter,
+    write_limiter: SimpleRateLimiter,
 }
 
 impl RateLimitLayer {
     pub fn new(config: SecurityConfig) -> Self {
-        Self { config }
-    }
-}
-
-impl<S> Layer<S> for RateLimitLayer {
-    type Service = RateLimitMiddleware<S>;
-
-    fn layer(&self, inner: S) -> Self::Service {
         let session_limiter = Arc::new(RwLock::new(HashMap::new()));
         let read_limiter = Arc::new(RwLock::new(HashMap::new()));
         let write_limiter = Arc::new(RwLock::new(HashMap::new()));
 
-        // Spawn cleanup task
+        // Spawn cleanup task once
         let session_limiter_clone = session_limiter.clone();
         let read_limiter_clone = read_limiter.clone();
         let write_limiter_clone = write_limiter.clone();
@@ -58,12 +51,25 @@ impl<S> Layer<S> for RateLimitLayer {
             }
         });
 
-        RateLimitMiddleware {
-            inner,
-            config: self.config.clone(),
+        Self {
+            config,
             session_limiter,
             read_limiter,
             write_limiter,
+        }
+    }
+}
+
+impl<S> Layer<S> for RateLimitLayer {
+    type Service = RateLimitMiddleware<S>;
+
+    fn layer(&self, inner: S) -> Self::Service {
+        RateLimitMiddleware {
+            inner,
+            config: self.config.clone(),
+            session_limiter: self.session_limiter.clone(),
+            read_limiter: self.read_limiter.clone(),
+            write_limiter: self.write_limiter.clone(),
         }
     }
 }
@@ -115,8 +121,6 @@ where
                 })
                 .unwrap_or_else(|| IpAddr::from([127, 0, 0, 1])); // Fallback to localhost
 
-            // Lazy initialize cleanup task only when first request comes in
-            initialize_cleanup_task_if_needed(&session_limiter, &read_limiter, &write_limiter);
 
             // Determine rate limit type based on endpoint
             let (limiter, limit) = match determine_endpoint_type(uri, method.as_str()) {
@@ -194,8 +198,8 @@ fn determine_endpoint_type(uri: &Uri, method: &str) -> EndpointType {
         return EndpointType::Session;
     }
 
-    // Write operations
-    if matches!(method, "POST" | "PUT" | "DELETE") && (path.contains("/submit") || path.contains("/validate")) {
+    // Write operations - all POST/PUT/DELETE are write operations
+    if matches!(method, "POST" | "PUT" | "DELETE") {
         return EndpointType::Write;
     }
 
@@ -224,27 +228,6 @@ fn add_rate_limit_headers_simple(config: &SecurityConfig, headers: &mut HeaderMa
     );
 }
 
-fn initialize_cleanup_task_if_needed(
-    session_limiter: &SimpleRateLimiter,
-    read_limiter: &SimpleRateLimiter,
-    write_limiter: &SimpleRateLimiter,
-) {
-    CLEANUP_TASK_INITIALIZED.call_once(|| {
-        let session_limiter_clone = session_limiter.clone();
-        let read_limiter_clone = read_limiter.clone();
-        let write_limiter_clone = write_limiter.clone();
-
-        tokio::spawn(async move {
-            let mut interval = tokio::time::interval(Duration::from_secs(300)); // Cleanup every 5 minutes
-            loop {
-                interval.tick().await;
-                cleanup_old_entries_simple(&session_limiter_clone).await;
-                cleanup_old_entries_simple(&read_limiter_clone).await;
-                cleanup_old_entries_simple(&write_limiter_clone).await;
-            }
-        });
-    });
-}
 
 async fn cleanup_old_entries_simple(limiter: &SimpleRateLimiter) {
     let cutoff = Instant::now() - Duration::from_secs(3600); // Remove entries older than 1 hour
@@ -293,6 +276,10 @@ mod tests {
         );
         assert_eq!(
             determine_endpoint_type(&Uri::from_static("/api/validate"), "POST"),
+            EndpointType::Write
+        );
+        assert_eq!(
+            determine_endpoint_type(&Uri::from_static("/test"), "POST"),
             EndpointType::Write
         );
         assert_eq!(

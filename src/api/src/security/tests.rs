@@ -39,27 +39,25 @@ mod integration_tests {
         Router::new()
             .route("/test", axum::routing::get(test_handler))
             .route("/test", axum::routing::post(test_handler))
+            .route("/api/test", axum::routing::get(test_handler))
             .route("/api/user", axum::routing::post(test_handler))
             .route("/health", axum::routing::get(test_handler))
-            .layer(
-                tower::ServiceBuilder::new()
-                    .layer(crate::security::headers::SecurityHeadersLayer::new(
-                        config.clone(),
-                    ))
-                    .layer(crate::security::session::SessionLayer::new(config.clone()))
-                    .layer(crate::security::session::cookie_layer())
-                    .layer(crate::security::referer::RefererLayer::new(config.clone()))
-                    .layer(crate::security::cors::CorsLayer::new(config.clone()))
-                    .layer(crate::security::rate_limit::RateLimitLayer::new(
-                        config.clone(),
-                    ))
-                    .layer(tower_http::timeout::TimeoutLayer::new(
-                        config.request_timeout,
-                    ))
-                    .layer(tower_http::limit::RequestBodyLimitLayer::new(
-                        config.max_request_size,
-                    )),
-            )
+            .layer(tower_http::limit::RequestBodyLimitLayer::new(
+                config.max_request_size,
+            ))
+            .layer(tower_http::timeout::TimeoutLayer::new(
+                config.request_timeout,
+            ))
+            .layer(crate::security::rate_limit::RateLimitLayer::new(
+                config.clone(),
+            ))
+            .layer(crate::security::cors::CorsLayer::new(config.clone()))
+            .layer(crate::security::referer::RefererLayer::new(config.clone()))
+            .layer(crate::security::session::SessionLayer::new(config.clone()))
+            .layer(crate::security::session::cookie_layer())
+            .layer(crate::security::headers::SecurityHeadersLayer::new(
+                config.clone(),
+            ))
     }
 
     #[tokio::test]
@@ -122,13 +120,14 @@ mod integration_tests {
     async fn test_rate_limiting_works() {
         let app = create_test_router();
 
-        // Make requests up to the limit
+        // Make requests up to the limit (3 for write operations)
         for _ in 0..3 {
             let request = Request::builder()
                 .method(Method::POST)
                 .uri("/test")
                 .header("origin", "https://example.com")
                 .header("referer", "https://example.com/page")
+                .header("x-forwarded-for", "192.168.1.100") // Consistent IP
                 .body(Body::empty())
                 .unwrap();
 
@@ -142,6 +141,7 @@ mod integration_tests {
             .uri("/test")
             .header("origin", "https://example.com")
             .header("referer", "https://example.com/page")
+            .header("x-forwarded-for", "192.168.1.100") // Same IP
             .body(Body::empty())
             .unwrap();
 
@@ -180,6 +180,7 @@ mod integration_tests {
             .header("origin", "https://example.com")
             .header("referer", "https://example.com/page")
             .header("content-type", "application/json")
+            .header("content-length", "2048")
             .body(Body::from(large_body))
             .unwrap();
 
@@ -193,7 +194,7 @@ mod integration_tests {
 
         let request = Request::builder()
             .method(Method::GET)
-            .uri("/test")
+            .uri("/api/test")
             .header("origin", "https://example.com")
             .body(Body::empty())
             .unwrap();
