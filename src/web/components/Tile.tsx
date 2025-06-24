@@ -25,6 +25,24 @@ function Tile({ tile, isHighlighted, isLastLetter, board, wildcardConstraints}: 
     ? getWildcardNotation()
     : tile.letter.toUpperCase();
 
+  // Calculate dynamic font size for wildcard tiles based on number of possible values
+  const getFontSize = (): string => {
+    if (!tile.isWildcard) return '20px';
+    
+    const notation = getWildcardNotation();
+    const valueCount = notation.split(' / ').length;
+    
+    // Reduce font size by 2px for every multiple of 2 values beyond 2
+    // 2 values: 20px (default)
+    // 3-4 values: 18px 
+    // 5-6 values: 16px, etc.
+    const baseFontSize = 20;
+    const reductionAmount = Math.floor(valueCount / 2) * 2;
+    const finalFontSize = Math.max(baseFontSize - reductionAmount, 10); // Minimum 10px
+    
+    return `${finalFontSize}px`;
+  };
+
   // Calculate point value for non-wildcard tiles
   const getPointValue = (): number | null => {
     if (tile.isWildcard) return null;
@@ -45,7 +63,7 @@ function Tile({ tile, isHighlighted, isLastLetter, board, wildcardConstraints}: 
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        fontSize: '20px',
+        fontSize: getFontSize(),
         fontWeight: 'bold',
         backgroundColor: isLastLetter ? '#ffeb3b' : (isHighlighted ? '#f7d452' : (tile.isWildcard ? '#e0e0e0' : '#fff')),
         cursor: 'default',
