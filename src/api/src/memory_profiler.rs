@@ -8,6 +8,12 @@ pub struct MemoryProfiler {
     start_time: Instant,
 }
 
+impl Default for MemoryProfiler {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MemoryProfiler {
     pub fn new() -> Self {
         let mut system = System::new_all();

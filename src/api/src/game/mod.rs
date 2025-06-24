@@ -13,6 +13,12 @@ pub struct BoardGenerator {
     letter_frequencies: std::collections::HashMap<char, f64>,
 }
 
+impl Default for BoardGenerator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl BoardGenerator {
     pub fn new() -> Self {
         let mut letter_frequencies = std::collections::HashMap::new();

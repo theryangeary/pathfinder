@@ -43,6 +43,12 @@ pub struct ScoreSheet {
     pub map: HashMap<String, u32>,
 }
 
+impl Default for ScoreSheet {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ScoreSheet {
     pub fn new() -> Self {
         Self {
