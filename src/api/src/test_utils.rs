@@ -1,5 +1,7 @@
 use crate::db::models::*;
+use crate::db::Repository;
 use crate::game::{conversion::SerializableBoard, Board, GameEngine};
+use crate::db::models::NewGame;
 #[cfg(feature = "database-tests")]
 use crate::http_api::ApiState;
 
@@ -11,7 +13,7 @@ use tempfile::NamedTempFile;
 /// Creates a new game for database insertion
 pub fn create_new_test_game() -> NewGame {
     let board = create_default_test_board();
-    let serializable: crate::game::conversion::SerializableBoard = (&board).into();
+    let serializable: SerializableBoard = (&board).into();
     NewGame {
         date: "2024-01-01".to_string(),
         board_data: serde_json::to_string(&serializable).unwrap(),
@@ -68,7 +70,7 @@ pub fn create_default_test_board() -> Board {
 pub async fn setup_app(pool: sqlx::Pool<sqlx::Postgres>) -> (ApiState, Router) {
     use crate::{http_api::create_secure_router, security::SecurityConfig};
 
-    let repository = crate::db::Repository::new(pool);
+    let repository = Repository::new(pool);
 
     // Create a test game engine using test_utils
     let (game_engine, _temp_file) = create_test_game_engine();

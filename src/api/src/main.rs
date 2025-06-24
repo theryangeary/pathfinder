@@ -1,5 +1,3 @@
-#[cfg(test)]
-mod test_utils;
 
 use anyhow::Result;
 use dotenvy::dotenv;
