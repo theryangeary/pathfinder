@@ -175,7 +175,7 @@ The `/health` endpoint is available for monitoring and load balancer health chec
 ### Recommended Production Logging
 
 ```bash
-RUST_LOG=warn,word_game_backend=info
+RUST_LOG=warn,pathfinder=info
 ```
 
 ## Testing

@@ -3,9 +3,9 @@ use dotenvy::dotenv;
 use std::env;
 use tracing::{error, info};
 
-use word_game_backend::db::{setup_database, Repository};
-use word_game_backend::game::GameEngine;
-use word_game_backend::game_generator::GameGenerator;
+use pathfinder::db::{setup_database, Repository};
+use pathfinder::game::GameEngine;
+use pathfinder::game_generator::GameGenerator;
 
 #[tokio::main]
 async fn main() -> Result<()> {

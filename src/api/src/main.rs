@@ -6,10 +6,10 @@ use dotenvy::dotenv;
 use std::{env, time::Duration};
 use tracing::info;
 
-use word_game_backend::db::{setup_database, Repository};
-use word_game_backend::game::GameEngine;
-use word_game_backend::memory_profiler::MemoryProfiler;
-use word_game_backend::security::SecurityConfig;
+use pathfinder::db::{setup_database, Repository};
+use pathfinder::game::GameEngine;
+use pathfinder::memory_profiler::MemoryProfiler;
+use pathfinder::security::SecurityConfig;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -54,11 +54,11 @@ async fn main() -> Result<()> {
 
     // Setup HTTP API
     info!("Creating API state");
-    let api_state = http_api::ApiState::new(repository.clone(), game_engine.clone());
+    let api_state = pathfinder::http_api::ApiState::new(repository.clone(), game_engine.clone());
     memory_profiler.log_memory("after_api_state");
 
     info!("Creating secure router");
-    let http_router = http_api::create_secure_router(api_state, security_config);
+    let http_router = pathfinder::http_api::create_secure_router(api_state, security_config);
     memory_profiler.log_memory("after_secure_router_creation");
 
     let http_addr = format!("{}:{}", server_host, http_port);

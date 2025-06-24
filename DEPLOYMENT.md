@@ -100,7 +100,7 @@ cd src/api
 cargo build --release
 
 # Run production server
-./target/release/word-game-backend
+./target/release/pathfinder
 ```
 
 ### Database Migration (SQLite → PostgreSQL)
@@ -137,9 +137,9 @@ COPY src/api .
 RUN cargo build --release
 
 FROM debian:bookworm-slim
-COPY --from=builder /app/target/release/word-game-backend /usr/local/bin/
+COPY --from=builder /app/target/release/pathfinder /usr/local/bin/
 EXPOSE 3001 50051
-CMD ["word-game-backend"]
+CMD ["pathfinder"]
 ```
 
 Create `docker-compose.yml`:
@@ -176,10 +176,10 @@ Backend logs are written to stdout with structured logging via `tracing`.
 View logs:
 ```bash
 # Development
-cargo run 2>&1 | grep "word-game-backend"
+cargo run 2>&1 | grep "pathfinder"
 
 # Production with systemd
-journalctl -u word-game-backend -f
+journalctl -u pathfinder -f
 ```
 
 ### Health Checks

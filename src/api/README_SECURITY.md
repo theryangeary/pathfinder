@@ -126,7 +126,7 @@ The implementation logs security events at different levels:
 - `WARN`: Security violations and blocked requests  
 - `DEBUG`: Detailed security flow information
 
-For production, use: `RUST_LOG=warn,word_game_backend=info`
+For production, use: `RUST_LOG=warn,pathfinder=info`
 
 ## Health Check
 
