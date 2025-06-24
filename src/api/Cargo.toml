@@ -3,6 +3,14 @@ name = "word-game-backend"
 version = "0.1.0"
 edition = "2021"
 
+[[bin]]
+name = "api-server"
+path = "src/main.rs"
+
+[[bin]]
+name = "game-generator"
+path = "src/bin/game_generator.rs"
+
 [dependencies]
 # Web framework and async runtime
 axum = { version = "0.7", features = ["macros"] }
@@ -30,8 +38,6 @@ thiserror = "1.0"
 # Environment and configuration
 dotenvy = "0.15"
 
-# Scheduling
-tokio-cron-scheduler = "0.11"
 
 # Random number generation for game generation
 rand = "0.8"

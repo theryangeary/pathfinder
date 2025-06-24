@@ -11,12 +11,10 @@ mod test_utils;
 use anyhow::Result;
 use dotenvy::dotenv;
 use std::{env, time::Duration};
-use tokio_cron_scheduler::{Job, JobScheduler};
-use tracing::{error, info};
+use tracing::info;
 
 use db::{setup_database, Repository};
 use game::GameEngine;
-use game_generator::GameGenerator;
 use memory_profiler::MemoryProfiler;
 use security::SecurityConfig;
 
@@ -81,44 +79,6 @@ async fn main() -> Result<()> {
         http_router,
     );
 
-    // Setup game generator and run background tasks
-    let game_generator = GameGenerator::new(repository.clone(), game_engine.clone());
-
-    // Spawn background task for initial game generation
-    let initial_game_generator = game_generator.clone();
-    tokio::spawn(async move {
-        info!("Generating missing games in background");
-        if let Err(e) = initial_game_generator.generate_missing_games().await {
-            error!("Failed to generate missing games in background: {}", e);
-        } else {
-            info!("Background game generation completed successfully");
-        }
-    });
-
-    // Setup cron scheduler for daily game generation
-    info!("Setting up cron scheduler");
-    let sched = JobScheduler::new().await?;
-
-    // Clone dependencies for the cron job
-    let cron_game_generator = game_generator.clone();
-
-    // Schedule job to run at midnight UTC every day
-    sched
-        .add(Job::new_async("0 0 0 * * *", move |_uuid, _l| {
-            let game_generator = cron_game_generator.clone();
-            Box::pin(async move {
-                info!("Running scheduled game generation");
-                if let Err(e) = game_generator.generate_missing_games().await {
-                    error!("Scheduled game generation failed: {}", e);
-                } else {
-                    info!("Scheduled game generation completed successfully");
-                }
-            })
-        })?)
-        .await?;
-
-    sched.start().await?;
-    info!("Cron scheduler started");
     memory_profiler.log_memory("after_full_startup");
 
     // Start 10-second memory monitoring
