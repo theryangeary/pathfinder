@@ -1,3 +1,4 @@
+import React from 'react';
 import { convertConstraintSetsToConstraints } from '../utils/constraintResolution';
 import { AnswerGroupConstraintSet, Tile as TileType } from '../utils/models';
 import { getLetterPoints } from '../utils/scoring';
@@ -24,6 +25,53 @@ function Tile({ tile, isHighlighted, isLastLetter, board, wildcardConstraints}: 
   const displayLetter = tile.isWildcard 
     ? getWildcardNotation()
     : tile.letter.toUpperCase();
+
+  // Render wildcard notation with proper line wrapping (no trailing slashes)
+  const renderWildcardContent = () => {
+    if (!tile.isWildcard) {
+      return displayLetter;
+    }
+    
+    const notation = getWildcardNotation();
+    const values = notation.split(' / ');
+    
+    if (values.length <= 2) {
+      // Short enough to display on one line
+      return notation;
+    }
+    
+    // For longer notations, create elements that can wrap naturally
+    // but only show slashes between items that stay on the same line
+    const elements: React.ReactNode[] = [];
+    
+    values.forEach((value, index) => {
+      if (index % 2 != 0) {
+        // Add a separator that can wrap, but make slash and next value stay together
+        elements.push(
+          <React.Fragment key={`sep-${index}`}>
+            <span style={{ whiteSpace: 'nowrap' }}> / {value}</span>
+            <br />
+          </React.Fragment>
+        );
+      } else {
+        // First value, no separator needed
+        elements.push(
+          <span key={`val-${index}`}>{value}</span>
+        );
+      }
+    });
+    
+    return (
+      <div style={{ 
+        textAlign: 'center', 
+        lineHeight: '1.3',
+        hyphens: 'none'
+      }}>
+        {elements}
+      </div>
+    );
+  };
+
 
   // Calculate dynamic font size for wildcard tiles based on number of possible values
   const getFontSize = (): string => {
@@ -70,7 +118,7 @@ function Tile({ tile, isHighlighted, isLastLetter, board, wildcardConstraints}: 
         position: 'relative'
       }}
     >
-      {displayLetter}
+      {renderWildcardContent()}
       {pointValue !== null && (
         <div
           style={{
