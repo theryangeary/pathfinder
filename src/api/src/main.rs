@@ -1,10 +1,3 @@
-mod db;
-mod game;
-mod game_generator;
-mod http_api;
-mod memory_profiler;
-mod security;
-
 #[cfg(test)]
 mod test_utils;
 
@@ -13,10 +6,10 @@ use dotenvy::dotenv;
 use std::{env, time::Duration};
 use tracing::info;
 
-use db::{setup_database, Repository};
-use game::GameEngine;
-use memory_profiler::MemoryProfiler;
-use security::SecurityConfig;
+use word_game_backend::db::{setup_database, Repository};
+use word_game_backend::game::GameEngine;
+use word_game_backend::memory_profiler::MemoryProfiler;
+use word_game_backend::security::SecurityConfig;
 
 #[tokio::main]
 async fn main() -> Result<()> {
