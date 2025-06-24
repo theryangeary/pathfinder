@@ -273,10 +273,17 @@ export function convertConstraintSetsToConstraints(constraintSets: AnswerGroupCo
   let uniqueFirstLetters = [...new Set(constraintSets.pathConstraintSets.filter(constraint => constraint.type == PathConstraintType.FirstDecided || constraint.type == PathConstraintType.BothDecided).map(constraint => constraint.firstLetter?.toUpperCase()).filter(Boolean))];
   let uniqueSecondLetters = [...new Set(constraintSets.pathConstraintSets.filter(constraint => constraint.type == PathConstraintType.SecondDecided || constraint.type == PathConstraintType.BothDecided).map(constraint => constraint.secondLetter?.toUpperCase()).filter(Boolean))];
   
-  if (uniqueFirstLetters.length > 0 && constraintSets.pathConstraintSets.filter(constraint => constraint.type == PathConstraintType.Unconstrained || constraint.type == PathConstraintType.SecondDecided).length > 0) {
+  // Only add "*" if there are constraint sets that leave this wildcard truly unconstrained
+  // AND there are no specific letter constraints for this wildcard
+  if (uniqueFirstLetters.length === 0 && constraintSets.pathConstraintSets.filter(constraint => constraint.type == PathConstraintType.Unconstrained).length > 0) {
+    uniqueFirstLetters.push("*");
+  } else if (uniqueFirstLetters.length > 0 && constraintSets.pathConstraintSets.filter(constraint => constraint.type == PathConstraintType.Unconstrained || constraint.type == PathConstraintType.SecondDecided).length > 0) {
     uniqueFirstLetters.push("*");
   }
-  if (uniqueSecondLetters.length > 0 && constraintSets.pathConstraintSets.filter(constraint => constraint.type == PathConstraintType.Unconstrained || constraint.type == PathConstraintType.FirstDecided).length > 0) {
+  
+  if (uniqueSecondLetters.length === 0 && constraintSets.pathConstraintSets.filter(constraint => constraint.type == PathConstraintType.Unconstrained).length > 0) {
+    uniqueSecondLetters.push("*");
+  } else if (uniqueSecondLetters.length > 0 && constraintSets.pathConstraintSets.filter(constraint => constraint.type == PathConstraintType.Unconstrained || constraint.type == PathConstraintType.FirstDecided).length > 0) {
     uniqueSecondLetters.push("*");
   }
   

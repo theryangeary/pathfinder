@@ -1,6 +1,7 @@
 import { AnswerGroupConstraintSet, PathConstraintSet, PathConstraintType, Position, Tile } from './models';
 
 interface PathScore {
+  pointCount: number;
   wildcardCount: number;
 }
 export interface PathWithConstraints {
@@ -32,13 +33,13 @@ export function getWildcardPositions(board: Tile[][]): Position[] {
   return wildcardPositions;
 }
 
-function isFirstWildcard(pos: Position): boolean {
+export function isFirstWildcard(pos: Position): boolean {
   // Following backend logic: first wildcard is at position where row < 2 && col < 2
   return pos.row < 2 && pos.col < 2;
 }
 
 // @ts-ignore
-function isSecondWildcard(pos: Position): boolean {
+export function isSecondWildcard(pos: Position): boolean {
   // Following backend logic: second wildcard is any wildcard that's not the first
   return !isFirstWildcard(pos);
 }
@@ -349,6 +350,7 @@ function canWildcardBeUsedForLetter(pos: Position, letter: string, constraintSet
 
 function scorePathByPreference(board: Tile[][], path: Position[]): PathScore {
   let wildcardCount = 0;
+  let pointCount = 0;
 
   for (let i = 0; i < path.length; i++) {
     const { row, col } = path[i];
@@ -356,13 +358,27 @@ function scorePathByPreference(board: Tile[][], path: Position[]): PathScore {
 
     if (tile.isWildcard) {
       wildcardCount++;
+    } else {
+      pointCount += tile.points;
     }
   }
 
   return {
+    pointCount,
     wildcardCount
   };
 }
+
+function sortPathScore(a: PathScore, b: PathScore): number {
+  // use b - a for points, because we want the most points
+    const pointDiff = b.pointCount - a.pointCount;
+    if (pointDiff != 0) {
+      return pointDiff;
+    }
+
+    // use a - b for wildcards, because we want the fewest wildcards
+    return a.wildcardCount - b.wildcardCount;
+  }
 
 export function findBestPath(board: Tile[][], word: string, constraintSet: AnswerGroupConstraintSet = { pathConstraintSets: [] }): Position[] | null {
   const allPaths = findAllPathsGivenConstraints(board, word, constraintSet);
@@ -389,7 +405,7 @@ export function findBestPath(board: Tile[][], word: string, constraintSet: Answe
     const scoreA = scorePathByPreference(board, a);
     const scoreB = scorePathByPreference(board, b);
 
-    return scoreA.wildcardCount - scoreB.wildcardCount;
+    return sortPathScore(scoreA, scoreB)
   });
 
   return pathsToConsider[0];
@@ -442,7 +458,7 @@ export function findPathsForHighlighting(board: Tile[][], word: string, constrai
     const scoreA = scorePathByPreference(board, a.path);
     const scoreB = scorePathByPreference(board, b.path);
 
-    return scoreA.wildcardCount - scoreB.wildcardCount;
+    return sortPathScore(scoreA, scoreB);
   });
 
   return validPaths.length > 0 ? [validPaths[0].path] : [];
