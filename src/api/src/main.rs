@@ -1,4 +1,3 @@
-
 use anyhow::Result;
 use dotenvy::dotenv;
 use std::{env, time::Duration};

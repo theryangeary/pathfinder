@@ -1,7 +1,6 @@
-use crate::db::models::*;
+use crate::db::models::NewGame;
 use crate::db::Repository;
 use crate::game::{conversion::SerializableBoard, Board, GameEngine};
-use crate::db::models::NewGame;
 #[cfg(feature = "database-tests")]
 use crate::http_api::ApiState;
 
