@@ -29,7 +29,7 @@ RUN apk add --no-cache ca-certificates
 WORKDIR /app
 
 # Copy backend binary
-COPY --from=backend-builder /app/target/release/pathfinder ./pathfinder
+COPY --from=backend-builder /app/target/release/api-server ./api-server
 
 # Copy frontend static files
 COPY --from=frontend-builder /app/src/web/dist ./static
@@ -44,4 +44,4 @@ ENV SERVER_HOST=0.0.0.0
 
 EXPOSE 8080
 
-CMD ["./pathfinder"]
+CMD ["./api-server"]
