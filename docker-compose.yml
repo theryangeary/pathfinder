@@ -68,6 +68,7 @@ services:
   # cron internal, but for fly.io deployment as a container that runs quickly
   # then exits, getting started by fly next time it is scheduled.)
   game-generator:
+    init: true
     build:
       context: .
       dockerfile: Dockerfile.game-generator

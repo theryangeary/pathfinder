@@ -25,26 +25,8 @@ COPY --from=backend-builder /app/target/release/game-generator ./game-generator
 COPY --from=backend-builder /app/wordlist ./wordlist
 COPY --from=backend-builder /app/migrations ./migrations
 
-# Create entrypoint script
-COPY <<'EOF' /app/entrypoint.sh
-#!/bin/sh
-
-if [ "$RUN_MODE" = "cron" ]; then
-    echo "Setting up cron mode..."
-    
-    # Create cron job to run game generator daily at 2 AM UTC
-    echo "0 2 * * * cd /app && ./game-generator >> /var/log/game-generator.log 2>&1" > /etc/crontabs/root
-    
-    # Create log file
-    touch /var/log/game-generator.log
-    
-    echo "Starting crond in foreground..."
-    exec crond -f
-else
-    echo "Running game generator once..."
-    exec ./game-generator
-fi
-EOF
+# Copy entrypoint script
+COPY game_generator_entrypoint.sh /app/entrypoint.sh
 
 RUN chmod +x /app/entrypoint.sh
 
