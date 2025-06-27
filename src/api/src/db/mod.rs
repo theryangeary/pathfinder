@@ -20,7 +20,7 @@ pub async fn setup_database(database_url: &str) -> Result<PgPool> {
 
 async fn run_migrations(pool: &PgPool) -> Result<()> {
     // Drop and recreate migrations table to fix any corruption
-    sqlx::query("DROP TABLE IF EXISTS migrations")
+    sqlx::query("DROP TABLE IF EXISTS migrations CASCADE")
         .execute(pool)
         .await?;
 

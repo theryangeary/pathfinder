@@ -71,12 +71,11 @@ services:
     init: true
     build:
       context: .
-      dockerfile: Dockerfile.game-generator
     container_name: pathfinder-game-generator-cron
+    command: ["game-generator", "--cron"]
     environment:
       DATABASE_URL: postgresql://pathfinder:pathfinder_pass@postgres:5432/pathfinder
       RUST_LOG: info
-      RUN_MODE: cron
     depends_on:
       postgres:
         condition: service_healthy

@@ -27,7 +27,6 @@ impl GameGenerator {
     pub async fn generate_missing_games(&self) -> Result<()> {
         let today = Utc::now().date_naive();
 
-
         // Generate games for the past 7 days, in case this is the first launch or the app has had downtime.
         for days_back in 1..=7 {
             let target_date = today - Duration::days(8) + Duration::days(days_back);
@@ -49,7 +48,7 @@ impl GameGenerator {
                 info!("Game already exists for past date: {}", date_str);
             }
         }
-        
+
         // Generate games for today and the next 3 days
         for days_ahead in 0..=3 {
             let target_date = today + Duration::days(days_ahead);
