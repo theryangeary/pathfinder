@@ -41,6 +41,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    image: pathfinder:latest
     container_name: pathfinder-app
     environment:
       DATABASE_URL: postgresql://pathfinder:pathfinder_pass@postgres:5432/pathfinder
@@ -63,14 +64,20 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   # Game Generator (for local dev, this runs as a long running container with
   # cron internal, but for fly.io deployment as a container that runs quickly
   # then exits, getting started by fly next time it is scheduled.)
   game-generator:
-    init: true
     build:
       context: .
+    image: pathfinder:latest
     container_name: pathfinder-game-generator-cron
     command: ["game-generator", "--cron"]
     environment:
@@ -78,6 +85,8 @@ services:
       RUST_LOG: info
     depends_on:
       postgres:
+        condition: service_healthy
+      app:
         condition: service_healthy
     restart: unless-stopped
 

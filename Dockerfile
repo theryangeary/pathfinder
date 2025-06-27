@@ -23,7 +23,7 @@ RUN cargo build --release --bin api-server --bin game-generator
 # Runtime stage
 FROM alpine:latest
 
-RUN apk add --no-cache ca-certificates dcron
+RUN apk add --no-cache ca-certificates dcron curl
 
 WORKDIR /app
 
