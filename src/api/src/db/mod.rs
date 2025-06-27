@@ -19,15 +19,10 @@ pub async fn setup_database(database_url: &str) -> Result<PgPool> {
 }
 
 async fn run_migrations(pool: &PgPool) -> Result<()> {
-    // Drop and recreate migrations table to fix any corruption
-    sqlx::query("DROP TABLE IF EXISTS migrations CASCADE")
-        .execute(pool)
-        .await?;
-
-    // Create migrations table to track applied migrations
+    // Create migrations table if it doesn't exist
     sqlx::query(
         r#"
-        CREATE TABLE migrations (
+        CREATE TABLE IF NOT EXISTS migrations (
             id SERIAL PRIMARY KEY,
             filename TEXT UNIQUE NOT NULL,
             applied_at TIMESTAMP DEFAULT NOW()
