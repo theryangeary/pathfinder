@@ -6,8 +6,9 @@ This document provides instructions for running the word game application in loc
 
 The application consists of:
 - **Frontend**: React/TypeScript application with Vite
-- **Backend**: Rust HTTP API server with SQLite database
-- **Database**: SQLite (development) → PostgreSQL (production)
+- **Backend**: Rust HTTP API server with Postgres database
+- **Game Generator**: Rust cron-like to generate games for missing days and store in database
+- **Database**: PostgreSQL
 
 ## Local Development
 
@@ -15,7 +16,7 @@ The application consists of:
 
 - Node.js 18+ and npm
 - Rust 1.70+ and Cargo
-- SQLite3
+- Postgres
 
 ### Frontend Development
 
@@ -32,9 +33,6 @@ The frontend will be available at `http://localhost:5173` with hot reloading ena
 ### Backend Development
 
 ```bash
-# Navigate to backend directory from project root
-cd src/api
-
 # Install dependencies and build
 cargo build
 
@@ -48,20 +46,6 @@ cargo run
 
 The backend will start the HTTP API server on `http://localhost:3001`
 
-### Database Setup
-
-The database is automatically initialized on first run. For manual setup:
-```bash
-# Navigate to backend directory from project root
-cd src/api
-
-# Create SQLite database manually (optional)
-sqlite3 game.db < migrations/001_initial.sql
-
-# Verify schema
-sqlite3 game.db ".schema"
-```
-
 ## Production Deployment
 
 ### Environment Variables
@@ -70,7 +54,7 @@ Required environment variables:
 
 ```env
 # Database
-DATABASE_URL=sqlite://game.db  # or postgresql://...
+DATABASE_URL=postgresql://...
 
 # Server
 SERVER_HOST=0.0.0.0
@@ -93,78 +77,27 @@ npm run build
 ### Backend Production Deployment
 
 ```bash
-# Navigate to backend directory from project root
-cd src/api
-
 # Build optimized release
 cargo build --release
 
 # Run production server
-./target/release/pathfinder
-```
+./target/release/api-server
 
-### Database Migration (SQLite → PostgreSQL)
-
-When scaling to PostgreSQL:
-
-1. **Setup PostgreSQL**:
-```sql
-CREATE DATABASE wordgame;
-CREATE USER wordgame_user WITH PASSWORD 'secure_password';
-GRANT ALL PRIVILEGES ON DATABASE wordgame TO wordgame_user;
-```
-
-2. **Update Environment**:
-```env
-DATABASE_URL=postgresql://wordgame_user:secure_password@localhost/wordgame
-```
-
-3. **Run Migrations**:
-```bash
-# Update connection in src/api/src/db/mod.rs to use PostgreSQL
-# Navigate to backend directory from project root and run migrations
-cd src/api
-cargo run
+# Run game generator
+./target/release/game-generator
 ```
 
 ### Docker Deployment (Optional)
 
-Create `Dockerfile` for backend:
-```dockerfile
-FROM rust:1.87 AS builder
-WORKDIR /app
-COPY src/api .
-RUN cargo build --release
+Use docker compose to run a full suite of services:
+```bash
+docker compose up -d
 
-FROM debian:bookworm-slim
-COPY --from=builder /app/target/release/pathfinder /usr/local/bin/
-EXPOSE 3001 50051
-CMD ["pathfinder"]
-```
+# to rebuild docker image
+docker compose up --build -d
 
-Create `docker-compose.yml`:
-```yaml
-version: '3.8'
-services:
-  backend:
-    build: 
-      context: .
-      dockerfile: src/api/Dockerfile
-    ports:
-      - "3001:3001"
-      - "50051:50051"
-    environment:
-      - DATABASE_URL=sqlite://game.db
-      - RUST_LOG=info
-    volumes:
-      - ./data:/app/data
-
-  frontend:
-    build: .
-    ports:
-      - "80:80"
-    depends_on:
-      - backend
+# to stop
+docker compose down
 ```
 
 ## Monitoring and Logging
@@ -178,8 +111,8 @@ View logs:
 # Development
 cargo run 2>&1 | grep "pathfinder"
 
-# Production with systemd
-journalctl -u pathfinder -f
+# Production on fly.io
+fly logs -a pathfinder-game
 ```
 
 ### Health Checks
@@ -204,24 +137,6 @@ Key metrics to monitor:
 4. **Rate Limiting**: Consider adding for production
 5. **HTTPS**: Terminate TLS at load balancer/proxy level
 
-## Scaling Considerations
-
-### Database Scaling
-- **0-10K users**: SQLite sufficient
-- **10K+ users**: Migrate to PostgreSQL
-- **100K+ users**: Consider read replicas
-- **1M+ users**: Implement database sharding
-
-### Application Scaling
-- **Horizontal scaling**: Run multiple backend instances behind load balancer
-- **Caching**: Add Redis for game state caching
-- **CDN**: Use CDN for frontend static assets
-
-### Game Generation
-- Current: Single-threaded generation at startup + cron
-- Scale: Move to distributed queue (Redis + workers)
-- Advanced: Pre-generate games in batches
-
 ## Troubleshooting
 
 ### Common Issues
@@ -245,8 +160,8 @@ Key metrics to monitor:
 
 ```bash
 # Check database contents
-cd src/api
-sqlite3 game.db "SELECT * FROM games ORDER BY created_at DESC LIMIT 5;"
+docker exec -it pathfinder-postgres psql -U pathfinder
+> SELECT * FROM games ORDER BY created_at DESC LIMIT 5;
 
 # Test HTTP API endpoint
 curl http://localhost:3001/api/game
@@ -259,18 +174,12 @@ tail -f src/api/backend.log
 
 ### Database Backup
 ```bash
-# SQLite backup
-sqlite3 game.db ".backup backup_$(date +%Y%m%d).db"
-
 # PostgreSQL backup
 pg_dump wordgame > backup_$(date +%Y%m%d).sql
 ```
 
 ### Recovery
 ```bash
-# SQLite restore
-cp backup_20231215.db game.db
-
 # PostgreSQL restore
 psql wordgame < backup_20231215.sql
 ```
