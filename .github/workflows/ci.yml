@@ -135,7 +135,7 @@ jobs:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/test_db
       
       - name: Start backend server
-        run: ./target/release/word-game-backend &
+        run: ./target/release/api-server &
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/test_db
           PORT: 3001
