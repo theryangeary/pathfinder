@@ -11,6 +11,7 @@ interface AnswerInputProps {
   onFocus?: (index: number) => void;
   onBlur?: (index: number) => void;
   isGameCompleted?: boolean;
+  isVisible?: boolean;
 }
 
 interface AnswerInputHandle {
@@ -28,7 +29,8 @@ const AnswerInput = forwardRef<AnswerInputHandle, AnswerInputProps>(function Ans
   onEnterPress,
   onFocus,
   onBlur,
-  isGameCompleted = false
+  isGameCompleted = false,
+  isVisible = true
 }, ref) {
   const inputRef = useRef<HTMLInputElement>(null);
   const statusIcon = value.length <= 0 ? '' : isValid ? '✅' : '❌';
@@ -47,7 +49,7 @@ const AnswerInput = forwardRef<AnswerInputHandle, AnswerInputProps>(function Ans
   return (
     <div 
       style={{ 
-        display: 'flex', 
+        display: isVisible ? 'flex' : 'none', 
         alignItems: 'center', 
         gap: '10px',
         margin: '5px 0',
