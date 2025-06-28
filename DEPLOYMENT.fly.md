@@ -42,6 +42,16 @@ This guide covers deploying the Pathfinder game to Fly.io with PostgreSQL.
 
 ## Deployment
 
+1. **Build and push the image**
+   ```bash
+   flyctl deploy --build-only --push
+   ```
+
+1. **Start the game-generator daily**
+   ```bash
+   fly machine run --schedule=hourly registry.fly.io/pathfinder-game game-generator
+   ```
+   
 1. **Deploy the application:**
    ```bash
    flyctl deploy
@@ -85,7 +95,7 @@ This guide covers deploying the Pathfinder game to Fly.io with PostgreSQL.
 
 To deploy updates:
 ```bash
-flyctl deploy
+flyctl deploy --push
 ```
 
 ## Configuration Notes
