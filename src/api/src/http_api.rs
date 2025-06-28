@@ -1729,8 +1729,7 @@ mod tests {
             );
             assert!(
                 !answer.unwrap().paths.is_empty(),
-                "Word '{}' should have valid paths",
-                word
+                "Word '{word}' should have valid paths"
             );
         }
     }
