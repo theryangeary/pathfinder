@@ -58,7 +58,7 @@ async fn main() -> Result<()> {
     let http_router = pathfinder::http_api::create_secure_router(api_state, security_config);
     memory_profiler.log_memory("after_secure_router_creation");
 
-    let http_addr = format!("{}:{}", server_host, http_port);
+    let http_addr = format!("{server_host}:{http_port}");
 
     info!("Starting HTTP API server on {}", http_addr);
     memory_profiler.log_memory("after_http_setup");

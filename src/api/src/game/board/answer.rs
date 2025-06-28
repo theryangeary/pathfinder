@@ -133,7 +133,7 @@ mod tests {
             },
         };
 
-        assert_eq!(format!("{}", answer), "test");
+        assert_eq!(format!("{answer}"), "test");
     }
 
     #[test]
@@ -146,7 +146,7 @@ mod tests {
             },
         };
 
-        let debug_string = format!("{:?}", answer);
+        let debug_string = format!("{answer:?}");
         assert!(debug_string.contains("test"));
         assert!(debug_string.contains("Answer"));
     }

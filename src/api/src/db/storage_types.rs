@@ -44,7 +44,7 @@ impl DbStoredAnswers {
                 // Validate version compatibility
                 match stored.version.as_str() {
                     "1.0" => Ok(stored),
-                    version => Err(format!("Unsupported version: {}", version).into()),
+                    version => Err(format!("Unsupported version: {version}").into()),
                 }
             }
             Err(_) => {
@@ -55,7 +55,7 @@ impl DbStoredAnswers {
                         println!("Migrating legacy answer data to versioned format");
                         Ok(DbStoredAnswers::new(answers))
                     }
-                    Err(e) => Err(format!("Failed to parse answers data: {}", e).into()),
+                    Err(e) => Err(format!("Failed to parse answers data: {e}").into()),
                 }
             }
         }

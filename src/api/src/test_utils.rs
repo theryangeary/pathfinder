@@ -1,5 +1,4 @@
 use crate::db::models::NewGame;
-use crate::db::Repository;
 use crate::game::{conversion::SerializableBoard, Board, GameEngine};
 #[cfg(feature = "database-tests")]
 use crate::http_api::ApiState;
@@ -67,7 +66,7 @@ pub fn create_default_test_board() -> Board {
 
 #[cfg(feature = "database-tests")]
 pub async fn setup_app(pool: sqlx::Pool<sqlx::Postgres>) -> (ApiState, Router) {
-    use crate::{http_api::create_secure_router, security::SecurityConfig};
+    use crate::{db::Repository, http_api::create_secure_router, security::SecurityConfig};
 
     let repository = Repository::new(pool);
 

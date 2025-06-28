@@ -383,7 +383,7 @@ async fn get_game_by_date(
         return Err(StatusCode::BAD_REQUEST);
     }
 
-    let cache_key = format!("date:{}", date);
+    let cache_key = format!("date:{date}");
 
     // Check cache first
     if let Some(cached_game) = state.game_cache.get(&cache_key).await {
@@ -415,7 +415,7 @@ async fn get_game_by_sequence(
     Path(sequence_number): Path<i32>,
     State(state): State<ApiState>,
 ) -> Result<Json<ApiGame>, StatusCode> {
-    let cache_key = format!("seq:{}", sequence_number);
+    let cache_key = format!("seq:{sequence_number}");
 
     // Check cache first
     if let Some(cached_game) = state.game_cache.get(&cache_key).await {
@@ -587,7 +587,7 @@ async fn submit_answers(
 
     // Validate that all submitted answers are valid for this game
     if let Err(error_msg) = validate_submitted_answers(&state, &game, &request.answers).await {
-        println!("Answer validation failed: {}", error_msg);
+        println!("Answer validation failed: {error_msg}");
         return Err(StatusCode::BAD_REQUEST);
     }
 
@@ -595,7 +595,7 @@ async fn submit_answers(
     let score_sheet = match score_submitted_answers(&state, &game, &request.answers).await {
         Ok(scoring) => scoring,
         Err(error_msg) => {
-            println!("Answer scoring failed: {}", error_msg);
+            println!("Answer scoring failed: {error_msg}");
             return Err(StatusCode::BAD_REQUEST);
         }
     };
@@ -736,18 +736,12 @@ async fn get_game_entry(
     Query(params): Query<HashMap<String, String>>,
     State(state): State<ApiState>,
 ) -> Result<Json<Option<GameEntryResponse>>, StatusCode> {
-    println!(
-        "get_game_entry called - game_id: {}, params: {:?}",
-        game_id, params
-    );
+    println!("get_game_entry called - game_id: {game_id}, params: {params:?}");
 
     // Get user identification from query parameters
     let user = match (params.get("user_id"), params.get("cookie_token")) {
         (Some(user_id), Some(cookie_token)) => {
-            println!(
-                "Validating user by ID: {} and cookie: {}",
-                user_id, cookie_token
-            );
+            println!("Validating user by ID: {user_id} and cookie: {cookie_token}");
             // Validate existing user by both ID and cookie token
             match state.repository.get_user_by_id(user_id).await {
                 Ok(Some(existing_user)) => {
@@ -767,17 +761,17 @@ async fn get_game_entry(
                     }
                 }
                 Ok(None) => {
-                    println!("No user found with ID: {}", user_id);
+                    println!("No user found with ID: {user_id}");
                     return Err(StatusCode::UNAUTHORIZED); // Invalid user credentials
                 }
                 Err(e) => {
-                    println!("Database error getting user by ID: {}", e);
+                    println!("Database error getting user by ID: {e}");
                     return Ok(Json(None)); // Invalid user credentials
                 }
             }
         }
         (None, Some(cookie_token)) => {
-            println!("Validating user by cookie token only: {}", cookie_token);
+            println!("Validating user by cookie token only: {cookie_token}");
             // Try to find user by cookie token only
             match state.repository.get_user_by_cookie(cookie_token).await {
                 Ok(Some(existing_user)) => {
@@ -785,11 +779,11 @@ async fn get_game_entry(
                     existing_user
                 }
                 Ok(None) => {
-                    println!("No user found with cookie: {}", cookie_token);
+                    println!("No user found with cookie: {cookie_token}");
                     return Err(StatusCode::UNAUTHORIZED); // Invalid cookie_token
                 }
                 Err(e) => {
-                    println!("Database error getting user by cookie: {}", e);
+                    println!("Database error getting user by cookie: {e}");
                     return Ok(Json(None)); // Invalid cookie_token
                 }
             }
@@ -809,11 +803,11 @@ async fn get_game_entry(
             // Parse the answers from JSON using stable database format
             let answers = match AnswerStorage::deserialize_to_api_answers(&entry.answers_data) {
                 Ok(answers) => {
-                    println!("Parsed answers: {:?}", answers);
+                    println!("Parsed answers: {answers:?}");
                     answers
                 }
                 Err(e) => {
-                    println!("Failed to parse answers JSON: {}", e);
+                    println!("Failed to parse answers JSON: {e}");
                     return Err(StatusCode::INTERNAL_SERVER_ERROR);
                 }
             };
@@ -835,7 +829,7 @@ async fn get_game_entry(
                         })
                     }
                     Err(e) => {
-                        println!("Failed to get game stats: {}", e);
+                        println!("Failed to get game stats: {e}");
                         None
                     }
                 }
@@ -858,7 +852,7 @@ async fn get_game_entry(
             Ok(Json(None)) // No entry found
         }
         Err(e) => {
-            println!("Error getting game entry: {}", e);
+            println!("Error getting game entry: {e}");
             Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
     }

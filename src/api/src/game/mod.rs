@@ -135,7 +135,7 @@ impl GameEngine {
         // First validate that all words exist in the dictionary
         for answer in &answers {
             if !self.is_valid_word_in_dictionary(answer) {
-                return Err(format!("Word '{}' is not in the dictionary", answer));
+                return Err(format!("Word '{answer}' is not in the dictionary"));
             }
         }
 
@@ -171,7 +171,7 @@ impl GameEngine {
         for word in answers {
             let answer = self.find_word_paths(board, &word);
             if answer.paths.is_empty() {
-                return Err(format!("Word '{}' cannot be formed on this board", word));
+                return Err(format!("Word '{word}' cannot be formed on this board"));
             }
             answer_objects.push(answer);
         }
@@ -239,14 +239,14 @@ impl GameEngine {
     ) -> Result<board::answer::Answer, String> {
         // First check if the word is in our dictionary
         if !self.is_valid_word_in_dictionary(word) {
-            return Err(format!("Word '{}' not found in dictionary", word));
+            return Err(format!("Word '{word}' not found in dictionary"));
         }
 
         // Find all possible paths for this word on the board
         let answer = self.find_word_paths(board, word);
 
         if answer.paths.is_empty() {
-            return Err(format!("Word '{}' cannot be formed on this board", word));
+            return Err(format!("Word '{word}' cannot be formed on this board"));
         }
 
         Ok(answer)
@@ -783,7 +783,7 @@ mod tests {
 
         // Scores should be positive (assuming the words can be formed)
         for (word, score) in &scores.map {
-            println!("Word: {}, Score: {}", word, score);
+            println!("Word: {word}, Score: {score}");
         }
 
         // Test with empty input
@@ -979,8 +979,7 @@ mod tests {
         );
         assert!(
             result.is_ok(),
-            "diode should be valid on the test board: {:?}",
-            result
+            "diode should be valid on the test board: {result:?}"
         );
     }
 
@@ -995,8 +994,7 @@ mod tests {
         let result = engine.validate_answer_group(&board, vec!["biscuit".to_string()]);
         assert!(
             result.is_ok(),
-            "biscuit should be valid on the test board: {:?}",
-            result
+            "biscuit should be valid on the test board: {result:?}"
         );
 
         // Test that 'biscuit' can coexist with a set of valid other words
@@ -1012,16 +1010,14 @@ mod tests {
         );
         assert!(
             result.is_ok(),
-            "biscuit should be valid on the test board: {:?}",
-            result
+            "biscuit should be valid on the test board: {result:?}"
         );
 
         // Also test that biscuit can be found as a valid word
         let answer_result = engine.validate_answer(&board, "biscuit");
         assert!(
             answer_result.is_ok(),
-            "biscuit should be findable on the board: {:?}",
-            answer_result
+            "biscuit should be findable on the board: {answer_result:?}"
         );
 
         let answer = answer_result.unwrap();

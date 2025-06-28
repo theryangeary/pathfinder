@@ -183,7 +183,7 @@ impl GameGenerator {
 
     /// Create a deterministic seed based on date and attempt numbers
     fn create_seed(&self, date: &str, reduction_attempt: u32, generation_attempt: u32) -> [u8; 32] {
-        let seed_string = format!("{}:{}:{}", date, reduction_attempt, generation_attempt);
+        let seed_string = format!("{date}:{reduction_attempt}:{generation_attempt}");
         Seeder::from(seed_string).make_seed()
     }
 }
@@ -224,7 +224,7 @@ mod tests {
         reduction_attempt: u32,
         generation_attempt: u32,
     ) -> [u8; 32] {
-        let seed_string = format!("{}:{}:{}", date, reduction_attempt, generation_attempt);
+        let seed_string = format!("{date}:{reduction_attempt}:{generation_attempt}");
         Seeder::from(seed_string).make_seed()
     }
 

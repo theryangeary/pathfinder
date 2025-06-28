@@ -107,7 +107,7 @@ fn validate_referer(
                     if (referer_url.scheme() == "https" && port != 443)
                         || (referer_url.scheme() == "http" && port != 80)
                     {
-                        format!("{}:{}", referer_origin, port)
+                        format!("{referer_origin}:{port}")
                     } else {
                         referer_origin
                     }
@@ -181,8 +181,7 @@ fn create_referer_error_response(message: &str) -> Response {
         .status(StatusCode::FORBIDDEN)
         .header("content-type", "application/json")
         .body(axum::body::Body::from(format!(
-            r#"{{"error": "Referer validation failed", "message": "{}"}}"#,
-            message
+            r#"{{"error": "Referer validation failed", "message": "{message}"}}"#
         )))
         .unwrap()
 }

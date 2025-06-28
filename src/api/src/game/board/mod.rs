@@ -230,7 +230,7 @@ impl Board {
         for word in &answers {
             let answer = self.new_answer(word);
             if answer.paths.is_empty() {
-                return Err(format!("Word '{}' has no possible path on board", word));
+                return Err(format!("Word '{word}' has no possible path on board"));
             }
             answers_with_all_paths.push(answer);
         }
@@ -277,15 +277,13 @@ mod tests {
         for word in ["tmit", "crot", "sani", "inal", "tmittotcsarilani"] {
             assert!(
                 !board.paths_for(word).paths.is_empty(),
-                "Should find paths for {} on this board",
-                word
+                "Should find paths for {word} on this board"
             );
         }
         for bad_word in ["abcd", "zzzz", "icgz"] {
             assert!(
                 board.paths_for(bad_word).paths.is_empty(),
-                "Should find paths for {} on this board",
-                bad_word
+                "Should find paths for {bad_word} on this board"
             );
         }
     }
@@ -339,8 +337,7 @@ mod tests {
         for expected_path in &expected_paths {
             assert!(
                 found_paths.contains(expected_path),
-                "Should contain path {:?}",
-                expected_path
+                "Should contain path {expected_path:?}"
             );
         }
     }
