@@ -189,7 +189,7 @@ jobs:
         uses: superfly/flyctl-actions/setup-flyctl@master
       
       - name: Deploy to Fly.io
-        run: flyctl deploy --remote-only --push --image-label latest && fly machine update e784932ea14028 --image registry.fly.io/pathfinder-game:latest --yes
+        run: flyctl deploy --remote-only --push --image-label latest && flyctl machine update e784932ea14028 --image registry.fly.io/pathfinder-game:latest --yes
 
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
