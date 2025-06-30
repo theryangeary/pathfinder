@@ -382,9 +382,9 @@ function App() {
   return (
     <div style={{ 
       fontFamily: 'Arial, sans-serif', 
-      maxWidth: '300px', 
+      maxWidth: '400px', 
       margin: '0 auto', 
-      padding: '20px',
+      padding: isVirtualKeyboardVisible ? '5px' : '20px',
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center'
@@ -515,6 +515,7 @@ function App() {
           board={board} 
           highlightedPaths={highlightedPaths}
           wildcardConstraints={wildcardConstraints}
+          isKeyboardVisible={isVirtualKeyboardVisible}
         />
       )}
       

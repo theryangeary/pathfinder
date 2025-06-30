@@ -170,7 +170,13 @@ function AnswerSection({
     }
   };
   return (
-    <div style={{ marginTop: '20px', width: '100%', boxSizing: 'border-box' }}>
+    <div style={
+      { marginTop: isKeyboardVisible ? '10px' : '20px', 
+        width: '100%', 
+        boxSizing: 'border-box',
+        transition: 'margin 200ms'
+      }
+    }>
       <div style={{ 
         display: 'flex', 
         justifyContent: 'space-between', 
@@ -255,7 +261,7 @@ function AnswerSection({
       </div>
 
           <div style={ isKeyboardVisible ?
-            { display: 'flex', alignItems: 'center', gap: '10px', margin: '5px 0', width: '100%', boxSizing: 'border-box' }
+            { display: 'flex', alignItems: 'center', gap: '10px', margin: '5px 0', width: '100%', boxSizing: 'border-box', transition: '200ms' }
             : {}
           }>
             { isKeyboardVisible &&
@@ -306,6 +312,7 @@ function AnswerSection({
             isGameCompleted={isGameCompleted}
             isVisible={!isKeyboardVisible ||  index === currentCarouselIndex}
             isSelected={isKeyboardVisible && index === currentCarouselIndex}
+            isKeyboardVisible={isKeyboardVisible}
           />
         );
       })}
@@ -337,7 +344,7 @@ function AnswerSection({
             }
           </div>
       
-      <div style={{ display: 'flex', justifyContent: 'center', marginTop: '20px' }}>
+      <div style={{ display: 'flex', justifyContent: 'center', marginTop: isKeyboardVisible ? '10px' : '20px' }}>
         <button
           onClick={onSubmit}
           disabled={(!validAnswers.every(valid => valid) && !isGameCompleted) || isSubmitting}
@@ -360,7 +367,7 @@ function AnswerSection({
             }
           }}
           style={{
-            padding: '12px 24px',
+            padding: isKeyboardVisible ? '6px 24px' : '12px 24px',
             fontSize: '16px',
             fontWeight: 'bold',
             backgroundColor: ((validAnswers.every(valid => valid) || isGameCompleted) && !isSubmitting) ? '#4CAF50' : '#cccccc',

@@ -12,6 +12,7 @@ interface AnswerInputProps {
   onBlur?: (index: number) => void;
   isGameCompleted?: boolean;
   isVisible?: boolean;
+  isKeyboardVisible?: boolean;
 }
 
 interface AnswerInputHandle {
@@ -30,7 +31,8 @@ const AnswerInput = forwardRef<AnswerInputHandle, AnswerInputProps>(function Ans
   onFocus,
   onBlur,
   isGameCompleted = false,
-  isVisible = true
+  isVisible = true,
+  isKeyboardVisible = false,
 }, ref) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isFocused, setIsFocused] = useState(false);
@@ -53,7 +55,7 @@ const AnswerInput = forwardRef<AnswerInputHandle, AnswerInputProps>(function Ans
         display: isVisible ? 'flex' : 'none', 
         alignItems: 'center', 
         gap: '10px',
-        margin: '5px 0',
+        margin: isKeyboardVisible ? '0px 0' : '5px 0',
         opacity: isEnabled || isFocused ? 1 : 0.5,
       }}
     >

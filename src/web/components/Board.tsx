@@ -5,9 +5,10 @@ interface BoardProps {
   board: TileType[][];
   highlightedPaths: Position[][];
   wildcardConstraints: AnswerGroupConstraintSet;
+  isKeyboardVisible: boolean;
 }
 
-function Board({ board, highlightedPaths, wildcardConstraints}: BoardProps) {
+function Board({ board, highlightedPaths, wildcardConstraints, isKeyboardVisible}: BoardProps) {
 
   // Show empty tiles if board is empty
   const boardToRender = board.length === 0 
@@ -21,7 +22,7 @@ function Board({ board, highlightedPaths, wildcardConstraints}: BoardProps) {
         display: 'grid',
         gridTemplateColumns: 'repeat(4, 1fr)',
         gap: '4px',
-        padding: '20px',
+        padding: isKeyboardVisible? '10px' : '20px',
         backgroundColor: '#f5f5f5',
         borderRadius: '12px',
         maxWidth: '300px',
