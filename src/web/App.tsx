@@ -18,7 +18,7 @@ function App() {
   const { sequenceNumber } = useParams<{ sequenceNumber: string }>();
   const navigate = useNavigate();
   const { user, isLoading: userLoading, clearUser } = useUser();
-  const { isVisible: isVirtualKeyboardVisible } = useVirtualKeyboard();
+  const { isVisible: isVirtualKeyboardVisible, height: keyboardHeight } = useVirtualKeyboard();
   const [board, setBoard] = useState<Tile[][]>([]);
   const [answers, setAnswers] = useState<string[]>(['', '', '', '', '']);
   const [validAnswers, setValidAnswers] = useState<boolean[]>([false, false, false, false, false]);

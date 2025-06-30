@@ -12,62 +12,60 @@ export const useVirtualKeyboard = (): VirtualKeyboardState => {
   });
 
   useEffect(() => {
-    // Check if the Visual Viewport API is supported
-    if (typeof window !== 'undefined' && 'visualViewport' in window) {
-      const visualViewport = window.visualViewport!;
+    if (typeof window === 'undefined') return;
+
+    // Store initial window height to detect changes
+    // Use a small delay to get accurate initial height after page load
+    let initialHeight = 0;
+    const setInitialHeight = () => {
+      initialHeight = window.innerHeight;
+    };
+    
+    // Set initial height after a short delay to account for browser UI settling
+    setTimeout(setInitialHeight, 100);
+
+    const handleResize = () => {
+      // If we don't have initial height yet, set it now
+      if (initialHeight === 0) {
+        initialHeight = window.innerHeight;
+        return;
+      }
+
+      const currentHeight = window.innerHeight;
+      const heightDifference = initialHeight - currentHeight;
       
-      const handleViewportChange = () => {
-        const windowHeight = window.innerHeight;
-        const viewportHeight = visualViewport.height;
-        const heightDifference = windowHeight - viewportHeight;
-        
-        // Consider keyboard visible if the viewport height is significantly smaller
-        // than the window height (threshold of 150px to account for browser UI)
-        const isKeyboardVisible = heightDifference > 150;
-        
-        setKeyboardState({
-          isVisible: isKeyboardVisible,
-          height: isKeyboardVisible ? heightDifference : 0
-        });
-      };
-
-      // Initial check
-      handleViewportChange();
-
-      // Listen for viewport changes
-      visualViewport.addEventListener('resize', handleViewportChange);
-      visualViewport.addEventListener('scroll', handleViewportChange);
-
-      return () => {
-        visualViewport.removeEventListener('resize', handleViewportChange);
-        visualViewport.removeEventListener('scroll', handleViewportChange);
-      };
-    } else {
-      // Fallback for browsers without Visual Viewport API
-      const handleResize = () => {
-        const currentHeight = window.innerHeight;
-        const screenHeight = window.screen.height;
-        
-        // Detect keyboard by significant height reduction
-        // This is less reliable but works as a fallback
-        const heightReduction = screenHeight - currentHeight;
-        const isKeyboardVisible = heightReduction > 300; // More conservative threshold
-        
-        setKeyboardState({
-          isVisible: isKeyboardVisible,
-          height: isKeyboardVisible ? heightReduction : 0
-        });
-      };
-
-      // Initial check
-      handleResize();
-
-      (<any>window).addEventListener('resize', handleResize);
+      // With interactive-widget=resizes-content, the window height shrinks when keyboard appears
+      // Consider keyboard visible if window height is significantly smaller than initial
+      // Use 150px threshold to account for browser UI changes and small screen rotations
+      const isKeyboardVisible = heightDifference > 150;
       
-      return () => {
-        window.removeEventListener('resize', handleResize);
-      };
-    }
+      setKeyboardState({
+        isVisible: isKeyboardVisible,
+        height: isKeyboardVisible ? heightDifference : 0
+      });
+    };
+
+    // Initial check
+    handleResize();
+
+    // Listen for window resize events
+    window.addEventListener('resize', handleResize);
+    
+    // Also listen for orientation changes which might reset our baseline
+    const handleOrientationChange = () => {
+      // Reset initial height after orientation change
+      setTimeout(() => {
+        initialHeight = window.innerHeight;
+        handleResize();
+      }, 500); // Wait for orientation change to complete
+    };
+    
+    window.addEventListener('orientationchange', handleOrientationChange);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('orientationchange', handleOrientationChange);
+    };
   }, []);
 
   return keyboardState;
