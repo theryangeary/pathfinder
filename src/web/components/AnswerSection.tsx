@@ -199,31 +199,48 @@ function AnswerSection({
               gap: '8px', 
               margin: '0' 
             }}>
-              {answers.map((_, index) => (
-                <button
-                  key={index}
-                  onClick={() => {
-                    if (isInputEnabled(index)) {
-                      setIsNavigating(true);
-                      setCurrentCarouselIndex(index);
-                    }
-                  }}
-                  onMouseDown={(e) => e.preventDefault()}
-                  onTouchStart={(e) => e.preventDefault()}
-                  disabled={!isInputEnabled(index)}
-                  style={{
-                    width: '12px',
-                    height: '12px',
-                    borderRadius: '50%',
-                    border: 'none',
-                    backgroundColor: index === currentCarouselIndex ? '#4CAF50' : 
-                                    isInputEnabled(index) ? '#ddd' : '#f8f8f8',
-                    cursor: isInputEnabled(index) ? 'pointer' : 'not-allowed',
-                    padding: 0,
-                    opacity: isInputEnabled(index) ? 1 : 0.4
-                  }}
-                />
-              ))}
+              {answers.map((answer, index) => {
+                const isValid = validAnswers[index];
+                const hasValue = answer.length > 0;
+                const isEnabled = isInputEnabled(index);
+                const isSelected = index === currentCarouselIndex;
+                
+                // Determine dot color based on status
+                let dotColor = '#666'; // disabled/empty - dark gray
+                if (isEnabled) {
+                  if (hasValue) {
+                    dotColor = isValid ? '#4CAF50' : '#f44336'; // green for valid, red for invalid
+                  } else {
+                    dotColor = '#ddd'; // gray for empty but enabled
+                  }
+                }
+                
+                return (
+                  <button
+                    key={index}
+                    onClick={() => {
+                      if (isEnabled) {
+                        setIsNavigating(true);
+                        setCurrentCarouselIndex(index);
+                      }
+                    }}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onTouchStart={(e) => e.preventDefault()}
+                    disabled={!isEnabled}
+                    style={{
+                      width: '12px',
+                      height: '12px',
+                      borderRadius: '50%',
+                      border: isSelected ? '2px solid #333333' : '1px solid rgba(0,0,0,0.1)',
+                      backgroundColor: dotColor,
+                      cursor: isEnabled ? 'pointer' : 'not-allowed',
+                      padding: 0,
+                      opacity: isEnabled ? 1 : 0.6,
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                );
+              })}
             </div>
           }
 
@@ -287,6 +304,7 @@ function AnswerSection({
             onBlur={handleAnswerBlur}
             isGameCompleted={isGameCompleted}
             isVisible={!isKeyboardVisible ||  index === currentCarouselIndex}
+            isSelected={isKeyboardVisible && index === currentCarouselIndex}
           />
         );
       })}
