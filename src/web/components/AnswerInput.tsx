@@ -1,4 +1,4 @@
-import { forwardRef, KeyboardEvent, useImperativeHandle, useRef } from 'react';
+import { forwardRef, KeyboardEvent, useImperativeHandle, useRef, useState } from 'react';
 
 interface AnswerInputProps {
   index: number;
@@ -33,6 +33,7 @@ const AnswerInput = forwardRef<AnswerInputHandle, AnswerInputProps>(function Ans
   isVisible = true
 }, ref) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const [isFocused, setIsFocused] = useState(false);
   const statusIcon = value.length <= 0 ? '' : isValid ? '✅' : '❌';
 
   useImperativeHandle(ref, () => ({
@@ -53,7 +54,7 @@ const AnswerInput = forwardRef<AnswerInputHandle, AnswerInputProps>(function Ans
         alignItems: 'center', 
         gap: '10px',
         margin: '5px 0',
-        opacity: isEnabled ? 1 : 0.5
+        opacity: isEnabled || isFocused ? 1 : 0.5,
       }}
     >
       <span style={{ fontSize: '16px', minWidth: '20px' }}>
@@ -65,9 +66,15 @@ const AnswerInput = forwardRef<AnswerInputHandle, AnswerInputProps>(function Ans
         value={value}
         onChange={(e) => isGameCompleted ? undefined : onChange(index, e.target.value.toLowerCase().replace(/[^a-z]/g, ''))}
         onKeyDown={handleKeyDown}
-        onFocus={() => onFocus && onFocus(index)}
-        onBlur={() => onBlur && onBlur(index)}
-        disabled={!isEnabled || isGameCompleted}
+        onFocus={() => {
+          setIsFocused(true);
+          onFocus && onFocus(index);
+        }}
+        onBlur={() => {
+          setIsFocused(false);
+          onBlur && onBlur(index);
+        }}
+        disabled={(!isEnabled || isGameCompleted) && !isFocused}
         readOnly={isGameCompleted}
         placeholder={`Answer ${index + 1}`}
         style={{
@@ -79,7 +86,7 @@ const AnswerInput = forwardRef<AnswerInputHandle, AnswerInputProps>(function Ans
           width: '100%',
           maxWidth: '100%',
           boxSizing: 'border-box',
-          backgroundColor: isGameCompleted ? '#fcfcfc' : (isEnabled ? '#fff' : '#f5f5f5'),
+          backgroundColor: isGameCompleted ? '#fcfcfc' : (isEnabled || isFocused ? '#fff' : '#f5f5f5'),
           cursor: isGameCompleted ? 'default' : 'text'
         }}
       />
