@@ -191,6 +191,42 @@ function AnswerSection({
             </span>
           )}
         </h3>
+
+          { isKeyboardVisible && 
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'center', 
+              gap: '8px', 
+              margin: '0' 
+            }}>
+              {answers.map((_, index) => (
+                <button
+                  key={index}
+                  onClick={() => {
+                    if (isInputEnabled(index)) {
+                      setIsNavigating(true);
+                      setCurrentCarouselIndex(index);
+                    }
+                  }}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onTouchStart={(e) => e.preventDefault()}
+                  disabled={!isInputEnabled(index)}
+                  style={{
+                    width: '12px',
+                    height: '12px',
+                    borderRadius: '50%',
+                    border: 'none',
+                    backgroundColor: index === currentCarouselIndex ? '#4CAF50' : 
+                                    isInputEnabled(index) ? '#ddd' : '#f8f8f8',
+                    cursor: isInputEnabled(index) ? 'pointer' : 'not-allowed',
+                    padding: 0,
+                    opacity: isInputEnabled(index) ? 1 : 0.4
+                  }}
+                />
+              ))}
+            </div>
+          }
+
         <div style={{ 
           fontSize: '18px', 
           fontWeight: 'bold', 
@@ -231,42 +267,6 @@ function AnswerSection({
               </button>
             }          
             
-          
-          {/* Carousel indicator
-          <div style={{ 
-            display: 'flex', 
-            justifyContent: 'center', 
-            gap: '8px', 
-            margin: '0' 
-          }}>
-            {answers.map((_, index) => (
-              <button
-                key={index}
-                onClick={() => {
-                  if (isInputEnabled(index)) {
-                    setIsNavigating(true);
-                    setCurrentCarouselIndex(index);
-                  }
-                }}
-                onMouseDown={(e) => e.preventDefault()}
-                onTouchStart={(e) => e.preventDefault()}
-                disabled={!isInputEnabled(index)}
-                style={{
-                  width: '12px',
-                  height: '12px',
-                  borderRadius: '50%',
-                  border: 'none',
-                  backgroundColor: index === currentCarouselIndex ? '#4CAF50' : 
-                                   isInputEnabled(index) ? '#ddd' : '#f8f8f8',
-                  cursor: isInputEnabled(index) ? 'pointer' : 'not-allowed',
-                  padding: 0,
-                  opacity: isInputEnabled(index) ? 1 : 0.4
-                }}
-              />
-            ))}
-          </div>
-        </>
-      ) : ( */}
       {        answers.map((answer, index) => {
         const isValid = validAnswers[index];
         const isEnabled = index === 0 || validAnswers.slice(0, index).every(valid => valid) || isValid;
