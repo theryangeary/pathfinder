@@ -345,43 +345,76 @@ function AnswerSection({
           </div>
       
       <div style={{ display: 'flex', justifyContent: 'center', marginTop: isKeyboardVisible ? '10px' : '20px' }}>
-        <button
-          onClick={onSubmit}
-          disabled={(!validAnswers.every(valid => valid) && !isGameCompleted) || isSubmitting}
-          onMouseDown={(e) => {
-            const target = e.target as HTMLButtonElement;
-            if (!target.disabled) {
+        {isKeyboardVisible ? (
+          <button
+            onClick={() => {}} // No-op handler - causes inputs to lose focus, keyboard to close
+            onMouseDown={(e) => {
+              const target = e.target as HTMLButtonElement;
               target.style.transform = 'scale(0.9)';
-            }
-          }}
-          onMouseUp={(e) => {
-            const target = e.target as HTMLButtonElement;
-            if (!target.disabled) {
+            }}
+            onMouseUp={(e) => {
+              const target = e.target as HTMLButtonElement;
               target.style.transform = 'scale(1)';
-            }
-          }}
-          onMouseLeave={(e) => {
-            const target = e.target as HTMLButtonElement;
-            if (!target.disabled) {
+            }}
+            onMouseLeave={(e) => {
+              const target = e.target as HTMLButtonElement;
               target.style.transform = 'scale(1)';
-            }
-          }}
-          style={{
-            padding: isKeyboardVisible ? '6px 24px' : '12px 24px',
-            fontSize: '16px',
-            fontWeight: 'bold',
-            backgroundColor: ((validAnswers.every(valid => valid) || isGameCompleted) && !isSubmitting) ? '#4CAF50' : '#cccccc',
-            color: ((validAnswers.every(valid => valid) || isGameCompleted) && !isSubmitting) ? 'white' : '#666666',
-            border: 'none',
-            borderRadius: '8px',
-            cursor: ((validAnswers.every(valid => valid) || isGameCompleted) && !isSubmitting) ? 'pointer' : 'not-allowed',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-            transition: 'all 0.1s ease',
-            transform: 'scale(1)'
-          }}
-        >
-          {isSubmitting ? 'Submitting...' : (isGameCompleted || isOffline ? 'View Stats' : 'Submit Answers')}
-        </button>
+            }}
+            style={{
+              padding: '6px 24px',
+              fontSize: '16px',
+              fontWeight: 'bold',
+              backgroundColor: '#4CAF50',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+              transition: 'all 0.1s ease',
+              transform: 'scale(1)'
+            }}
+          >
+            View All Answers
+          </button>
+        ) : (
+          <button
+            onClick={onSubmit}
+            disabled={(!validAnswers.every(valid => valid) && !isGameCompleted) || isSubmitting}
+            onMouseDown={(e) => {
+              const target = e.target as HTMLButtonElement;
+              if (!target.disabled) {
+                target.style.transform = 'scale(0.9)';
+              }
+            }}
+            onMouseUp={(e) => {
+              const target = e.target as HTMLButtonElement;
+              if (!target.disabled) {
+                target.style.transform = 'scale(1)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              const target = e.target as HTMLButtonElement;
+              if (!target.disabled) {
+                target.style.transform = 'scale(1)';
+              }
+            }}
+            style={{
+              padding: '12px 24px',
+              fontSize: '16px',
+              fontWeight: 'bold',
+              backgroundColor: ((validAnswers.every(valid => valid) || isGameCompleted) && !isSubmitting) ? '#4CAF50' : '#cccccc',
+              color: ((validAnswers.every(valid => valid) || isGameCompleted) && !isSubmitting) ? 'white' : '#666666',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: ((validAnswers.every(valid => valid) || isGameCompleted) && !isSubmitting) ? 'pointer' : 'not-allowed',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+              transition: 'all 0.1s ease',
+              transform: 'scale(1)'
+            }}
+          >
+            {isSubmitting ? 'Submitting...' : (isGameCompleted || isOffline ? 'View Stats' : 'Submit Answers')}
+          </button>
+        )}
       </div>
     </div>
   );
