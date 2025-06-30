@@ -2,13 +2,11 @@ import { useEffect, useState } from 'react';
 
 interface VirtualKeyboardState {
   isVisible: boolean;
-  height: number;
 }
 
 export const useVirtualKeyboard = (): VirtualKeyboardState => {
   const [keyboardState, setKeyboardState] = useState<VirtualKeyboardState>({
     isVisible: false,
-    height: 0
   });
 
   useEffect(() => {
@@ -41,7 +39,6 @@ export const useVirtualKeyboard = (): VirtualKeyboardState => {
       
       setKeyboardState({
         isVisible: isKeyboardVisible,
-        height: isKeyboardVisible ? heightDifference : 0
       });
     };
 
