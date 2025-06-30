@@ -105,7 +105,7 @@ function AnswerSection({
   const isInputEnabled = (index: number): boolean => {
     if (index < 0 || index >= answers.length) return false;
     const isValid = validAnswers[index];
-    const hasText = answers[index] && answers[index].trim().length > 0;
+    const hasText = Boolean(answers[index] && answers[index].trim().length > 0);
     return index === 0 || validAnswers.slice(0, index).every(valid => valid) || isValid || hasText;
   };
 
@@ -311,7 +311,6 @@ function AnswerSection({
             onBlur={handleAnswerBlur}
             isGameCompleted={isGameCompleted}
             isVisible={!isKeyboardVisible ||  index === currentCarouselIndex}
-            isSelected={isKeyboardVisible && index === currentCarouselIndex}
             isKeyboardVisible={isKeyboardVisible}
           />
         );
