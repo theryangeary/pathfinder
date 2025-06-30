@@ -105,7 +105,8 @@ function AnswerSection({
   const isInputEnabled = (index: number): boolean => {
     if (index < 0 || index >= answers.length) return false;
     const isValid = validAnswers[index];
-    return index === 0 || validAnswers.slice(0, index).every(valid => valid) || isValid;
+    const hasText = answers[index] && answers[index].trim().length > 0;
+    return index === 0 || validAnswers.slice(0, index).every(valid => valid) || isValid || hasText;
   };
 
   const goToPrevious = () => {
@@ -284,9 +285,9 @@ function AnswerSection({
               </button>
             }          
             
-      {        answers.map((answer, index) => {
+      {        
+      answers.map((answer, index) => {
         const isValid = validAnswers[index];
-        const isEnabled = index === 0 || validAnswers.slice(0, index).every(valid => valid) || isValid;
         const score = scores[index] || 0;
         
         return (
@@ -297,7 +298,7 @@ function AnswerSection({
             value={answer}
             onChange={onAnswerChange}
             isValid={isValid}
-            isEnabled={isEnabled}
+            isEnabled={isInputEnabled(index)}
             score={score}
             onEnterPress={handleEnterPress}
             onFocus={handleAnswerFocus}
