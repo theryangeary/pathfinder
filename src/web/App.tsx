@@ -35,7 +35,7 @@ function App() {
   const [isValidWordFn, setIsValidWordFn] = useState<((word: string) => boolean) | null>(null);
   const [isGameCompleted, setIsGameCompleted] = useState(false);
 
-  const shouldUseCompactLayout = isMobile && currentInputIndex !== -1;
+  const shouldUseCompactLayout = isMobile && currentInputIndex !== -1 && isVirtualKeyboardVisible;
 
   // Derived state calculations
   const validation = useMemo(() => {
