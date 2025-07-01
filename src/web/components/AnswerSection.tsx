@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import AnswerInput, { AnswerInputHandle } from './AnswerInput';
 import { useVirtualKeyboard } from '../hooks/useVirtualKeyboard';
+import AnswerInput, { AnswerInputHandle } from './AnswerInput';
 
 interface AnswerSectionProps {
   answers: string[];
@@ -281,7 +281,7 @@ function AnswerSection({
             onFocus={handleAnswerFocus}
             onBlur={handleAnswerBlur}
             isGameCompleted={isGameCompleted}
-            isVisible={!isKeyboardVisible ||  index === currentCarouselIndex}
+            isVisible={!isKeyboardVisible || index === currentCarouselIndex}
             isKeyboardVisible={isKeyboardVisible}
           />
         );
