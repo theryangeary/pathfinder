@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ApiAnswer, ApiGame, ApiGameStats, convertApiBoardToBoard, gameApi } from './api/gameApi';
 import AnswerSection from './components/AnswerSection';
@@ -9,7 +9,7 @@ import PathfinderLogo from './components/Logo';
 import { useUser } from './hooks/useUser';
 import { useVirtualKeyboard } from './hooks/useVirtualKeyboard';
 import { generateBoard } from './utils/boardGeneration';
-import { AnswerGroupConstraintSet, Position, Tile } from './utils/models';
+import { Tile } from './utils/models';
 import { findPathsForHighlighting } from './utils/pathfinding';
 import { validateAllAnswers } from './utils/validation';
 
@@ -21,14 +21,9 @@ function App() {
   const { isVisible: isVirtualKeyboardVisible } = useVirtualKeyboard();
   const [board, setBoard] = useState<Tile[][]>([]);
   const [answers, setAnswers] = useState<string[]>(['', '', '', '', '']);
-  const [validAnswers, setValidAnswers] = useState<boolean[]>([false, false, false, false, false]);
-  const [scores, setScores] = useState<number[]>([0, 0, 0, 0, 0]);
-  const [wildcardConstraints, setWildcardConstraints] = useState<AnswerGroupConstraintSet>({ pathConstraintSets: [] });
-  const [highlightedPaths, setHighlightedPaths] = useState<Position[][]>([]);
   const [currentInputIndex, setCurrentInputIndex] = useState<number>(-1);
   const [showHeatmapModal, setShowHeatmapModal] = useState<boolean>(false);
   const [gameStats, setGameStats] = useState<ApiGameStats | null>(null);
-  const [validPaths, setValidPaths] = useState<(Position[] | null)[]>([]);
   const [currentGame, setCurrentGame] = useState<ApiGame | null>(null);
   const [isLoadingGame, setIsLoadingGame] = useState(true);
   const [apiError, setApiError] = useState<string | null>(null);
@@ -36,6 +31,37 @@ function App() {
   const [isValidWordLoaded, setIsValidWordLoaded] = useState(false);
   const [isValidWordFn, setIsValidWordFn] = useState<((word: string) => boolean) | null>(null);
   const [isGameCompleted, setIsGameCompleted] = useState(false);
+
+  // Derived state calculations
+  const validation = useMemo(() => {
+    if (board.length === 0 || !isValidWordLoaded) {
+      return {
+        validAnswers: [false, false, false, false, false],
+        scores: [0, 0, 0, 0, 0],
+        paths: [null, null, null, null, null],
+        constraintSets: { pathConstraintSets: [] }
+      };
+    }
+    const result = validateAllAnswers(board, answers, isValidWordLoaded, isValidWordFn, currentInputIndex);
+    if (result.constraintSets.pathConstraintSets.length === 0) {
+      // the currently editted word can't fit with the rest; get validation but ignore this word
+      const answersExceptCurrent = [...answers.slice(0, currentInputIndex), "", ...answers.slice(currentInputIndex+1)]
+      return validateAllAnswers(board, answersExceptCurrent, isValidWordLoaded, isValidWordFn);
+    }
+    return result
+  }, [board, answers, isValidWordLoaded, isValidWordFn]);
+
+  const { validAnswers, scores, paths: validPaths, constraintSets: wildcardConstraints } = validation;
+
+  const highlightedPaths = useMemo(() => {
+    if (currentInputIndex === -1 || !answers[currentInputIndex] || answers[currentInputIndex].length === 0) {
+      return [];
+    }
+    if (wildcardConstraints.pathConstraintSets.length === 0) {
+      return [];
+    }
+    return findPathsForHighlighting(board, answers[currentInputIndex], wildcardConstraints);
+  }, [board, answers, currentInputIndex, wildcardConstraints]);
 
   // Load word validation function asynchronously
   useEffect(() => {
@@ -73,7 +99,6 @@ function App() {
   // Load game immediately, don't wait for user
   useEffect(() => {
     // Clear highlighting state when switching puzzles
-    setHighlightedPaths([]);
     setCurrentInputIndex(-1);
     setIsGameCompleted(false);
     // Reset word list state when switching games
@@ -140,22 +165,10 @@ function App() {
         });
         
         setAnswers(loadedAnswers);
-        
-        // Re-validate all answers using the new permissive logic
-        const validation = validateAllAnswers(board, loadedAnswers, isValidWordLoaded, isValidWordFn);
-        
-        setValidAnswers(validation.validAnswers);
-        setScores(validation.scores);
-        setValidPaths(validation.paths);
-        setWildcardConstraints(validation.constraintSets);
       } else {
         setIsGameCompleted(false);
         setGameStats(null);
-        setValidAnswers([false, false, false, false, false]);
-        setScores([0,0,0,0,0]);
-        setValidPaths([]);
         setAnswers(['','','','','']);
-        setWildcardConstraints({ pathConstraintSets: [] });
       }
     } catch (error) {
       console.warn('Failed to load existing game entry:', error);
@@ -205,47 +218,16 @@ function App() {
 
 
   const handleAnswerInputChange = (index: number, value?: string): void => {
-    let shouldHighlight = true;
-
     // If value is provided, update the answer (onChange behavior)
     if (value !== undefined) {
       const newAnswers = [...answers];
       newAnswers[index] = value;
       setAnswers(newAnswers);
-
-      // Use new validation that skips invalid words
-      const validation = validateAllAnswers(board, newAnswers, isValidWordLoaded, isValidWordFn, index);
-      shouldHighlight = validation.constraintSets.pathConstraintSets.length > 0
-      if (shouldHighlight) {
-        setValidAnswers(validation.validAnswers);
-        setScores(validation.scores);
-        setWildcardConstraints(validation.constraintSets);
-        setValidPaths(validation.paths);
-      }
     }
 
-    if (!shouldHighlight) {
-      setHighlightedPaths([]);
-      return;
-    }
-
-    // Update highlighting (both onChange and onFocus behavior)
-    const currentValue = value !== undefined ? value : answers[index];
-    
     // Update highlighting when focusing on a different input or when value changes
     if (currentInputIndex !== index || value !== undefined) {
       setCurrentInputIndex(index);
-      
-      // Set highlighted paths for the current input
-      if (currentValue && currentValue.length > 0) {
-        const currentConstraints = value !== undefined 
-          ? validateAllAnswers(board, [...answers.slice(0, index), value, ...answers.slice(index + 1)], isValidWordLoaded, isValidWordFn, index).constraintSets
-          : wildcardConstraints;
-        const paths = findPathsForHighlighting(board, currentValue, currentConstraints);
-        setHighlightedPaths(paths);
-      } else {
-        setHighlightedPaths([]);
-      }
     }
   };
 
