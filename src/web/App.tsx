@@ -8,6 +8,7 @@ import HeatmapModal from './components/HeatmapModal';
 import PathfinderLogo from './components/Logo';
 import { useUser } from './hooks/useUser';
 import { useVirtualKeyboard } from './hooks/useVirtualKeyboard';
+import { useMobileDetection } from './hooks/useMobileDetection';
 import { generateBoard } from './utils/boardGeneration';
 import { Tile } from './utils/models';
 import { findPathsForHighlighting } from './utils/pathfinding';
@@ -19,6 +20,7 @@ function App() {
   const navigate = useNavigate();
   const { user, isLoading: userLoading, clearUser } = useUser();
   const { isVisible: isVirtualKeyboardVisible } = useVirtualKeyboard();
+  const isMobile = useMobileDetection();
   const [board, setBoard] = useState<Tile[][]>([]);
   const [answers, setAnswers] = useState<string[]>(['', '', '', '', '']);
   const [currentInputIndex, setCurrentInputIndex] = useState<number>(-1);
