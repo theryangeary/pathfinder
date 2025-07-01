@@ -12,30 +12,49 @@ export const useVirtualKeyboard = (): VirtualKeyboardState => {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    // Store initial window height to detect changes
-    // Use a small delay to get accurate initial height after page load
+    // Check if Visual Viewport API is available (more reliable for iOS)
+    const hasVisualViewport = 'visualViewport' in window;
+    
     let initialHeight = 0;
-    const setInitialHeight = () => {
+    let initialViewportHeight = 0;
+    
+    const setInitialHeights = () => {
       initialHeight = window.innerHeight;
+      if (hasVisualViewport) {
+        initialViewportHeight = window.visualViewport!.height;
+      }
     };
     
-    // Set initial height after a short delay to account for browser UI settling
-    setTimeout(setInitialHeight, 100);
+    // Set initial heights after a short delay to account for browser UI settling
+    setTimeout(setInitialHeights, 100);
 
-    const handleResize = () => {
-      // If we don't have initial height yet, set it now
+    const checkKeyboardVisibility = () => {
+      // If we don't have initial heights yet, set them now
       if (initialHeight === 0) {
-        initialHeight = window.innerHeight;
+        setInitialHeights();
         return;
       }
 
-      const currentHeight = window.innerHeight;
-      const heightDifference = initialHeight - currentHeight;
-      
-      // With interactive-widget=resizes-content, the window height shrinks when keyboard appears
-      // Consider keyboard visible if window height is significantly smaller than initial
-      // Use 150px threshold to account for browser UI changes and small screen rotations
-      const isKeyboardVisible = heightDifference > 150;
+      let isKeyboardVisible = false;
+
+      if (hasVisualViewport) {
+        // Use Visual Viewport API for more reliable detection (especially on iOS)
+        const currentViewportHeight = window.visualViewport!.height;
+        const viewportHeightDifference = initialViewportHeight - currentViewportHeight;
+        
+        // Also check window height as fallback
+        const currentHeight = window.innerHeight;
+        const windowHeightDifference = initialHeight - currentHeight;
+        
+        // Keyboard is visible if either viewport height decreased significantly
+        // or window height decreased significantly
+        isKeyboardVisible = viewportHeightDifference > 150 || windowHeightDifference > 150;
+      } else {
+        // Fallback to window height for browsers without Visual Viewport API
+        const currentHeight = window.innerHeight;
+        const heightDifference = initialHeight - currentHeight;
+        isKeyboardVisible = heightDifference > 150;
+      }
       
       setKeyboardState({
         isVisible: isKeyboardVisible,
@@ -43,24 +62,32 @@ export const useVirtualKeyboard = (): VirtualKeyboardState => {
     };
 
     // Initial check
-    handleResize();
+    checkKeyboardVisibility();
 
     // Listen for window resize events
-    window.addEventListener('resize', handleResize);
+    window.addEventListener('resize', checkKeyboardVisibility);
+    
+    // Listen for Visual Viewport changes if available
+    if (hasVisualViewport) {
+      window.visualViewport!.addEventListener('resize', checkKeyboardVisibility);
+    }
     
     // Also listen for orientation changes which might reset our baseline
     const handleOrientationChange = () => {
-      // Reset initial height after orientation change
+      // Reset initial heights after orientation change
       setTimeout(() => {
-        initialHeight = window.innerHeight;
-        handleResize();
+        setInitialHeights();
+        checkKeyboardVisibility();
       }, 500); // Wait for orientation change to complete
     };
     
     window.addEventListener('orientationchange', handleOrientationChange);
 
     return () => {
-      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('resize', checkKeyboardVisibility);
+      if (hasVisualViewport) {
+        window.visualViewport!.removeEventListener('resize', checkKeyboardVisibility);
+      }
       window.removeEventListener('orientationchange', handleOrientationChange);
     };
   }, []);
