@@ -215,8 +215,6 @@ function App() {
     }
   };
 
-
-
   const handleAnswerInputChange = (index: number, value?: string): void => {
     // If value is provided, update the answer (onChange behavior)
     if (value !== undefined) {
@@ -527,6 +525,7 @@ function App() {
         isWordListLoading={!isValidWordLoaded}
         isGameCompleted={isGameCompleted}
         isOffline={!!apiError}
+        isKeyboardVisible={isVirtualKeyboardVisible}
       />
       
       <HeatmapModal

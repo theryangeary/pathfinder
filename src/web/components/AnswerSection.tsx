@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { useVirtualKeyboard } from '../hooks/useVirtualKeyboard';
 import AnswerInput, { AnswerInputHandle } from './AnswerInput';
 
 interface AnswerSectionProps {
@@ -14,6 +13,7 @@ interface AnswerSectionProps {
   isWordListLoading?: boolean;
   isGameCompleted?: boolean;
   isOffline?: boolean;
+  isKeyboardVisible: boolean;
 }
 
 function AnswerSection({ 
@@ -28,9 +28,9 @@ function AnswerSection({
   isWordListLoading = false,
   isGameCompleted = false,
   isOffline = false,
+  isKeyboardVisible,
 }: AnswerSectionProps) {
   const inputRefs = useRef<(AnswerInputHandle | null)[]>([]);
-  const { isVisible: isKeyboardVisible } = useVirtualKeyboard();
   const [currentCarouselIndex, setCurrentCarouselIndex] = useState(0);
   const [isNavigating, setIsNavigating] = useState(false);
 
