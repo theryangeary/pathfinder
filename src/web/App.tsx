@@ -374,8 +374,9 @@ function App() {
       flexDirection: 'column',
       alignItems: 'center'
     }}>
+      { !shouldUseCompactLayout && 
       <div style={{
-        display: shouldUseCompactLayout ? 'none' : 'block'
+        display: 'block'
       }}>
         <PathfinderLogo />
         
@@ -494,6 +495,7 @@ function App() {
         )}
       </div>
       </div>
+    }
       
       {board.length > 0 && (
         <Board 

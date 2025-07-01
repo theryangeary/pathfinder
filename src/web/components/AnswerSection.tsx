@@ -39,7 +39,7 @@ function AnswerSection({
   // When compact layout becomes active, find the focused input and set carousel index
   useEffect(() => {
     if (shouldUseCompactLayout) {
-      const focusedInput = document.activeElement;
+      const focusedInput = document.activeElement;    
       if (focusedInput && focusedInput.tagName === 'INPUT') {
         // Find which answer input is focused
         for (let i = 0; i < inputRefs.current.length; i++) {
