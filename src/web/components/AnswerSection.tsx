@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import AnswerInput, { AnswerInputHandle } from './AnswerInput';
+import { useVirtualKeyboard } from '../hooks/useVirtualKeyboard';
 
 interface AnswerSectionProps {
   answers: string[];
@@ -29,56 +30,26 @@ function AnswerSection({
   isOffline = false,
 }: AnswerSectionProps) {
   const inputRefs = useRef<(AnswerInputHandle | null)[]>([]);
-  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  const { isVisible: isKeyboardVisible } = useVirtualKeyboard();
   const [currentCarouselIndex, setCurrentCarouselIndex] = useState(0);
   const [isNavigating, setIsNavigating] = useState(false);
 
+  // When keyboard becomes visible, find the focused input and set carousel index
   useEffect(() => {
-    const detectKeyboard = () => {
-      if (window.visualViewport) {
-        const initialHeight = window.visualViewport.height;
-        let timeoutId: NodeJS.Timeout;
-        
-        const handleViewportChange = () => {
-          // Clear any pending timeout to debounce the detection
-          clearTimeout(timeoutId);
-          
-          timeoutId = setTimeout(() => {
-            let currentHeight = window.visualViewport ? window.visualViewport.height : 0;
-            const heightDifference = initialHeight - currentHeight;
-            const keyboardVisible = heightDifference > 100; // Threshold for keyboard detection
-            
-            setIsKeyboardVisible(prev => {
-              // When switching to carousel mode, find the focused input and set carousel index
-              if (keyboardVisible && !prev) {
-                const focusedInput = document.activeElement;
-                if (focusedInput && focusedInput.tagName === 'INPUT') {
-                  // Find which answer input is focused
-                  for (let i = 0; i < inputRefs.current.length; i++) {
-                    const inputEl = inputRefs.current[i]?.getElement();
-                    if (inputEl && document.activeElement === inputEl) {
-                      setCurrentCarouselIndex(i);
-                      break;
-                    }
-                  }
-                }
-              }
-              return keyboardVisible;
-            });
-          }, 150); // Debounce to prevent rapid state changes
-        };
-        
-        window.visualViewport.addEventListener('resize', handleViewportChange);
-        return () => {
-          clearTimeout(timeoutId);
-          window.visualViewport?.removeEventListener('resize', handleViewportChange);
-        };
+    if (isKeyboardVisible) {
+      const focusedInput = document.activeElement;
+      if (focusedInput && focusedInput.tagName === 'INPUT') {
+        // Find which answer input is focused
+        for (let i = 0; i < inputRefs.current.length; i++) {
+          const inputEl = inputRefs.current[i]?.getElement();
+          if (inputEl && document.activeElement === inputEl) {
+            setCurrentCarouselIndex(i);
+            break;
+          }
+        }
       }
-    };
-
-    const cleanup = detectKeyboard();
-    return cleanup;
-  }, []);
+    }
+  }, [isKeyboardVisible]);
 
   // Maintain focus when switching to/from carousel mode or changing carousel index
   useEffect(() => {
