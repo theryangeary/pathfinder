@@ -97,9 +97,7 @@ function AnswerSection({
   };
 
   const handleAnswerFocus = (index: number) => {
-    if (isKeyboardVisible) {
-      setCurrentCarouselIndex(index);
-    }
+    setCurrentCarouselIndex(index);
     onAnswerFocus(index);
   };
 
