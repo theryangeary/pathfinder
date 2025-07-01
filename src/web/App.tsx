@@ -503,7 +503,7 @@ function App() {
           board={board} 
           highlightedPaths={highlightedPaths}
           wildcardConstraints={wildcardConstraints}
-          isKeyboardVisible={isVirtualKeyboardVisible}
+          shouldUseCompactLayout={shouldUseCompactLayout}
         />
       )}
       
