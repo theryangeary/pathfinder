@@ -9,6 +9,7 @@ interface AnswerSectionProps {
   onSubmit: () => void;
   onAnswerFocus: (index: number) => void;
   onAnswerBlur: (index: number) => void;
+  onViewAllAnswers: () => void;
   isSubmitting?: boolean;
   isWordListLoading?: boolean;
   isGameCompleted?: boolean;
@@ -24,6 +25,7 @@ function AnswerSection({
   onSubmit,
   onAnswerFocus,
   onAnswerBlur,
+  onViewAllAnswers,
   isSubmitting = false,
   isWordListLoading = false,
   isGameCompleted = false,
@@ -316,7 +318,7 @@ function AnswerSection({
       <div style={{ display: 'flex', justifyContent: 'center', marginTop: shouldUseCompactLayout ? '10px' : '20px' }}>
         {shouldUseCompactLayout ? (
           <button
-            onClick={() => {}} // No-op handler - causes inputs to lose focus, keyboard to close
+            onClick={onViewAllAnswers}
             onMouseDown={(e) => {
               const target = e.target as HTMLButtonElement;
               target.style.transform = 'scale(0.9)';

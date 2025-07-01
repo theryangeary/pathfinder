@@ -35,7 +35,7 @@ function App() {
   const [isValidWordFn, setIsValidWordFn] = useState<((word: string) => boolean) | null>(null);
   const [isGameCompleted, setIsGameCompleted] = useState(false);
 
-  const shouldUseCompactLayout = isVirtualKeyboardVisible && isMobile;
+  const shouldUseCompactLayout = isMobile && currentInputIndex !== -1;
 
   // Derived state calculations
   const validation = useMemo(() => {
@@ -526,6 +526,7 @@ function App() {
         onSubmit={handleSubmit}
         onAnswerFocus={(index) => handleAnswerInputChange(index)}
         onAnswerBlur={handleAnswerBlur}
+        onViewAllAnswers={() => setCurrentInputIndex(-1)}
         isSubmitting={isSubmitting}
         isWordListLoading={!isValidWordLoaded}
         isGameCompleted={isGameCompleted}
