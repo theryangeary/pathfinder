@@ -6,9 +6,9 @@ import Board from './components/Board';
 import HeatmapModal from './components/HeatmapModal';
 // Lazy load word list to avoid blocking initial render
 import PathfinderLogo from './components/Logo';
+import { useMobileDetection } from './hooks/useMobileDetection';
 import { useUser } from './hooks/useUser';
 import { useVirtualKeyboard } from './hooks/useVirtualKeyboard';
-import { useMobileDetection } from './hooks/useMobileDetection';
 import { generateBoard } from './utils/boardGeneration';
 import { Tile } from './utils/models';
 import { findPathsForHighlighting } from './utils/pathfinding';
@@ -21,6 +21,7 @@ function App() {
   const { user, isLoading: userLoading, clearUser } = useUser();
   const { isVisible: isVirtualKeyboardVisible } = useVirtualKeyboard();
   const isMobile = useMobileDetection();
+
   const [board, setBoard] = useState<Tile[][]>([]);
   const [answers, setAnswers] = useState<string[]>(['', '', '', '', '']);
   const [currentInputIndex, setCurrentInputIndex] = useState<number>(-1);
@@ -33,6 +34,8 @@ function App() {
   const [isValidWordLoaded, setIsValidWordLoaded] = useState(false);
   const [isValidWordFn, setIsValidWordFn] = useState<((word: string) => boolean) | null>(null);
   const [isGameCompleted, setIsGameCompleted] = useState(false);
+
+  const shouldUseCompactLayout = isVirtualKeyboardVisible && isMobile;
 
   // Derived state calculations
   const validation = useMemo(() => {
@@ -366,13 +369,13 @@ function App() {
       fontFamily: 'Arial, sans-serif', 
       maxWidth: '400px', 
       margin: '0 auto', 
-      padding: isVirtualKeyboardVisible ? '5px' : '20px',
+      padding: shouldUseCompactLayout ? '5px' : '20px',
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center'
     }}>
       <div style={{
-        display: isVirtualKeyboardVisible ? 'none' : 'block'
+        display: shouldUseCompactLayout ? 'none' : 'block'
       }}>
         <PathfinderLogo />
         
@@ -527,7 +530,7 @@ function App() {
         isWordListLoading={!isValidWordLoaded}
         isGameCompleted={isGameCompleted}
         isOffline={!!apiError}
-        isKeyboardVisible={isVirtualKeyboardVisible}
+        shouldUseCompactLayout={shouldUseCompactLayout}
       />
       
       <HeatmapModal

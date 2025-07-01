@@ -13,7 +13,7 @@ interface AnswerSectionProps {
   isWordListLoading?: boolean;
   isGameCompleted?: boolean;
   isOffline?: boolean;
-  isKeyboardVisible: boolean;
+  shouldUseCompactLayout: boolean;
 }
 
 function AnswerSection({ 
@@ -28,15 +28,15 @@ function AnswerSection({
   isWordListLoading = false,
   isGameCompleted = false,
   isOffline = false,
-  isKeyboardVisible,
+  shouldUseCompactLayout,
 }: AnswerSectionProps) {
   const inputRefs = useRef<(AnswerInputHandle | null)[]>([]);
   const [currentCarouselIndex, setCurrentCarouselIndex] = useState(0);
   const [isNavigating, setIsNavigating] = useState(false);
 
-  // When keyboard becomes visible, find the focused input and set carousel index
+  // When compact layout becomes active, find the focused input and set carousel index
   useEffect(() => {
-    if (isKeyboardVisible) {
+    if (shouldUseCompactLayout) {
       const focusedInput = document.activeElement;
       if (focusedInput && focusedInput.tagName === 'INPUT') {
         // Find which answer input is focused
@@ -49,11 +49,11 @@ function AnswerSection({
         }
       }
     }
-  }, [isKeyboardVisible]);
+  }, [shouldUseCompactLayout]);
 
   // Maintain focus when switching to/from carousel mode or changing carousel index
   useEffect(() => {
-    if (isKeyboardVisible && inputRefs.current[currentCarouselIndex]) {
+    if (shouldUseCompactLayout && inputRefs.current[currentCarouselIndex]) {
       // Use multiple attempts to ensure focus is maintained
       const focusInput = () => {
         inputRefs.current[currentCarouselIndex]?.focus();
@@ -72,7 +72,7 @@ function AnswerSection({
         setIsNavigating(false);
       }, 100);
     }
-  }, [isKeyboardVisible, currentCarouselIndex]);
+  }, [shouldUseCompactLayout, currentCarouselIndex]);
 
   const isInputEnabled = (index: number): boolean => {
     if (index < 0 || index >= answers.length) return false;
@@ -117,7 +117,7 @@ function AnswerSection({
   };
 
   const handleEnterPress = (currentIndex: number): void => {
-    if (isKeyboardVisible) {
+    if (shouldUseCompactLayout) {
       // In carousel mode, move to next answer
       goToNext();
       return;
@@ -141,7 +141,7 @@ function AnswerSection({
   };
   return (
     <div style={
-      { marginTop: isKeyboardVisible ? '10px' : '20px', 
+      { marginTop: shouldUseCompactLayout ? '10px' : '20px', 
         width: '100%', 
         boxSizing: 'border-box',
         transition: 'margin 200ms'
@@ -169,7 +169,7 @@ function AnswerSection({
           )}
         </h3>
 
-          { isKeyboardVisible && 
+          { shouldUseCompactLayout && 
             <div style={{ 
               display: 'flex', 
               justifyContent: 'center', 
@@ -230,11 +230,11 @@ function AnswerSection({
         </div>
       </div>
 
-          <div style={ isKeyboardVisible ?
+          <div style={ shouldUseCompactLayout ?
             { display: 'flex', alignItems: 'center', gap: '10px', margin: '5px 0', width: '100%', boxSizing: 'border-box', transition: '200ms' }
             : {}
           }>
-            { isKeyboardVisible &&
+            { shouldUseCompactLayout &&
               <button
                 onClick={goToPrevious}
                 onMouseDown={(e) => e.preventDefault()}
@@ -280,12 +280,12 @@ function AnswerSection({
             onFocus={handleAnswerFocus}
             onBlur={handleAnswerBlur}
             isGameCompleted={isGameCompleted}
-            isVisible={!isKeyboardVisible || index === currentCarouselIndex}
-            isKeyboardVisible={isKeyboardVisible}
+            isVisible={!shouldUseCompactLayout || index === currentCarouselIndex}
+            isKeyboardVisible={shouldUseCompactLayout}
           />
         );
       })}
-      { isKeyboardVisible && 
+      { shouldUseCompactLayout && 
               <button
                 onClick={goToNext}
                 onMouseDown={(e) => e.preventDefault()}
@@ -313,8 +313,8 @@ function AnswerSection({
             }
           </div>
       
-      <div style={{ display: 'flex', justifyContent: 'center', marginTop: isKeyboardVisible ? '10px' : '20px' }}>
-        {isKeyboardVisible ? (
+      <div style={{ display: 'flex', justifyContent: 'center', marginTop: shouldUseCompactLayout ? '10px' : '20px' }}>
+        {shouldUseCompactLayout ? (
           <button
             onClick={() => {}} // No-op handler - causes inputs to lose focus, keyboard to close
             onMouseDown={(e) => {
