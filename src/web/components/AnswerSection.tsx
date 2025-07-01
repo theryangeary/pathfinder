@@ -57,6 +57,7 @@ function AnswerSection({
       // Use multiple attempts to ensure focus is maintained
       const focusInput = () => {
         inputRefs.current[currentCarouselIndex]?.focus();
+        window.scrollTo(0, 0);
       };
       
       // Immediate focus
