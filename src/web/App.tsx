@@ -218,6 +218,7 @@ function App() {
     if (user && currentGame && !isGameCompleted) {
       saveProgress();
     }
+    setCurrentInputIndex(-1);
   };
 
   const handleAnswerInputChange = (index: number, value?: string): void => {
@@ -520,7 +521,7 @@ function App() {
           <LoadingSpinner />
         </div>
       )}
-      
+
       <AnswerSection
         answers={answers}
         onAnswerChange={(index, value) => handleAnswerInputChange(index, value)}
