@@ -368,6 +368,7 @@ function App() {
     <div style={{ 
       fontFamily: 'Arial, sans-serif', 
       maxWidth: '400px', 
+      height: '100vh',
       margin: '0 auto', 
       padding: shouldUseCompactLayout ? '5px' : '20px',
       display: 'flex',
