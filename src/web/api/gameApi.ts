@@ -3,8 +3,8 @@
 
 const API_BASE_URL = import.meta.env.PROD
   ? 'https://pathfinder-game.fly.dev/api'  // In production, use relative path (nginx proxy)
-  // : 'http://localhost:3001/api';  // In development, use direct backend URL
-   : 'http://192.168.0.234:3001/api'; // uncomment (and comment localhost) for cross-device testing
+  : 'http://localhost:3001/api';  // In development, use direct backend URL
+  //  : 'http://192.168.0.234:3001/api'; // uncomment (and comment localhost) for cross-device testing
 
 export interface ApiGame {
   id: string;
