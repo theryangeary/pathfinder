@@ -12,48 +12,27 @@ export const useVirtualKeyboard = (): VirtualKeyboardState => {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    // Check if Visual Viewport API is available (more reliable for iOS)
+    // Check if Visual Viewport API is available
     const hasVisualViewport = 'visualViewport' in window;
     
-    let initialHeight = 0;
-    let initialViewportHeight = 0;
+    // Keyboard detection cutoff: 65.5% of screen height
+    // Based on measured ranges: no-keyboard ~82%, keyboard ~49%
+    const KEYBOARD_CUTOFF_RATIO = 0.655;
     
-    const setInitialHeights = () => {
-      initialHeight = window.innerHeight;
-      if (hasVisualViewport) {
-        initialViewportHeight = window.visualViewport!.height;
-      }
-    };
-    
-    // Set initial heights after a short delay to account for browser UI settling
-    setTimeout(setInitialHeights, 100);
-
     const checkKeyboardVisibility = () => {
-      // If we don't have initial heights yet, set them now
-      if (initialHeight === 0) {
-        setInitialHeights();
-        return;
-      }
-
       let isKeyboardVisible = false;
 
-      if (hasVisualViewport) {
-        // Use Visual Viewport API for more reliable detection (especially on iOS)
-        const currentViewportHeight = window.visualViewport!.height;
-        const viewportHeightDifference = initialViewportHeight - currentViewportHeight;
+      if (hasVisualViewport && 'screen' in window) {
+        const screenHeight = window.screen.height;
+        const viewportHeight = window.visualViewport!.height;
+        const viewportRatio = viewportHeight / screenHeight;
         
-        // Also check window height as fallback
-        const currentHeight = window.innerHeight;
-        const windowHeightDifference = initialHeight - currentHeight;
-        
-        // Keyboard is visible if either viewport height decreased significantly
-        // or window height decreased significantly
-        isKeyboardVisible = viewportHeightDifference > 150 || windowHeightDifference > 150;
+        isKeyboardVisible = viewportRatio < KEYBOARD_CUTOFF_RATIO;
       } else {
-        // Fallback to window height for browsers without Visual Viewport API
+        // Fallback for browsers without Visual Viewport API or screen info
+        // Use a simple height threshold approach
         const currentHeight = window.innerHeight;
-        const heightDifference = initialHeight - currentHeight;
-        isKeyboardVisible = heightDifference > 150;
+        isKeyboardVisible = currentHeight < 500; // Conservative fallback
       }
       
       setKeyboardState({
@@ -64,31 +43,19 @@ export const useVirtualKeyboard = (): VirtualKeyboardState => {
     // Initial check
     checkKeyboardVisibility();
 
-    // Listen for window resize events
-    window.addEventListener('resize', checkKeyboardVisibility);
-    
     // Listen for Visual Viewport changes if available
     if (hasVisualViewport) {
       window.visualViewport!.addEventListener('resize', checkKeyboardVisibility);
     }
     
-    // Also listen for orientation changes which might reset our baseline
-    const handleOrientationChange = () => {
-      // Reset initial heights after orientation change
-      setTimeout(() => {
-        setInitialHeights();
-        checkKeyboardVisibility();
-      }, 500); // Wait for orientation change to complete
-    };
-    
-    window.addEventListener('orientationchange', handleOrientationChange);
+    // Listen for window resize as fallback
+    window.addEventListener('resize', checkKeyboardVisibility);
 
     return () => {
-      window.removeEventListener('resize', checkKeyboardVisibility);
       if (hasVisualViewport) {
         window.visualViewport!.removeEventListener('resize', checkKeyboardVisibility);
       }
-      window.removeEventListener('orientationchange', handleOrientationChange);
+      window.removeEventListener('resize', checkKeyboardVisibility);
     };
   }, []);
 
