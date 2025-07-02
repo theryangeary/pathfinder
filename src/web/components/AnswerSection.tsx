@@ -99,6 +99,19 @@ function AnswerSection({
     }
   };
 
+  const allAnswersValid = validAnswers.every(valid => valid);
+  const isOnLastAnswer = currentCarouselIndex === answers.length - 1;
+  const canGoToNext = !isOnLastAnswer && isInputEnabled(currentCarouselIndex + 1);
+  const canSubmit = isOnLastAnswer && allAnswersValid;
+
+  const handleSubmit = () => {
+    // Blur any focused input to hide the virtual keyboard
+    if (document.activeElement && document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+    onSubmit();
+  };
+
   const handleAnswerFocus = (index: number) => {
     setCurrentCarouselIndex(index);
     onAnswerFocus(index);
@@ -289,18 +302,18 @@ function AnswerSection({
       })}
       { shouldUseCompactLayout && 
               <button
-                onClick={goToNext}
+                onClick={canSubmit ? handleSubmit : goToNext}
                 onMouseDown={(e) => e.preventDefault()}
                 onTouchStart={(e) => e.preventDefault()}
-                disabled={currentCarouselIndex === answers.length - 1 || !isInputEnabled(currentCarouselIndex + 1)}
+                disabled={!canSubmit && !canGoToNext}
                 style={{
                   padding: '8px 8px',
                   fontSize: '18px',
-                  backgroundColor: (currentCarouselIndex === answers.length - 1 || !isInputEnabled(currentCarouselIndex + 1)) ? '#f0f0f0' : '#4CAF50',
-                  color: (currentCarouselIndex === answers.length - 1 || !isInputEnabled(currentCarouselIndex + 1)) ? '#999' : 'white',
+                  backgroundColor: (canSubmit || canGoToNext) ? '#4CAF50' : '#f0f0f0',
+                  color: (canSubmit || canGoToNext) ? 'white' : '#999',
                   border: 'none',
                   borderRadius: '4px',
-                  cursor: (currentCarouselIndex === answers.length - 1 || !isInputEnabled(currentCarouselIndex + 1)) ? 'not-allowed' : 'pointer',
+                  cursor: (canSubmit || canGoToNext) ? 'pointer' : 'not-allowed',
                   minWidth: '40px',
                   width: '40px',
                   height: '40px',
@@ -310,7 +323,7 @@ function AnswerSection({
                   flexShrink: 0
                 }}
               >
-                →
+                {isOnLastAnswer ? '🚀' : '→'}
               </button>
             }
           </div>
