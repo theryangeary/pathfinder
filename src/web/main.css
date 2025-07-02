@@ -3,23 +3,22 @@ body {
   margin: 0;
   padding: 0;
   max-height: 100vh;
-  overflow: hidden;
 }
 
 /* Use visualViewport height when available */
-@supports (height: 100dvh) {
+/* @supports (height: 100dvh) {
   body {
     max-height: 100dvh;
   }
-}
+} */
 
 /* Fallback to visualViewport API for dynamic height constraint */
-body {
+/* body {
   max-height: var(--viewport-height, 100vh);
-}
+} */
 
 /* Ensure root div takes appropriate height */
-#root {
+/* #root {
   height: 100%;
   overflow-y: auto;
-}
+} */
