@@ -1342,38 +1342,34 @@ mod tests {
         // Test finding different numbers of words
         for n in 1..=10 {
             let result = engine.find_best_n_words(&board, n).await;
-            assert!(result.is_ok(), "Should be able to find best {} words", n);
+            assert!(result.is_ok(), "Should be able to find best {n} words");
 
             let (best_words, metadata) = result.unwrap();
 
             // Should not exceed requested number
             assert!(
                 best_words.len() <= n,
-                "Should not exceed requested number {}",
-                n
+                "Should not exceed requested number {n}"
             );
-            assert!(metadata.word_count <= n, "Metadata should match for {}", n);
+            assert!(metadata.word_count <= n, "Metadata should match for {n}");
 
             // Verify data consistency
             assert_eq!(
                 best_words.len(),
                 metadata.word_count,
-                "Word count should match for n={}",
-                n
+                "Word count should match for n={n}"
             );
             assert_eq!(
                 best_words.len(),
                 metadata.individual_scores.len(),
-                "Individual scores should match word count for n={}",
-                n
+                "Individual scores should match word count for n={n}"
             );
 
             // Total score should be sum of individual scores
             let expected_total: i32 = metadata.individual_scores.iter().sum();
             assert_eq!(
                 metadata.total_score, expected_total,
-                "Total score should be sum of individual scores for n={}",
-                n
+                "Total score should be sum of individual scores for n={n}"
             );
 
             println!(
@@ -1435,7 +1431,7 @@ mod tests {
         let (best_words, metadata) = result.unwrap();
 
         // Verify that selected words don't have conflicting constraints
-        assert!(best_words.len() > 0, "Should find at least some words");
+        assert!(!best_words.is_empty(), "Should find at least some words");
 
         // Test that the constraint system properly validates the selected words
         let constraint_result = AnswerGroupConstraintSet::is_valid_set(best_words.clone());
@@ -1514,7 +1510,7 @@ mod tests {
 
         // The algorithm should find a combination that maximizes total score
         // even if it means not selecting the individual highest-scoring word
-        assert!(best_words.len() > 0, "Should find at least some words");
+        assert!(!best_words.is_empty(), "Should find at least some words");
 
         println!(
             "Skip top word test: Found {} words with total score {}",
@@ -1527,7 +1523,7 @@ mod tests {
         let mut sorted_words = all_words;
         sorted_words.sort_by(|a, b| b.score().cmp(&a.score()));
 
-        if sorted_words.len() > 0 {
+        if !sorted_words.is_empty() {
             println!(
                 "Top individual word: {} (score: {})",
                 sorted_words[0].word,
@@ -1581,7 +1577,7 @@ mod tests {
         // Test different numbers of words to see backtracking behavior
         for n in 1..=8 {
             let result = engine.find_best_n_words(&board, n).await;
-            assert!(result.is_ok(), "Should handle backtracking for n={}", n);
+            assert!(result.is_ok(), "Should handle backtracking for n={n}");
 
             let (best_words, metadata) = result.unwrap();
 
@@ -1589,8 +1585,7 @@ mod tests {
             let constraint_result = AnswerGroupConstraintSet::is_valid_set(best_words.clone());
             assert!(
                 constraint_result,
-                "Selected words should have compatible constraints for n={}",
-                n
+                "Selected words should have compatible constraints for n={n}"
             );
 
             println!(
@@ -1655,7 +1650,7 @@ mod tests {
 
         for (n, description) in test_cases {
             let result = engine.find_best_n_words(&board, n).await;
-            assert!(result.is_ok(), "Should handle {} scenario", description);
+            assert!(result.is_ok(), "Should handle {description} scenario");
 
             let (best_words, metadata) = result.unwrap();
 
@@ -1664,8 +1659,7 @@ mod tests {
                 let constraint_result = AnswerGroupConstraintSet::is_valid_set(best_words.clone());
                 assert!(
                     constraint_result,
-                    "Selected words should have compatible constraints for {}",
-                    description
+                    "Selected words should have compatible constraints for {description}"
                 );
             }
 
@@ -1673,21 +1667,18 @@ mod tests {
             assert_eq!(
                 best_words.len(),
                 metadata.word_count,
-                "Word count should match metadata for {}",
-                description
+                "Word count should match metadata for {description}"
             );
             assert_eq!(
                 best_words.len(),
                 metadata.individual_scores.len(),
-                "Individual scores should match word count for {}",
-                description
+                "Individual scores should match word count for {description}"
             );
 
             let expected_total: i32 = metadata.individual_scores.iter().sum();
             assert_eq!(
                 metadata.total_score, expected_total,
-                "Total score should match sum for {}",
-                description
+                "Total score should match sum for {description}"
             );
 
             println!(
@@ -1744,7 +1735,7 @@ mod tests {
         // Test the optimization with different numbers of words
         for n in 1..=10 {
             let result = engine.find_best_n_words(&board, n).await;
-            assert!(result.is_ok(), "Should find optimal selection for n={}", n);
+            assert!(result.is_ok(), "Should find optimal selection for n={n}");
 
             let (best_words, metadata) = result.unwrap();
 
@@ -1753,15 +1744,13 @@ mod tests {
                 let constraint_result = AnswerGroupConstraintSet::is_valid_set(best_words.clone());
                 assert!(
                     constraint_result,
-                    "Selected words should have compatible constraints for n={}",
-                    n
+                    "Selected words should have compatible constraints for n={n}"
                 );
 
                 // Verify that we're getting a reasonable total score
                 assert!(
                     metadata.total_score > 0,
-                    "Should have positive total score for n={}",
-                    n
+                    "Should have positive total score for n={n}"
                 );
 
                 println!(
@@ -1927,8 +1916,7 @@ mod tests {
             let result = engine.find_best_n_words(&board, n).await;
             assert!(
                 result.is_ok(),
-                "Should resolve constraint conflicts for n={}",
-                n
+                "Should resolve constraint conflicts for n={n}"
             );
 
             let (best_words, metadata) = result.unwrap();
@@ -1938,16 +1926,14 @@ mod tests {
                 let constraint_result = AnswerGroupConstraintSet::is_valid_set(best_words.clone());
                 assert!(
                     constraint_result,
-                    "Selected words should have compatible constraints for n={}",
-                    n
+                    "Selected words should have compatible constraints for n={n}"
                 );
 
                 // Verify score calculation
                 let expected_total: i32 = best_words.iter().map(|a| a.score()).sum();
                 assert_eq!(
                     metadata.total_score, expected_total,
-                    "Score calculation should be correct for n={}",
-                    n
+                    "Score calculation should be correct for n={n}"
                 );
 
                 println!(
@@ -1969,8 +1955,7 @@ mod tests {
                 }
             } else {
                 println!(
-                    "Constraint conflict test n={}: No valid combination found",
-                    n
+                    "Constraint conflict test n={n}: No valid combination found"
                 );
             }
         }

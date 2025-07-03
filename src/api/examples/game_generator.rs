@@ -2,13 +2,9 @@ use anyhow::Result;
 use dotenvy::dotenv;
 use rand::SeedableRng;
 use rand_seeder::Seeder;
-use std::env;
-use tokio_cron_scheduler::{Job, JobScheduler};
 use tracing::{error, info};
 
-use pathfinder::db::{setup_database, Repository};
 use pathfinder::game::GameEngine;
-use pathfinder::game_generator::GameGenerator;
 
 async fn run_game_generation() -> Result<()> {
     // // Setup game engine
