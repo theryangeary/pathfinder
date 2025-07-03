@@ -1,5 +1,5 @@
 use crate::db::{
-    models::{NewGame, NewGameAnswer},
+    models::{NewGame, NewGameAnswer, NewOptimalSolution},
     Repository,
 };
 use crate::game::GameEngine;
@@ -86,7 +86,7 @@ impl GameGenerator {
                     .try_generate_valid_board(&mut rng, threshold_score)
                     .await
                 {
-                    Ok((board, valid_answers, _)) => {
+                    Ok((board, valid_answers, (optimal_words, optimal_metadata))) => {
                         // Convert board to JSON for storage
                         let serializable_board =
                             crate::game::conversion::SerializableBoard::from(&board);
@@ -112,10 +112,23 @@ impl GameGenerator {
                             });
                         }
 
+                        // Prepare optimal solution data
+                        let optimal_words_and_scores: Vec<(String, i32)> = optimal_words
+                            .iter()
+                            .map(|answer| (answer.word.clone(), answer.score()))
+                            .collect();
+                        let optimal_solution_json = serde_json::to_string(&optimal_words_and_scores)?;
+                        
+                        let optimal_solution = NewOptimalSolution {
+                            game_id: temp_game_id.clone(), // Will be replaced in the atomic create
+                            words_and_scores: optimal_solution_json,
+                            total_score: optimal_metadata.total_score,
+                        };
+
                         // Create game and answers atomically
                         let (game, _created_answers) = self
                             .repository
-                            .create_game_with_answers(new_game, game_answers)
+                            .create_game_with_answers(new_game, game_answers, Some(optimal_solution))
                             .await?;
 
                         info!(

@@ -40,6 +40,15 @@ pub struct DbGameAnswer {
     pub created_at: DateTime<Utc>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DbOptimalSolution {
+    pub id: String,
+    pub game_id: String,
+    pub words_and_scores: String, // JSON blob containing optimal words and their scores
+    pub total_score: i32,
+    pub created_at: DateTime<Utc>,
+}
+
 // Helper structs for creating new entries
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NewUser {
@@ -67,6 +76,13 @@ pub struct NewGameEntry {
 pub struct NewGameAnswer {
     pub game_id: String,
     pub word: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NewOptimalSolution {
+    pub game_id: String,
+    pub words_and_scores: String,
+    pub total_score: i32,
 }
 
 impl DbUser {
@@ -127,6 +143,18 @@ impl DbGameAnswer {
             id: Uuid::new_v4().to_string(),
             game_id,
             word,
+            created_at: Utc::now(),
+        }
+    }
+}
+
+impl DbOptimalSolution {
+    pub fn new(game_id: String, words_and_scores: String, total_score: i32) -> Self {
+        Self {
+            id: Uuid::new_v4().to_string(),
+            game_id,
+            words_and_scores,
+            total_score,
             created_at: Utc::now(),
         }
     }

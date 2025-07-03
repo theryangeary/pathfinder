@@ -931,7 +931,7 @@ mod tests {
         new_game.sequence_number = 1;
         let (created_game, _) = state
             .repository
-            .create_game_with_answers(new_game, vec![])
+            .create_game_with_answers(new_game, vec![], None)
             .await
             .unwrap();
 
@@ -989,7 +989,7 @@ mod tests {
         for game in games {
             state
                 .repository
-                .create_game_with_answers(game, vec![])
+                .create_game_with_answers(game, vec![], None)
                 .await
                 .unwrap();
         }
@@ -1051,7 +1051,7 @@ mod tests {
         new_game.sequence_number = 1;
         let (created_game, _) = state
             .repository
-            .create_game_with_answers(new_game, vec![])
+            .create_game_with_answers(new_game, vec![], None)
             .await
             .unwrap();
 
@@ -1154,7 +1154,7 @@ mod tests {
         new_game.sequence_number = 1;
         let (_created_game, _) = state
             .repository
-            .create_game_with_answers(new_game, vec![])
+            .create_game_with_answers(new_game, vec![], None)
             .await
             .unwrap();
 
@@ -1213,7 +1213,7 @@ mod tests {
 
         let (created_game, _game_answers) = state
             .repository
-            .create_game_with_answers(new_game, test_answers)
+            .create_game_with_answers(new_game, test_answers, None)
             .await
             .unwrap();
 
@@ -1270,7 +1270,7 @@ mod tests {
 
         let (created_game, _game_answers) = state
             .repository
-            .create_game_with_answers(new_game, test_answers)
+            .create_game_with_answers(new_game, test_answers, None)
             .await
             .unwrap();
 
@@ -1334,7 +1334,7 @@ mod tests {
 
         let (created_game, _) = state
             .repository
-            .create_game_with_answers(new_game, test_answers)
+            .create_game_with_answers(new_game, test_answers, None)
             .await
             .unwrap();
 

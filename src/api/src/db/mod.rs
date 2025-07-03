@@ -50,6 +50,10 @@ async fn run_migrations(pool: &PgPool) -> Result<()> {
             "004_remove_paths_from_game_answers.sql",
             include_str!("../../migrations/004_remove_paths_from_game_answers.sql"),
         ),
+        (
+            "005_add_optimal_solutions.sql",
+            include_str!("../../migrations/005_add_optimal_solutions.sql")
+        )
     ];
 
     for (filename, migration_sql) in &migrations {

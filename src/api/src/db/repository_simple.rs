@@ -3,7 +3,7 @@ use chrono::Utc;
 use sqlx::{PgPool, Row};
 
 use super::models::{
-    DbGame, DbGameAnswer, DbGameEntry, DbUser, NewGame, NewGameAnswer, NewGameEntry, NewUser,
+    DbGame, DbGameAnswer, DbGameEntry, DbOptimalSolution, DbUser, NewGame, NewGameAnswer, NewGameEntry, NewOptimalSolution, NewUser,
 };
 
 #[derive(Clone)]
@@ -254,6 +254,7 @@ impl Repository {
         &self,
         new_game: NewGame,
         mut game_answers: Vec<NewGameAnswer>,
+        optimal_solution: Option<NewOptimalSolution>,
     ) -> Result<(DbGame, Vec<DbGameAnswer>)> {
         let mut tx = self.pool.begin().await?;
 
@@ -296,6 +297,27 @@ impl Repository {
             .await?;
 
             created_answers.push(answer);
+        }
+
+        // Create the optimal solution if provided
+        if let Some(mut optimal_sol) = optimal_solution {
+            optimal_sol.game_id = game.id.clone();
+            let solution = DbOptimalSolution::new(
+                optimal_sol.game_id,
+                optimal_sol.words_and_scores,
+                optimal_sol.total_score,
+            );
+
+            sqlx::query(
+                "INSERT INTO optimal_solutions (id, game_id, words_and_scores, total_score, created_at) VALUES ($1, $2, $3, $4, $5)",
+            )
+            .bind(&solution.id)
+            .bind(&solution.game_id)
+            .bind(&solution.words_and_scores)
+            .bind(solution.total_score)
+            .bind(solution.created_at)
+            .execute(&mut *tx)
+            .await?;
         }
 
         tx.commit().await?;
@@ -395,7 +417,7 @@ mod tests {
         };
 
         let (created_game, _) = repo
-            .create_game_with_answers(new_game, vec![])
+            .create_game_with_answers(new_game, vec![], None)
             .await
             .unwrap();
 
@@ -447,7 +469,7 @@ mod tests {
 
         let mut created_games = Vec::new();
         for game in games {
-            created_games.push(repo.create_game_with_answers(game, vec![]).await.unwrap());
+            created_games.push(repo.create_game_with_answers(game, vec![], None).await.unwrap());
         }
 
         // Test getting each game by sequence number
@@ -487,7 +509,7 @@ mod tests {
             threshold_score: 40,
             sequence_number: 1,
         };
-        repo.create_game_with_answers(new_game, vec![])
+        repo.create_game_with_answers(new_game, vec![], None)
             .await
             .unwrap();
 
@@ -502,7 +524,7 @@ mod tests {
             threshold_score: 35,
             sequence_number: 5,
         };
-        repo.create_game_with_answers(new_game, vec![])
+        repo.create_game_with_answers(new_game, vec![], None)
             .await
             .unwrap();
 
@@ -526,7 +548,7 @@ mod tests {
             threshold_score: 40,
             sequence_number: 1,
         };
-        repo.create_game_with_answers(new_game, vec![])
+        repo.create_game_with_answers(new_game, vec![], None)
             .await
             .unwrap();
 
@@ -555,7 +577,7 @@ mod tests {
             sequence_number: 1,
         };
         let (created_game, _) = repo
-            .create_game_with_answers(new_game, vec![])
+            .create_game_with_answers(new_game, vec![], None)
             .await
             .unwrap();
 
