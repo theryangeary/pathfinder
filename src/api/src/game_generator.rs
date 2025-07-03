@@ -2,7 +2,7 @@ use crate::db::{
     models::{NewGame, NewGameAnswer},
     Repository,
 };
-use crate::game::{BoardGenerator, GameEngine};
+use crate::game::GameEngine;
 use anyhow::Result;
 use chrono::{Duration, Utc};
 use rand::SeedableRng;
@@ -82,6 +82,7 @@ impl GameGenerator {
                 let mut rng = rand::rngs::StdRng::from_seed(seed);
 
                 match self
+                    .game_engine
                     .try_generate_valid_board(&mut rng, threshold_score)
                     .await
                 {
@@ -149,43 +150,6 @@ impl GameGenerator {
         anyhow::bail!("Could not generate valid game for date: {}", date);
     }
 
-    /// Try to generate a valid board that meets the threshold score
-    async fn try_generate_valid_board<R: rand::Rng>(
-        &self,
-        rng: &mut R,
-        threshold_score: i32,
-    ) -> Result<(
-        crate::game::board::Board,
-        Vec<crate::game::board::answer::Answer>,
-    )> {
-        let board_generator = BoardGenerator::new();
-        let board = board_generator.generate_board(rng);
-
-        // Find optimal set of 5 words instead of just checking top 5 individually
-        let (optimal_words, metadata) = self.game_engine.find_best_n_words(&board, 5).await?;
-
-        // Print optimal solution set to console
-        println!("=== OPTIMAL SOLUTION SET ===");
-        println!("Total Score: {}", metadata.total_score);
-        println!("Word Count: {}", metadata.word_count);
-        println!("Words:");
-        for (i, (word, score)) in optimal_words.iter().zip(metadata.individual_scores.iter()).enumerate() {
-            println!("  {}. {} (score: {})", i + 1, word.word, score);
-        }
-        println!("=============================");
-
-        if metadata.total_score >= threshold_score {
-            // Find all valid words for storage (the game still needs all words for validation)
-            let all_valid_answers = self.game_engine.find_all_valid_words(&board).await?;
-            Ok((board, all_valid_answers))
-        } else {
-            anyhow::bail!(
-                "Board quality insufficient: optimal 5 words sum to {} (threshold: {})",
-                metadata.total_score,
-                threshold_score
-            );
-        }
-    }
 
     /// Create a deterministic seed based on date and attempt numbers
     fn create_seed(&self, date: &str, reduction_attempt: u32, generation_attempt: u32) -> [u8; 32] {

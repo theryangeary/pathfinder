@@ -405,6 +405,44 @@ impl GameEngine {
         Ok(result)
     }
 
+    /// Try to generate a valid board that meets the threshold score
+    pub async fn try_generate_valid_board<R: rand::Rng>(
+        &self,
+        rng: &mut R,
+        threshold_score: i32,
+    ) -> Result<(
+        crate::game::board::Board,
+        Vec<crate::game::board::answer::Answer>,
+    )> {
+        let board_generator = BoardGenerator::new();
+        let board = board_generator.generate_board(rng);
+
+        // Find optimal set of 5 words instead of just checking top 5 individually
+        let (optimal_words, metadata) = self.find_best_n_words(&board, 5).await?;
+
+        // Print optimal solution set to console
+        println!("=== OPTIMAL SOLUTION SET ===");
+        println!("Total Score: {}", metadata.total_score);
+        println!("Word Count: {}", metadata.word_count);
+        println!("Words:");
+        for (i, (word, score)) in optimal_words.iter().zip(metadata.individual_scores.iter()).enumerate() {
+            println!("  {}. {} (score: {})", i + 1, word.word, score);
+        }
+        println!("=============================");
+
+        if metadata.total_score >= threshold_score {
+            // Find all valid words for storage (the game still needs all words for validation)
+            let all_valid_answers = self.find_all_valid_words(&board).await?;
+            Ok((board, all_valid_answers))
+        } else {
+            anyhow::bail!(
+                "Board quality insufficient: optimal 5 words sum to {} (threshold: {})",
+                metadata.total_score,
+                threshold_score
+            );
+        }
+    }
+
     pub fn find_best_n_words_from_answers(
         &self,
         answers: Vec<board::answer::Answer>,
