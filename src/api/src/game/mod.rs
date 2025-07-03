@@ -441,7 +441,7 @@ impl GameEngine {
 
     pub fn find_best_n_words_from_answers(
         &self,
-        answers: &Vec<board::answer::Answer>,
+        answers: &[board::answer::Answer],
         n: usize,
     ) -> Result<(Vec<board::answer::Answer>, OptimizationMetadata)> {
         if answers.is_empty() {
@@ -467,7 +467,7 @@ impl GameEngine {
         }
 
         // Phase 1: Sort answers by descending score
-        let mut sorted_answers = answers.clone();
+        let mut sorted_answers = answers.to_owned();
         sorted_answers.sort_by_key(|a| Reverse(a.score()));
 
         // Phase 2: Try greedy approach first (fast path)
