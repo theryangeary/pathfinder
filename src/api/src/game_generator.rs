@@ -161,21 +161,27 @@ impl GameGenerator {
         let board_generator = BoardGenerator::new();
         let board = board_generator.generate_board(rng);
 
-        // Find all valid words and their scores
-        let valid_answers = self.game_engine.find_all_valid_words(&board).await?;
+        // Find optimal set of 5 words instead of just checking top 5 individually
+        let (optimal_words, metadata) = self.game_engine.find_best_n_words(&board, 5).await?;
 
-        // Sort by score descending and take top 5
-        let mut scores: Vec<i32> = valid_answers.iter().map(|answer| answer.score()).collect();
-        scores.sort_by(|a, b| b.cmp(a));
+        // Print optimal solution set to console
+        println!("=== OPTIMAL SOLUTION SET ===");
+        println!("Total Score: {}", metadata.total_score);
+        println!("Word Count: {}", metadata.word_count);
+        println!("Words:");
+        for (i, (word, score)) in optimal_words.iter().zip(metadata.individual_scores.iter()).enumerate() {
+            println!("  {}. {} (score: {})", i + 1, word.word, score);
+        }
+        println!("=============================");
 
-        let top_5_sum: i32 = scores.iter().take(5).sum();
-
-        if top_5_sum >= threshold_score {
-            Ok((board, valid_answers))
+        if metadata.total_score >= threshold_score {
+            // Find all valid words for storage (the game still needs all words for validation)
+            let all_valid_answers = self.game_engine.find_all_valid_words(&board).await?;
+            Ok((board, all_valid_answers))
         } else {
             anyhow::bail!(
-                "Board quality insufficient: top 5 words sum to {} (threshold: {})",
-                top_5_sum,
+                "Board quality insufficient: optimal 5 words sum to {} (threshold: {})",
+                metadata.total_score,
                 threshold_score
             );
         }
