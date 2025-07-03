@@ -11,10 +11,8 @@ use pathfinder::game::GameEngine;
 use pathfinder::game_generator::GameGenerator;
 
 async fn run_game_generation() -> Result<()> {
-
     // // Setup game engine
     let game_engine = GameEngine::new(std::path::PathBuf::from("wordlist"));
-
 
     let date_str = "2025-06-30".to_string();
     let seed = Seeder::from(date_str).make_seed();
@@ -22,11 +20,12 @@ async fn run_game_generation() -> Result<()> {
 
     match game_engine.try_generate_valid_board(&mut rng, 40).await {
         Ok((board, _, (optimal_words, metadata))) => {
-            info!(
-                "Generated board: \n{}\n\nOptimal Answers:",
-                board,
-            );
-            for (i, (word, score)) in optimal_words.iter().zip(metadata.individual_scores.iter()).enumerate() {
+            info!("Generated board: \n{}\n\nOptimal Answers:", board,);
+            for (i, (word, score)) in optimal_words
+                .iter()
+                .zip(metadata.individual_scores.iter())
+                .enumerate()
+            {
                 info!("{}. {} (score: {})", i + 1, word.word, score);
             }
         }
@@ -40,7 +39,7 @@ async fn run_game_generation() -> Result<()> {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-        // Load environment variables
+    // Load environment variables
     dotenv().ok();
 
     // Initialize tracing

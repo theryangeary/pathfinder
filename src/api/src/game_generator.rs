@@ -117,8 +117,9 @@ impl GameGenerator {
                             .iter()
                             .map(|answer| (answer.word.clone(), answer.score()))
                             .collect();
-                        let optimal_solution_json = serde_json::to_string(&optimal_words_and_scores)?;
-                        
+                        let optimal_solution_json =
+                            serde_json::to_string(&optimal_words_and_scores)?;
+
                         let optimal_solution = NewOptimalSolution {
                             game_id: temp_game_id.clone(), // Will be replaced in the atomic create
                             words_and_scores: optimal_solution_json,
@@ -128,7 +129,11 @@ impl GameGenerator {
                         // Create game and answers atomically
                         let (game, _created_answers) = self
                             .repository
-                            .create_game_with_answers(new_game, game_answers, Some(optimal_solution))
+                            .create_game_with_answers(
+                                new_game,
+                                game_answers,
+                                Some(optimal_solution),
+                            )
                             .await?;
 
                         info!(
@@ -162,7 +167,6 @@ impl GameGenerator {
         );
         anyhow::bail!("Could not generate valid game for date: {}", date);
     }
-
 
     /// Create a deterministic seed based on date and attempt numbers
     fn create_seed(&self, date: &str, reduction_attempt: u32, generation_attempt: u32) -> [u8; 32] {

@@ -3,7 +3,8 @@ use chrono::Utc;
 use sqlx::{PgPool, Row};
 
 use super::models::{
-    DbGame, DbGameAnswer, DbGameEntry, DbOptimalSolution, DbUser, NewGame, NewGameAnswer, NewGameEntry, NewOptimalSolution, NewUser,
+    DbGame, DbGameAnswer, DbGameEntry, DbOptimalSolution, DbUser, NewGame, NewGameAnswer,
+    NewGameEntry, NewOptimalSolution, NewUser,
 };
 
 #[derive(Clone)]
@@ -469,7 +470,11 @@ mod tests {
 
         let mut created_games = Vec::new();
         for game in games {
-            created_games.push(repo.create_game_with_answers(game, vec![], None).await.unwrap());
+            created_games.push(
+                repo.create_game_with_answers(game, vec![], None)
+                    .await
+                    .unwrap(),
+            );
         }
 
         // Test getting each game by sequence number

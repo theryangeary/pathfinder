@@ -399,7 +399,11 @@ impl GameEngine {
         }
     }
 
-    pub async fn find_best_n_words(&self, board: &Board, n: usize) -> Result<(Vec<board::answer::Answer>, OptimizationMetadata)> {
+    pub async fn find_best_n_words(
+        &self,
+        board: &Board,
+        n: usize,
+    ) -> Result<(Vec<board::answer::Answer>, OptimizationMetadata)> {
         let all_answers = self.find_all_valid_words(board).await?;
         let result = self.find_best_n_words_from_answers(&all_answers, n)?;
         Ok(result)
@@ -420,7 +424,8 @@ impl GameEngine {
 
         // Find optimal set of 5 words instead of just checking top 5 individually
         let all_valid_answers = self.find_all_valid_words(&board).await?;
-        let (optimal_words, metadata) = self.find_best_n_words_from_answers(&all_valid_answers, 5)?;
+        let (optimal_words, metadata) =
+            self.find_best_n_words_from_answers(&all_valid_answers, 5)?;
 
         if metadata.total_score >= threshold_score {
             Ok((board, all_valid_answers, (optimal_words, metadata)))
@@ -439,19 +444,25 @@ impl GameEngine {
         n: usize,
     ) -> Result<(Vec<board::answer::Answer>, OptimizationMetadata)> {
         if answers.is_empty() {
-            return Ok((vec![], OptimizationMetadata {
-                total_score: 0,
-                individual_scores: vec![],
-                word_count: 0,
-            }));
+            return Ok((
+                vec![],
+                OptimizationMetadata {
+                    total_score: 0,
+                    individual_scores: vec![],
+                    word_count: 0,
+                },
+            ));
         }
 
         if n == 0 {
-            return Ok((vec![], OptimizationMetadata {
-                total_score: 0,
-                individual_scores: vec![],
-                word_count: 0,
-            }));
+            return Ok((
+                vec![],
+                OptimizationMetadata {
+                    total_score: 0,
+                    individual_scores: vec![],
+                    word_count: 0,
+                },
+            ));
         }
 
         // Phase 1: Sort answers by descending score
@@ -460,15 +471,17 @@ impl GameEngine {
 
         // Phase 2: Try greedy approach first (fast path)
         let greedy_result = self.greedy_selection(&sorted_answers, n)?;
-        
+
         // Phase 3: If we didn't get the requested number, try backtracking approach
-        let final_result = if greedy_result.len() < n && greedy_result.len() < sorted_answers.len() {
+        let final_result = if greedy_result.len() < n && greedy_result.len() < sorted_answers.len()
+        {
             let backtrack_result = self.backtrack_selection(&sorted_answers, n)?;
             // Choose the better result (more words, or same words with higher score)
-            if backtrack_result.len() > greedy_result.len() || 
-               (backtrack_result.len() == greedy_result.len() && 
-                backtrack_result.iter().map(|a| a.score()).sum::<i32>() > 
-                greedy_result.iter().map(|a| a.score()).sum::<i32>()) {
+            if backtrack_result.len() > greedy_result.len()
+                || (backtrack_result.len() == greedy_result.len()
+                    && backtrack_result.iter().map(|a| a.score()).sum::<i32>()
+                        > greedy_result.iter().map(|a| a.score()).sum::<i32>())
+            {
                 backtrack_result
             } else {
                 greedy_result
@@ -480,7 +493,7 @@ impl GameEngine {
         // Create metadata
         let individual_scores: Vec<i32> = final_result.iter().map(|a| a.score()).collect();
         let total_score = individual_scores.iter().sum();
-        
+
         let metadata = OptimizationMetadata {
             total_score,
             individual_scores,
@@ -508,7 +521,7 @@ impl GameEngine {
             }
 
             let candidate = &sorted_answers[i];
-            
+
             // Check if this candidate is compatible with current selection
             if self.is_compatible_with_selection(candidate, &selected_answers)? {
                 selected_answers.push(candidate.clone());
@@ -526,11 +539,11 @@ impl GameEngine {
     ) -> Result<Vec<board::answer::Answer>> {
         let mut best_combination = Vec::new();
         let mut best_score = 0;
-        
+
         // Try all possible combinations using backtracking
         let mut current_combination = Vec::new();
         let mut used_indices = std::collections::HashSet::new();
-        
+
         self.backtrack_helper(
             sorted_answers,
             n,
@@ -540,7 +553,7 @@ impl GameEngine {
             &mut best_combination,
             &mut best_score,
         )?;
-        
+
         Ok(best_combination)
     }
 
@@ -576,13 +589,13 @@ impl GameEngine {
             }
 
             let candidate = &sorted_answers[i];
-            
+
             // Check if this candidate is compatible with current selection
             if self.is_compatible_with_selection(candidate, current_combination)? {
                 // Add to current combination
                 current_combination.push(candidate.clone());
                 used_indices.insert(i);
-                
+
                 // Recursive call
                 self.backtrack_helper(
                     sorted_answers,
@@ -593,7 +606,7 @@ impl GameEngine {
                     best_combination,
                     best_score,
                 )?;
-                
+
                 // Backtrack
                 current_combination.pop();
                 used_indices.remove(&i);
@@ -1265,27 +1278,43 @@ mod tests {
         // Test finding best 5 words
         let result = engine.find_best_n_words(&board, 5).await;
         assert!(result.is_ok(), "Should be able to find best 5 words");
-        
+
         let (best_words, metadata) = result.unwrap();
-        
+
         // Should have found some words (up to 5)
         assert!(best_words.len() <= 5, "Should not exceed requested number");
         assert!(metadata.word_count <= 5, "Metadata should match");
-        assert_eq!(best_words.len(), metadata.word_count, "Word count should match");
-        assert_eq!(best_words.len(), metadata.individual_scores.len(), "Individual scores should match word count");
-        
+        assert_eq!(
+            best_words.len(),
+            metadata.word_count,
+            "Word count should match"
+        );
+        assert_eq!(
+            best_words.len(),
+            metadata.individual_scores.len(),
+            "Individual scores should match word count"
+        );
+
         // Total score should be sum of individual scores
         let expected_total: i32 = metadata.individual_scores.iter().sum();
-        assert_eq!(metadata.total_score, expected_total, "Total score should be sum of individual scores");
-        
+        assert_eq!(
+            metadata.total_score, expected_total,
+            "Total score should be sum of individual scores"
+        );
+
         // Words should be sorted by descending score (greedy selection)
         for i in 1..best_words.len() {
-            assert!(best_words[i-1].score() >= best_words[i].score(), 
-                "Words should be in descending score order due to greedy selection");
+            assert!(
+                best_words[i - 1].score() >= best_words[i].score(),
+                "Words should be in descending score order due to greedy selection"
+            );
         }
-        
-        println!("Test completed successfully! Found {} words with total score {}", 
-                 best_words.len(), metadata.total_score);
+
+        println!(
+            "Test completed successfully! Found {} words with total score {}",
+            best_words.len(),
+            metadata.total_score
+        );
     }
 
     #[tokio::test]
@@ -1304,9 +1333,9 @@ mod tests {
             "bit", "bat", "bag", "big", "dig", "fig", "fag", "far", "bar", "bad", "dad", "sad",
             "mad", "had", "has", "his", "hit", "kit", "lit", "pit", "sit", "fit", "fat", "hat",
             "hag", "lag", "tag", "gag", "gap", "gas", "gas", "was", "saw", "paw", "raw", "ram",
-            "jam", "ham", "dam", "dam", "damp", "camp", "clamp", "stamp", "tramp", "cramp"
+            "jam", "ham", "dam", "dam", "damp", "camp", "clamp", "stamp", "tramp", "cramp",
         ];
-        
+
         let engine = GameEngine::new(words);
         let board = create_test_board();
 
@@ -1314,22 +1343,45 @@ mod tests {
         for n in 1..=10 {
             let result = engine.find_best_n_words(&board, n).await;
             assert!(result.is_ok(), "Should be able to find best {} words", n);
-            
+
             let (best_words, metadata) = result.unwrap();
-            
+
             // Should not exceed requested number
-            assert!(best_words.len() <= n, "Should not exceed requested number {}", n);
+            assert!(
+                best_words.len() <= n,
+                "Should not exceed requested number {}",
+                n
+            );
             assert!(metadata.word_count <= n, "Metadata should match for {}", n);
-            
+
             // Verify data consistency
-            assert_eq!(best_words.len(), metadata.word_count, "Word count should match for n={}", n);
-            assert_eq!(best_words.len(), metadata.individual_scores.len(), "Individual scores should match word count for n={}", n);
-            
+            assert_eq!(
+                best_words.len(),
+                metadata.word_count,
+                "Word count should match for n={}",
+                n
+            );
+            assert_eq!(
+                best_words.len(),
+                metadata.individual_scores.len(),
+                "Individual scores should match word count for n={}",
+                n
+            );
+
             // Total score should be sum of individual scores
             let expected_total: i32 = metadata.individual_scores.iter().sum();
-            assert_eq!(metadata.total_score, expected_total, "Total score should be sum of individual scores for n={}", n);
-            
-            println!("n={}: Found {} words with total score {}", n, best_words.len(), metadata.total_score);
+            assert_eq!(
+                metadata.total_score, expected_total,
+                "Total score should be sum of individual scores for n={}",
+                n
+            );
+
+            println!(
+                "n={}: Found {} words with total score {}",
+                n,
+                best_words.len(),
+                metadata.total_score
+            );
         }
     }
 
@@ -1337,14 +1389,14 @@ mod tests {
     async fn test_wildcard_conflicts_between_top_words() {
         // Create a board and word set where the top 2 words have conflicting wildcard constraints
         let words = vec![
-            "quiz", "quip", "quit", "quad", "queen", "quick", "quiet", "quite", "quote",
-            "zero", "zone", "zoom", "zest", "zinc", "zeal", "zeta", "zulu", "zany",
-            "cat", "dog", "bat", "rat", "hat", "mat", "pat", "sat", "fat", "vat",
-            "age", "ace", "ale", "ape", "are", "ate", "ave", "awe", "axe", "aye"
+            "quiz", "quip", "quit", "quad", "queen", "quick", "quiet", "quite", "quote", "zero",
+            "zone", "zoom", "zest", "zinc", "zeal", "zeta", "zulu", "zany", "cat", "dog", "bat",
+            "rat", "hat", "mat", "pat", "sat", "fat", "vat", "age", "ace", "ale", "ape", "are",
+            "ate", "ave", "awe", "axe", "aye",
         ];
-        
+
         let engine = GameEngine::new(words);
-        
+
         // Create a board specifically designed to test wildcard conflicts
         // This board has two wildcards that could create conflicts
         let mut board = Board::new();
@@ -1352,42 +1404,51 @@ mod tests {
         // * a t e  (wildcard at 1,0)
         // b c d f
         // * g h j  (wildcard at 3,0)
-        
-        board.set_tile(0, 0, 'q', 8, false);  // high-value letter
+
+        board.set_tile(0, 0, 'q', 8, false); // high-value letter
         board.set_tile(0, 1, 'u', 2, false);
         board.set_tile(0, 2, 'i', 1, false);
-        board.set_tile(0, 3, 'z', 8, false);  // high-value letter
-        
-        board.set_tile(1, 0, '*', 0, true);   // wildcard
+        board.set_tile(0, 3, 'z', 8, false); // high-value letter
+
+        board.set_tile(1, 0, '*', 0, true); // wildcard
         board.set_tile(1, 1, 'a', 1, false);
         board.set_tile(1, 2, 't', 1, false);
         board.set_tile(1, 3, 'e', 1, false);
-        
+
         board.set_tile(2, 0, 'b', 2, false);
         board.set_tile(2, 1, 'c', 2, false);
         board.set_tile(2, 2, 'd', 2, false);
         board.set_tile(2, 3, 'f', 3, false);
-        
-        board.set_tile(3, 0, '*', 0, true);   // wildcard
+
+        board.set_tile(3, 0, '*', 0, true); // wildcard
         board.set_tile(3, 1, 'g', 2, false);
         board.set_tile(3, 2, 'h', 2, false);
         board.set_tile(3, 3, 'j', 5, false);
-        
+
         // Find optimal words - should handle wildcard conflicts properly
         let result = engine.find_best_n_words(&board, 5).await;
-        assert!(result.is_ok(), "Should handle wildcard conflicts and find valid words");
-        
+        assert!(
+            result.is_ok(),
+            "Should handle wildcard conflicts and find valid words"
+        );
+
         let (best_words, metadata) = result.unwrap();
-        
+
         // Verify that selected words don't have conflicting constraints
         assert!(best_words.len() > 0, "Should find at least some words");
-        
+
         // Test that the constraint system properly validates the selected words
         let constraint_result = AnswerGroupConstraintSet::is_valid_set(best_words.clone());
-        assert!(constraint_result, "Selected words should have compatible constraints");
-        
-        println!("Wildcard conflict test: Found {} words with total score {}", 
-                 best_words.len(), metadata.total_score);
+        assert!(
+            constraint_result,
+            "Selected words should have compatible constraints"
+        );
+
+        println!(
+            "Wildcard conflict test: Found {} words with total score {}",
+            best_words.len(),
+            metadata.total_score
+        );
     }
 
     #[tokio::test]
@@ -1398,16 +1459,15 @@ mod tests {
             // High scoring word that will conflict with others
             "quiz", "quip", "quit", "quad", "queen", "quick", "quiet", "quite", "quote",
             // Multiple medium-scoring words that work together
-            "cat", "bat", "rat", "hat", "mat", "pat", "sat", "fat", "vat", "oat",
-            "ace", "age", "ale", "ape", "are", "ate", "ave", "awe", "axe", "aye",
-            "ice", "ore", "use", "see", "bee", "fee", "tee", "pee", "wee", "lee",
-            "bag", "big", "bog", "bug", "dig", "dog", "dug", "fig", "fog", "hug",
-            "jug", "lag", "leg", "log", "lug", "mag", "mug", "nag", "peg", "pig",
-            "rag", "rig", "rug", "sag", "tag", "tug", "wag", "wig", "zag", "zig"
+            "cat", "bat", "rat", "hat", "mat", "pat", "sat", "fat", "vat", "oat", "ace", "age",
+            "ale", "ape", "are", "ate", "ave", "awe", "axe", "aye", "ice", "ore", "use", "see",
+            "bee", "fee", "tee", "pee", "wee", "lee", "bag", "big", "bog", "bug", "dig", "dog",
+            "dug", "fig", "fog", "hug", "jug", "lag", "leg", "log", "lug", "mag", "mug", "nag",
+            "peg", "pig", "rag", "rig", "rug", "sag", "tag", "tug", "wag", "wig", "zag", "zig",
         ];
-        
+
         let engine = GameEngine::new(words);
-        
+
         // Create a board where one high-scoring word conflicts with multiple medium-scoring words
         let mut board = Board::new();
         // Design: A high-scoring word uses both wildcards in a way that conflicts with many other words
@@ -1415,51 +1475,64 @@ mod tests {
         // * b r *  (wildcards at 1,0 and 1,3)
         // d e f g
         // h i j k
-        
+
         board.set_tile(0, 0, 'c', 2, false);
         board.set_tile(0, 1, 'a', 1, false);
         board.set_tile(0, 2, 't', 1, false);
         board.set_tile(0, 3, 's', 1, false);
-        
-        board.set_tile(1, 0, '*', 0, true);   // wildcard
+
+        board.set_tile(1, 0, '*', 0, true); // wildcard
         board.set_tile(1, 1, 'b', 2, false);
         board.set_tile(1, 2, 'r', 1, false);
-        board.set_tile(1, 3, '*', 0, true);   // wildcard
-        
+        board.set_tile(1, 3, '*', 0, true); // wildcard
+
         board.set_tile(2, 0, 'd', 2, false);
         board.set_tile(2, 1, 'e', 1, false);
         board.set_tile(2, 2, 'f', 3, false);
         board.set_tile(2, 3, 'g', 2, false);
-        
+
         board.set_tile(3, 0, 'h', 2, false);
         board.set_tile(3, 1, 'i', 1, false);
         board.set_tile(3, 2, 'j', 5, false);
         board.set_tile(3, 3, 'k', 3, false);
-        
+
         // Find optimal 5 words
         let result = engine.find_best_n_words(&board, 5).await;
-        assert!(result.is_ok(), "Should find optimal combination even if it means skipping top word");
-        
+        assert!(
+            result.is_ok(),
+            "Should find optimal combination even if it means skipping top word"
+        );
+
         let (best_words, metadata) = result.unwrap();
-        
+
         // Verify constraint validity
         let constraint_result = AnswerGroupConstraintSet::is_valid_set(best_words.clone());
-        assert!(constraint_result, "Selected words should have compatible constraints");
-        
+        assert!(
+            constraint_result,
+            "Selected words should have compatible constraints"
+        );
+
         // The algorithm should find a combination that maximizes total score
         // even if it means not selecting the individual highest-scoring word
         assert!(best_words.len() > 0, "Should find at least some words");
-        
-        println!("Skip top word test: Found {} words with total score {}", 
-                 best_words.len(), metadata.total_score);
-        
+
+        println!(
+            "Skip top word test: Found {} words with total score {}",
+            best_words.len(),
+            metadata.total_score
+        );
+
         // Let's also test what happens if we try to force the top word
         let all_words = engine.find_all_valid_words(&board).await.unwrap();
         let mut sorted_words = all_words;
         sorted_words.sort_by(|a, b| b.score().cmp(&a.score()));
-        
+
         if sorted_words.len() > 0 {
-            println!("Top individual word: {} (score: {})", sorted_words[0].word, sorted_words[0].score());
+            println!(
+                "Top individual word: {} (score: {})",
+                sorted_words[0].word,
+                sorted_words[0].score()
+            );
         }
     }
 
@@ -1467,58 +1540,65 @@ mod tests {
     async fn test_backtracking_required_for_constraints() {
         // Create a scenario that requires backtracking due to wildcard constraints
         let words = vec![
-            "cat", "bat", "rat", "hat", "mat", "pat", "sat", "fat", "vat", "oat",
-            "cab", "bad", "rad", "had", "mad", "pad", "sad", "fad", "lad", "cad",
-            "ace", "age", "ale", "ape", "are", "ate", "ave", "awe", "axe", "aye",
-            "ice", "ore", "use", "see", "bee", "fee", "tee", "pee", "wee", "lee",
-            "bag", "big", "bog", "bug", "dig", "dog", "dug", "fig", "fog", "hug",
-            "jug", "lag", "leg", "log", "lug", "mag", "mug", "nag", "peg", "pig",
-            "rag", "rig", "rug", "sag", "tag", "tug", "wag", "wig", "zag", "zig",
-            "tab", "dab", "fab", "gab", "jab", "lab", "nab", "tab", "zab", "yab"
+            "cat", "bat", "rat", "hat", "mat", "pat", "sat", "fat", "vat", "oat", "cab", "bad",
+            "rad", "had", "mad", "pad", "sad", "fad", "lad", "cad", "ace", "age", "ale", "ape",
+            "are", "ate", "ave", "awe", "axe", "aye", "ice", "ore", "use", "see", "bee", "fee",
+            "tee", "pee", "wee", "lee", "bag", "big", "bog", "bug", "dig", "dog", "dug", "fig",
+            "fog", "hug", "jug", "lag", "leg", "log", "lug", "mag", "mug", "nag", "peg", "pig",
+            "rag", "rig", "rug", "sag", "tag", "tug", "wag", "wig", "zag", "zig", "tab", "dab",
+            "fab", "gab", "jab", "lab", "nab", "tab", "zab", "yab",
         ];
-        
+
         let engine = GameEngine::new(words);
-        
+
         // Create a board where the greedy algorithm needs to backtrack
         let mut board = Board::new();
         // t a b c
         // * d e *  (wildcards at 1,0 and 1,3)
         // f g h i
         // j k l m
-        
+
         board.set_tile(0, 0, 't', 1, false);
         board.set_tile(0, 1, 'a', 1, false);
         board.set_tile(0, 2, 'b', 2, false);
         board.set_tile(0, 3, 'c', 2, false);
-        
-        board.set_tile(1, 0, '*', 0, true);   // wildcard
+
+        board.set_tile(1, 0, '*', 0, true); // wildcard
         board.set_tile(1, 1, 'd', 2, false);
         board.set_tile(1, 2, 'e', 1, false);
-        board.set_tile(1, 3, '*', 0, true);   // wildcard
-        
+        board.set_tile(1, 3, '*', 0, true); // wildcard
+
         board.set_tile(2, 0, 'f', 3, false);
         board.set_tile(2, 1, 'g', 2, false);
         board.set_tile(2, 2, 'h', 2, false);
         board.set_tile(2, 3, 'i', 1, false);
-        
+
         board.set_tile(3, 0, 'j', 5, false);
         board.set_tile(3, 1, 'k', 3, false);
         board.set_tile(3, 2, 'l', 1, false);
         board.set_tile(3, 3, 'm', 2, false);
-        
+
         // Test different numbers of words to see backtracking behavior
         for n in 1..=8 {
             let result = engine.find_best_n_words(&board, n).await;
             assert!(result.is_ok(), "Should handle backtracking for n={}", n);
-            
+
             let (best_words, metadata) = result.unwrap();
-            
+
             // Verify constraint validity
             let constraint_result = AnswerGroupConstraintSet::is_valid_set(best_words.clone());
-            assert!(constraint_result, "Selected words should have compatible constraints for n={}", n);
-            
-            println!("Backtracking test n={}: Found {} words with total score {}", 
-                     n, best_words.len(), metadata.total_score);
+            assert!(
+                constraint_result,
+                "Selected words should have compatible constraints for n={}",
+                n
+            );
+
+            println!(
+                "Backtracking test n={}: Found {} words with total score {}",
+                n,
+                best_words.len(),
+                metadata.total_score
+            );
         }
     }
 
@@ -1527,43 +1607,42 @@ mod tests {
         // Test various complex scenarios with wildcard constraints
         let words = vec![
             // Words that use wildcards in different ways
-            "cat", "bat", "rat", "hat", "mat", "pat", "sat", "fat", "vat", "oat",
-            "ace", "age", "ale", "ape", "are", "ate", "ave", "awe", "axe", "aye",
-            "ice", "ore", "use", "see", "bee", "fee", "tee", "pee", "wee", "lee",
-            "red", "bed", "fed", "led", "wed", "ted", "ned", "ped", "zed", "jed",
-            "lab", "cab", "dab", "fab", "gab", "jab", "nab", "tab", "zab", "yab",
-            "big", "dig", "fig", "gig", "jig", "pig", "rig", "wig", "zig", "sig"
+            "cat", "bat", "rat", "hat", "mat", "pat", "sat", "fat", "vat", "oat", "ace", "age",
+            "ale", "ape", "are", "ate", "ave", "awe", "axe", "aye", "ice", "ore", "use", "see",
+            "bee", "fee", "tee", "pee", "wee", "lee", "red", "bed", "fed", "led", "wed", "ted",
+            "ned", "ped", "zed", "jed", "lab", "cab", "dab", "fab", "gab", "jab", "nab", "tab",
+            "zab", "yab", "big", "dig", "fig", "gig", "jig", "pig", "rig", "wig", "zig", "sig",
         ];
-        
+
         let engine = GameEngine::new(words);
-        
+
         // Create board with complex wildcard interaction possibilities
         let mut board = Board::new();
         // r e d s
         // * a b *  (wildcards at 1,0 and 1,3)
         // c t f g
         // i j k l
-        
+
         board.set_tile(0, 0, 'r', 1, false);
         board.set_tile(0, 1, 'e', 1, false);
         board.set_tile(0, 2, 'd', 2, false);
         board.set_tile(0, 3, 's', 1, false);
-        
-        board.set_tile(1, 0, '*', 0, true);   // wildcard
+
+        board.set_tile(1, 0, '*', 0, true); // wildcard
         board.set_tile(1, 1, 'a', 1, false);
         board.set_tile(1, 2, 'b', 2, false);
-        board.set_tile(1, 3, '*', 0, true);   // wildcard
-        
+        board.set_tile(1, 3, '*', 0, true); // wildcard
+
         board.set_tile(2, 0, 'c', 2, false);
         board.set_tile(2, 1, 't', 1, false);
         board.set_tile(2, 2, 'f', 3, false);
         board.set_tile(2, 3, 'g', 2, false);
-        
+
         board.set_tile(3, 0, 'i', 1, false);
         board.set_tile(3, 1, 'j', 5, false);
         board.set_tile(3, 2, 'k', 3, false);
         board.set_tile(3, 3, 'l', 1, false);
-        
+
         // Test edge cases
         let test_cases = vec![
             (1, "single word"),
@@ -1573,28 +1652,50 @@ mod tests {
             (0, "zero words"),
             (10, "more words than available"),
         ];
-        
+
         for (n, description) in test_cases {
             let result = engine.find_best_n_words(&board, n).await;
             assert!(result.is_ok(), "Should handle {} scenario", description);
-            
+
             let (best_words, metadata) = result.unwrap();
-            
+
             // Verify constraint validity for non-empty results
             if !best_words.is_empty() {
                 let constraint_result = AnswerGroupConstraintSet::is_valid_set(best_words.clone());
-                assert!(constraint_result, "Selected words should have compatible constraints for {}", description);
+                assert!(
+                    constraint_result,
+                    "Selected words should have compatible constraints for {}",
+                    description
+                );
             }
-            
+
             // Verify metadata consistency
-            assert_eq!(best_words.len(), metadata.word_count, "Word count should match metadata for {}", description);
-            assert_eq!(best_words.len(), metadata.individual_scores.len(), "Individual scores should match word count for {}", description);
-            
+            assert_eq!(
+                best_words.len(),
+                metadata.word_count,
+                "Word count should match metadata for {}",
+                description
+            );
+            assert_eq!(
+                best_words.len(),
+                metadata.individual_scores.len(),
+                "Individual scores should match word count for {}",
+                description
+            );
+
             let expected_total: i32 = metadata.individual_scores.iter().sum();
-            assert_eq!(metadata.total_score, expected_total, "Total score should match sum for {}", description);
-            
-            println!("Complex scenario {}: Found {} words with total score {}", 
-                     description, best_words.len(), metadata.total_score);
+            assert_eq!(
+                metadata.total_score, expected_total,
+                "Total score should match sum for {}",
+                description
+            );
+
+            println!(
+                "Complex scenario {}: Found {} words with total score {}",
+                description,
+                best_words.len(),
+                metadata.total_score
+            );
         }
     }
 
@@ -1605,68 +1706,86 @@ mod tests {
             // One high-scoring word that conflicts with many others
             "quiz", "quip", "quit", "quad", "queen", "quick", "quiet", "quite", "quote",
             // Multiple medium-scoring words that work well together
-            "cat", "bat", "rat", "hat", "mat", "pat", "sat", "fat", "vat", "oat",
-            "cab", "bad", "rad", "had", "mad", "pad", "sad", "fad", "lad", "cad",
-            "ace", "age", "ale", "ape", "are", "ate", "ave", "awe", "axe", "aye",
-            "ice", "ore", "use", "see", "bee", "fee", "tee", "pee", "wee", "lee"
+            "cat", "bat", "rat", "hat", "mat", "pat", "sat", "fat", "vat", "oat", "cab", "bad",
+            "rad", "had", "mad", "pad", "sad", "fad", "lad", "cad", "ace", "age", "ale", "ape",
+            "are", "ate", "ave", "awe", "axe", "aye", "ice", "ore", "use", "see", "bee", "fee",
+            "tee", "pee", "wee", "lee",
         ];
-        
+
         let engine = GameEngine::new(words);
-        
+
         // Create a board designed to test greedy vs optimal selection
         let mut board = Board::new();
         // q u i z
         // * * t e  (wildcards at 1,0 and 1,1)
         // a b c d
         // f g h j
-        
-        board.set_tile(0, 0, 'q', 8, false);  // high-value letter
+
+        board.set_tile(0, 0, 'q', 8, false); // high-value letter
         board.set_tile(0, 1, 'u', 2, false);
         board.set_tile(0, 2, 'i', 1, false);
-        board.set_tile(0, 3, 'z', 8, false);  // high-value letter
-        
-        board.set_tile(1, 0, '*', 0, true);   // wildcard
-        board.set_tile(1, 1, '*', 0, true);   // wildcard
+        board.set_tile(0, 3, 'z', 8, false); // high-value letter
+
+        board.set_tile(1, 0, '*', 0, true); // wildcard
+        board.set_tile(1, 1, '*', 0, true); // wildcard
         board.set_tile(1, 2, 't', 1, false);
         board.set_tile(1, 3, 'e', 1, false);
-        
+
         board.set_tile(2, 0, 'a', 1, false);
         board.set_tile(2, 1, 'b', 2, false);
         board.set_tile(2, 2, 'c', 2, false);
         board.set_tile(2, 3, 'd', 2, false);
-        
+
         board.set_tile(3, 0, 'f', 3, false);
         board.set_tile(3, 1, 'g', 2, false);
         board.set_tile(3, 2, 'h', 2, false);
         board.set_tile(3, 3, 'j', 5, false);
-        
+
         // Test the optimization with different numbers of words
         for n in 1..=10 {
             let result = engine.find_best_n_words(&board, n).await;
             assert!(result.is_ok(), "Should find optimal selection for n={}", n);
-            
+
             let (best_words, metadata) = result.unwrap();
-            
+
             if !best_words.is_empty() {
                 // Verify constraint validity
                 let constraint_result = AnswerGroupConstraintSet::is_valid_set(best_words.clone());
-                assert!(constraint_result, "Selected words should have compatible constraints for n={}", n);
-                
+                assert!(
+                    constraint_result,
+                    "Selected words should have compatible constraints for n={}",
+                    n
+                );
+
                 // Verify that we're getting a reasonable total score
-                assert!(metadata.total_score > 0, "Should have positive total score for n={}", n);
-                
-                println!("Greedy vs optimal n={}: Found {} words with total score {}", 
-                         n, best_words.len(), metadata.total_score);
+                assert!(
+                    metadata.total_score > 0,
+                    "Should have positive total score for n={}",
+                    n
+                );
+
+                println!(
+                    "Greedy vs optimal n={}: Found {} words with total score {}",
+                    n,
+                    best_words.len(),
+                    metadata.total_score
+                );
             }
         }
-        
+
         // Also test the scenario where we get more words than requested
         let result = engine.find_best_n_words(&board, 100).await;
-        assert!(result.is_ok(), "Should handle request for more words than available");
-        
+        assert!(
+            result.is_ok(),
+            "Should handle request for more words than available"
+        );
+
         let (best_words, metadata) = result.unwrap();
-        println!("Large request test: Found {} words with total score {}", 
-                 best_words.len(), metadata.total_score);
+        println!(
+            "Large request test: Found {} words with total score {}",
+            best_words.len(),
+            metadata.total_score
+        );
     }
 
     #[tokio::test]
@@ -1675,15 +1794,14 @@ mod tests {
         // and backtracking finds a better solution
         let words = vec![
             // High-scoring word that conflicts with multiple medium words
-            "quiz", 
-            // Medium-scoring words that work together but conflict with quiz
-            "cat", "bat", "rat", "hat", "mat", "pat", "sat", "fat", "vat", "oat",
-            "cab", "bad", "rad", "had", "mad", "pad", "sad", "fad", "lad", "cad",
-            "ace", "age", "ale", "ape", "are", "ate", "ave", "awe", "axe", "aye"
+            "quiz", // Medium-scoring words that work together but conflict with quiz
+            "cat", "bat", "rat", "hat", "mat", "pat", "sat", "fat", "vat", "oat", "cab", "bad",
+            "rad", "had", "mad", "pad", "sad", "fad", "lad", "cad", "ace", "age", "ale", "ape",
+            "are", "ate", "ave", "awe", "axe", "aye",
         ];
-        
+
         let engine = GameEngine::new(words);
-        
+
         // Create a board where:
         // - One high-scoring word uses both wildcards in a constraining way
         // - Multiple medium-scoring words can be combined for higher total
@@ -1692,57 +1810,76 @@ mod tests {
         // * * t e  (wildcards at 1,0 and 1,1 - both needed for "quiz")
         // a b c d
         // f g h j
-        
-        board.set_tile(0, 0, 'q', 10, false);  // very high-value
+
+        board.set_tile(0, 0, 'q', 10, false); // very high-value
         board.set_tile(0, 1, 'u', 3, false);
         board.set_tile(0, 2, 'i', 1, false);
-        board.set_tile(0, 3, 'z', 10, false);  // very high-value
-        
-        board.set_tile(1, 0, '*', 0, true);   // wildcard
-        board.set_tile(1, 1, '*', 0, true);   // wildcard
+        board.set_tile(0, 3, 'z', 10, false); // very high-value
+
+        board.set_tile(1, 0, '*', 0, true); // wildcard
+        board.set_tile(1, 1, '*', 0, true); // wildcard
         board.set_tile(1, 2, 't', 1, false);
         board.set_tile(1, 3, 'e', 1, false);
-        
+
         board.set_tile(2, 0, 'a', 1, false);
         board.set_tile(2, 1, 'b', 2, false);
         board.set_tile(2, 2, 'c', 2, false);
         board.set_tile(2, 3, 'd', 2, false);
-        
+
         board.set_tile(3, 0, 'f', 3, false);
         board.set_tile(3, 1, 'g', 2, false);
         board.set_tile(3, 2, 'h', 2, false);
         board.set_tile(3, 3, 'j', 5, false);
-        
+
         // Test with n=2 where backtracking might find a better combination
         let result = engine.find_best_n_words(&board, 2).await;
         assert!(result.is_ok(), "Should find optimal combination");
-        
+
         let (best_words, metadata) = result.unwrap();
-        
+
         // Verify that we found a valid combination
         let constraint_result = AnswerGroupConstraintSet::is_valid_set(best_words.clone());
-        assert!(constraint_result, "Selected words should have compatible constraints");
-        
-        println!("Backtracking vs greedy test: Found {} words with total score {}", 
-                 best_words.len(), metadata.total_score);
-        
+        assert!(
+            constraint_result,
+            "Selected words should have compatible constraints"
+        );
+
+        println!(
+            "Backtracking vs greedy test: Found {} words with total score {}",
+            best_words.len(),
+            metadata.total_score
+        );
+
         // Also test what the purely greedy approach would find
-        let greedy_only = engine.greedy_selection(&{
-            let mut answers = engine.find_all_valid_words(&board).await.unwrap();
-            answers.sort_by(|a, b| b.score().cmp(&a.score()));
-            answers
-        }, 2).unwrap();
-        
+        let greedy_only = engine
+            .greedy_selection(
+                &{
+                    let mut answers = engine.find_all_valid_words(&board).await.unwrap();
+                    answers.sort_by(|a, b| b.score().cmp(&a.score()));
+                    answers
+                },
+                2,
+            )
+            .unwrap();
+
         let greedy_score: i32 = greedy_only.iter().map(|a| a.score()).sum();
-        
-        println!("Greedy-only would find: {} words with score {}", 
-                 greedy_only.len(), greedy_score);
-        println!("Our algorithm found: {} words with score {}", 
-                 best_words.len(), metadata.total_score);
-        
+
+        println!(
+            "Greedy-only would find: {} words with score {}",
+            greedy_only.len(),
+            greedy_score
+        );
+        println!(
+            "Our algorithm found: {} words with score {}",
+            best_words.len(),
+            metadata.total_score
+        );
+
         // The enhanced algorithm should do at least as well as greedy
-        assert!(metadata.total_score >= greedy_score || best_words.len() > greedy_only.len(),
-                "Enhanced algorithm should be at least as good as greedy");
+        assert!(
+            metadata.total_score >= greedy_score || best_words.len() > greedy_only.len(),
+            "Enhanced algorithm should be at least as good as greedy"
+        );
     }
 
     #[tokio::test]
@@ -1750,69 +1887,91 @@ mod tests {
         // Create a scenario that definitely requires constraint conflict resolution
         let words = vec![
             // Words that will create specific constraint conflicts
-            "cat", "cab", "cut", "cub", "bat", "bad", "but", "bud",
-            "rat", "rad", "rut", "rug", "hat", "had", "hut", "hug",
-            "mat", "mad", "mut", "mug", "pat", "pad", "put", "pug",
-            "sat", "sad", "sut", "sag", "fat", "fad", "fut", "fog",
-            "ace", "age", "ale", "ape", "are", "ate", "ave", "awe",
-            "ice", "ore", "use", "see", "bee", "fee", "tee", "pee"
+            "cat", "cab", "cut", "cub", "bat", "bad", "but", "bud", "rat", "rad", "rut", "rug",
+            "hat", "had", "hut", "hug", "mat", "mad", "mut", "mug", "pat", "pad", "put", "pug",
+            "sat", "sad", "sut", "sag", "fat", "fad", "fut", "fog", "ace", "age", "ale", "ape",
+            "are", "ate", "ave", "awe", "ice", "ore", "use", "see", "bee", "fee", "tee", "pee",
         ];
-        
+
         let engine = GameEngine::new(words);
-        
+
         // Create a board designed to create maximum constraint conflicts
         let mut board = Board::new();
         // c a b u
         // * t * d  (wildcards at 1,0 and 1,2)
         // r e f g
         // s h i j
-        
+
         board.set_tile(0, 0, 'c', 2, false);
         board.set_tile(0, 1, 'a', 1, false);
         board.set_tile(0, 2, 'b', 2, false);
         board.set_tile(0, 3, 'u', 2, false);
-        
-        board.set_tile(1, 0, '*', 0, true);   // wildcard
+
+        board.set_tile(1, 0, '*', 0, true); // wildcard
         board.set_tile(1, 1, 't', 1, false);
-        board.set_tile(1, 2, '*', 0, true);   // wildcard
+        board.set_tile(1, 2, '*', 0, true); // wildcard
         board.set_tile(1, 3, 'd', 2, false);
-        
+
         board.set_tile(2, 0, 'r', 1, false);
         board.set_tile(2, 1, 'e', 1, false);
         board.set_tile(2, 2, 'f', 3, false);
         board.set_tile(2, 3, 'g', 2, false);
-        
+
         board.set_tile(3, 0, 's', 1, false);
         board.set_tile(3, 1, 'h', 2, false);
         board.set_tile(3, 2, 'i', 1, false);
         board.set_tile(3, 3, 'j', 5, false);
-        
+
         // Test with increasing values of n to stress the constraint system
         for n in 1..=5 {
             let result = engine.find_best_n_words(&board, n).await;
-            assert!(result.is_ok(), "Should resolve constraint conflicts for n={}", n);
-            
+            assert!(
+                result.is_ok(),
+                "Should resolve constraint conflicts for n={}",
+                n
+            );
+
             let (best_words, metadata) = result.unwrap();
-            
+
             if !best_words.is_empty() {
                 // Verify constraint validity
                 let constraint_result = AnswerGroupConstraintSet::is_valid_set(best_words.clone());
-                assert!(constraint_result, "Selected words should have compatible constraints for n={}", n);
-                
+                assert!(
+                    constraint_result,
+                    "Selected words should have compatible constraints for n={}",
+                    n
+                );
+
                 // Verify score calculation
                 let expected_total: i32 = best_words.iter().map(|a| a.score()).sum();
-                assert_eq!(metadata.total_score, expected_total, "Score calculation should be correct for n={}", n);
-                
-                println!("Constraint conflict test n={}: Found {} words with total score {}", 
-                         n, best_words.len(), metadata.total_score);
-                
+                assert_eq!(
+                    metadata.total_score, expected_total,
+                    "Score calculation should be correct for n={}",
+                    n
+                );
+
+                println!(
+                    "Constraint conflict test n={}: Found {} words with total score {}",
+                    n,
+                    best_words.len(),
+                    metadata.total_score
+                );
+
                 // Print the actual words and their constraints for debugging
                 for (i, word) in best_words.iter().enumerate() {
-                    println!("  {}. {} (score: {}, constraints: {:?})", 
-                             i + 1, word.word, word.score(), word.constraints_set);
+                    println!(
+                        "  {}. {} (score: {}, constraints: {:?})",
+                        i + 1,
+                        word.word,
+                        word.score(),
+                        word.constraints_set
+                    );
                 }
             } else {
-                println!("Constraint conflict test n={}: No valid combination found", n);
+                println!(
+                    "Constraint conflict test n={}: No valid combination found",
+                    n
+                );
             }
         }
     }
