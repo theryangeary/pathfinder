@@ -3,6 +3,7 @@ pub mod models;
 pub mod repository_simple;
 pub mod storage_types;
 
+pub use models::OptimalAnswer;
 pub use repository_simple::Repository;
 
 use anyhow::Result;

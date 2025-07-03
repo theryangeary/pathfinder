@@ -159,3 +159,9 @@ impl DbOptimalSolution {
         }
     }
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OptimalAnswer {
+    pub word: String,
+    pub score: i32,
+}

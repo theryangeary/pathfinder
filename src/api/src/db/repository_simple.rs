@@ -4,7 +4,7 @@ use sqlx::{PgPool, Row};
 
 use super::models::{
     DbGame, DbGameAnswer, DbGameEntry, DbOptimalSolution, DbUser, NewGame, NewGameAnswer,
-    NewGameEntry, NewOptimalSolution, NewUser,
+    NewGameEntry, NewOptimalSolution, NewUser, OptimalAnswer,
 };
 
 #[derive(Clone)]
@@ -337,6 +337,41 @@ impl Repository {
             .collect();
 
         Ok(words)
+    }
+
+    // Get score distribution for a specific game
+    pub async fn get_score_distribution(&self, game_id: &str) -> Result<Vec<i32>> {
+        dbg!(game_id);
+        let rows = sqlx::query(
+            "SELECT total_score FROM game_entries WHERE game_id = $1 AND completed = TRUE",
+        )
+        .bind(game_id)
+        .fetch_all(&self.pool)
+        .await?;
+        dbg!(&rows);
+
+        let scores = rows
+            .into_iter()
+            .map(|row| row.get::<i32, _>("total_score"))
+            .collect();
+
+        Ok(scores)
+    }
+
+    // Get optimal solutions for a specific game
+    pub async fn get_optimal_solutions(&self, game_id: &str) -> Result<Vec<OptimalAnswer>> {
+        let row = sqlx::query("SELECT words_and_scores FROM optimal_solutions WHERE game_id = $1")
+            .bind(game_id)
+            .fetch_optional(&self.pool)
+            .await?;
+
+        if let Some(row) = row {
+            let words_and_scores: String = row.get("words_and_scores");
+            let optimal_answers: Vec<OptimalAnswer> = serde_json::from_str(&words_and_scores)?;
+            Ok(optimal_answers)
+        } else {
+            Ok(Vec::new())
+        }
     }
 
     // Statistics operations
