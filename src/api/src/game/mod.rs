@@ -100,6 +100,13 @@ use crate::game::board::constraints::AnswerGroupConstraintSet;
 use crate::game::scoring::ScoreSheet;
 use crate::http_api::ApiAnswer;
 
+#[derive(Debug, Clone)]
+pub struct OptimizationMetadata {
+    pub total_score: i32,
+    pub individual_scores: Vec<i32>,
+    pub word_count: usize,
+}
+
 /// Main game engine that combines all the game logic components
 #[derive(Clone)]
 pub struct GameEngine {
@@ -390,6 +397,97 @@ impl GameEngine {
                 }
             }
         }
+    }
+
+    pub async fn find_best_n_words(&self, board: &Board, n: usize) -> Result<(Vec<board::answer::Answer>, OptimizationMetadata)> {
+        let all_answers = self.find_all_valid_words(board).await?;
+        let result = self.find_best_n_words_from_answers(all_answers, n)?;
+        Ok(result)
+    }
+
+    pub fn find_best_n_words_from_answers(
+        &self,
+        answers: Vec<board::answer::Answer>,
+        n: usize,
+    ) -> Result<(Vec<board::answer::Answer>, OptimizationMetadata)> {
+        if answers.is_empty() {
+            return Ok((vec![], OptimizationMetadata {
+                total_score: 0,
+                individual_scores: vec![],
+                word_count: 0,
+            }));
+        }
+
+        if n == 0 {
+            return Ok((vec![], OptimizationMetadata {
+                total_score: 0,
+                individual_scores: vec![],
+                word_count: 0,
+            }));
+        }
+
+        // Phase 1: Sort answers by descending score
+        let mut sorted_answers = answers;
+        sorted_answers.sort_by(|a, b| b.score().cmp(&a.score()));
+
+        // Phase 2: Greedy selection with constraint checking
+        let mut selected_answers = Vec::new();
+        let mut used_indices = std::collections::HashSet::new();
+
+        for i in 0..sorted_answers.len() {
+            if selected_answers.len() >= n {
+                break;
+            }
+
+            if used_indices.contains(&i) {
+                continue;
+            }
+
+            let candidate = &sorted_answers[i];
+            
+            // Check if this candidate is compatible with current selection
+            if self.is_compatible_with_selection(candidate, &selected_answers)? {
+                selected_answers.push(candidate.clone());
+                used_indices.insert(i);
+            }
+        }
+
+        // Create metadata
+        let individual_scores: Vec<i32> = selected_answers.iter().map(|a| a.score()).collect();
+        let total_score = individual_scores.iter().sum();
+        
+        let metadata = OptimizationMetadata {
+            total_score,
+            individual_scores,
+            word_count: selected_answers.len(),
+        };
+
+        // Print results to console
+        println!("=== Optimization Results ===");
+        println!("Found {} words with total score: {}", selected_answers.len(), total_score);
+        for (i, answer) in selected_answers.iter().enumerate() {
+            println!("{}. {} (score: {})", i + 1, answer.word, answer.score());
+        }
+        println!("===========================");
+
+        Ok((selected_answers, metadata))
+    }
+
+    fn is_compatible_with_selection(
+        &self,
+        candidate: &board::answer::Answer,
+        current_selection: &[board::answer::Answer],
+    ) -> Result<bool> {
+        if current_selection.is_empty() {
+            return Ok(true);
+        }
+
+        // Create a test group with current selection + candidate
+        let mut test_group = current_selection.to_vec();
+        test_group.push(candidate.clone());
+
+        // Check if the constraint set is valid
+        Ok(AnswerGroupConstraintSet::is_valid_set(test_group))
     }
 }
 
@@ -1026,5 +1124,82 @@ mod tests {
             !answer.paths.is_empty(),
             "biscuit should have at least one valid path"
         );
+    }
+
+    #[tokio::test]
+    async fn test_find_best_n_words() {
+        let words = create_test_wordlist();
+        let engine = GameEngine::new(words);
+        let board = create_test_board();
+
+        // Test finding best 5 words
+        let result = engine.find_best_n_words(&board, 5).await;
+        assert!(result.is_ok(), "Should be able to find best 5 words");
+        
+        let (best_words, metadata) = result.unwrap();
+        
+        // Should have found some words (up to 5)
+        assert!(best_words.len() <= 5, "Should not exceed requested number");
+        assert!(metadata.word_count <= 5, "Metadata should match");
+        assert_eq!(best_words.len(), metadata.word_count, "Word count should match");
+        assert_eq!(best_words.len(), metadata.individual_scores.len(), "Individual scores should match word count");
+        
+        // Total score should be sum of individual scores
+        let expected_total: i32 = metadata.individual_scores.iter().sum();
+        assert_eq!(metadata.total_score, expected_total, "Total score should be sum of individual scores");
+        
+        // Words should be sorted by descending score (greedy selection)
+        for i in 1..best_words.len() {
+            assert!(best_words[i-1].score() >= best_words[i].score(), 
+                "Words should be in descending score order due to greedy selection");
+        }
+        
+        println!("Test completed successfully! Found {} words with total score {}", 
+                 best_words.len(), metadata.total_score);
+    }
+
+    #[tokio::test]
+    async fn test_find_best_n_words_comprehensive() {
+        // Create a more comprehensive word list for testing
+        let words = vec![
+            "cat", "dog", "test", "word", "game", "path", "tile", "board", "day", "days", "year",
+            "data", "tome", "camp", "temp", "maps", "stem", "step", "pets", "set", "net", "ten",
+            "end", "den", "pen", "get", "gem", "leg", "let", "met", "met", "map", "tap", "pat",
+            "sat", "rat", "tar", "art", "car", "arc", "cap", "can", "man", "pan", "tan", "tan",
+            "eat", "tea", "ate", "eta", "ace", "age", "ago", "ego", "log", "cog", "god", "nod",
+            "don", "con", "con", "cod", "cod", "dot", "got", "hot", "hop", "top", "pot", "rot",
+            "lot", "not", "oat", "oak", "ask", "ark", "air", "are", "ear", "era", "ore", "ore",
+            "roe", "row", "sow", "sew", "new", "now", "own", "won", "one", "eon", "ion", "son",
+            "sun", "run", "gun", "gum", "rum", "sum", "sim", "sin", "tin", "win", "win", "wit",
+            "bit", "bat", "bag", "big", "dig", "fig", "fag", "far", "bar", "bad", "dad", "sad",
+            "mad", "had", "has", "his", "hit", "kit", "lit", "pit", "sit", "fit", "fat", "hat",
+            "hag", "lag", "tag", "gag", "gap", "gas", "gas", "was", "saw", "paw", "raw", "ram",
+            "jam", "ham", "dam", "dam", "damp", "camp", "clamp", "stamp", "tramp", "cramp"
+        ];
+        
+        let engine = GameEngine::new(words);
+        let board = create_test_board();
+
+        // Test finding different numbers of words
+        for n in 1..=10 {
+            let result = engine.find_best_n_words(&board, n).await;
+            assert!(result.is_ok(), "Should be able to find best {} words", n);
+            
+            let (best_words, metadata) = result.unwrap();
+            
+            // Should not exceed requested number
+            assert!(best_words.len() <= n, "Should not exceed requested number {}", n);
+            assert!(metadata.word_count <= n, "Metadata should match for {}", n);
+            
+            // Verify data consistency
+            assert_eq!(best_words.len(), metadata.word_count, "Word count should match for n={}", n);
+            assert_eq!(best_words.len(), metadata.individual_scores.len(), "Individual scores should match word count for n={}", n);
+            
+            // Total score should be sum of individual scores
+            let expected_total: i32 = metadata.individual_scores.iter().sum();
+            assert_eq!(metadata.total_score, expected_total, "Total score should be sum of individual scores for n={}", n);
+            
+            println!("n={}: Found {} words with total score {}", n, best_words.len(), metadata.total_score);
+        }
     }
 }

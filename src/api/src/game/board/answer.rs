@@ -13,6 +13,9 @@ pub struct Answer {
 }
 
 impl Answer {
+    /// score gets an approximate score for this Answer. it is approximate
+    /// because the Answer contains multiple possible paths to form the word,
+    /// and each path can potentially score differently.
     pub fn score(&self) -> i32 {
         if let Some(path) = self.paths.first() {
             path.tiles.iter().map(|tile| tile.points).sum()
