@@ -11,6 +11,10 @@ path = "src/main.rs"
 name = "game-generator"
 path = "src/bin/game_generator.rs"
 
+[[bin]]
+name = "stat-poster"
+path = "src/bin/stat_poster.rs"
+
 [dependencies]
 # Web framework and async runtime
 axum = { version = "0.7", features = ["macros"] }

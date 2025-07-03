@@ -1,0 +1,2 @@
+5 0 * * * game-generator
+0 12 * * * stat-poster
