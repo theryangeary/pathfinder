@@ -5,6 +5,7 @@ pub mod scoring;
 pub mod trie;
 
 pub use board::Board;
+use std::cmp::Reverse;
 use std::collections::HashMap;
 pub use trie::Trie;
 
@@ -467,7 +468,7 @@ impl GameEngine {
 
         // Phase 1: Sort answers by descending score
         let mut sorted_answers = answers.clone();
-        sorted_answers.sort_by(|a, b| b.score().cmp(&a.score()));
+        sorted_answers.sort_by_key(|a| Reverse(a.score()));
 
         // Phase 2: Try greedy approach first (fast path)
         let greedy_result = self.greedy_selection(&sorted_answers, n)?;
@@ -511,7 +512,7 @@ impl GameEngine {
         let mut selected_answers = Vec::new();
         let mut used_indices = std::collections::HashSet::new();
 
-        for i in 0..sorted_answers.len() {
+        for (i, answer) in sorted_answers.iter().enumerate() {
             if selected_answers.len() >= n {
                 break;
             }
@@ -520,7 +521,7 @@ impl GameEngine {
                 continue;
             }
 
-            let candidate = &sorted_answers[i];
+            let candidate = answer;
 
             // Check if this candidate is compatible with current selection
             if self.is_compatible_with_selection(candidate, &selected_answers)? {
@@ -557,6 +558,7 @@ impl GameEngine {
         Ok(best_combination)
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn backtrack_helper(
         &self,
         sorted_answers: &[board::answer::Answer],
@@ -636,6 +638,8 @@ impl GameEngine {
 
 #[cfg(test)]
 mod tests {
+    use std::cmp::Reverse;
+
     use crate::test_utils;
 
     use super::*;
@@ -1521,7 +1525,7 @@ mod tests {
         // Let's also test what happens if we try to force the top word
         let all_words = engine.find_all_valid_words(&board).await.unwrap();
         let mut sorted_words = all_words;
-        sorted_words.sort_by(|a, b| b.score().cmp(&a.score()));
+        sorted_words.sort_by_key(|a| Reverse(a.score()));
 
         if !sorted_words.is_empty() {
             println!(
@@ -1844,7 +1848,7 @@ mod tests {
             .greedy_selection(
                 &{
                     let mut answers = engine.find_all_valid_words(&board).await.unwrap();
-                    answers.sort_by(|a, b| b.score().cmp(&a.score()));
+                    answers.sort_by_key(|a| Reverse(a.score()));
                     answers
                 },
                 2,

@@ -84,7 +84,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("All valid words on this board:");
     let all_words = engine.find_all_valid_words(&board).await?;
     let mut sorted_words = all_words;
-    sorted_words.sort_by(|a, b| b.score().cmp(&a.score()));
+    sorted_words.sort_by_key(|a| std::cmp::Reverse(a.score()));
 
     for (i, word) in sorted_words.iter().take(20).enumerate() {
         println!("{}. {} (score: {})", i + 1, word.word, word.score());
