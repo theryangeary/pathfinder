@@ -62,6 +62,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Individual word scores: {:?}", metadata.individual_scores);
     println!();
     
+    // Demonstrate constraint handling
+    println!("Verifying wildcard constraints are compatible...");
+    let constraint_check = pathfinder::game::board::constraints::AnswerGroupConstraintSet::is_valid_set(best_words.clone());
+    println!("Constraint validation: {}", if constraint_check { "✓ Valid" } else { "✗ Invalid" });
+    println!();
+    
     // Also demonstrate finding all valid words
     println!("All valid words on this board:");
     let all_words = engine.find_all_valid_words(&board).await?;
@@ -73,6 +79,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     if sorted_words.len() > 20 {
         println!("... and {} more words", sorted_words.len() - 20);
+    }
+    
+    // Test different numbers of optimal words
+    println!();
+    println!("Testing optimal word finding for different n values:");
+    for n in [1, 2, 3, 5, 10].iter() {
+        let result = engine.find_best_n_words(&board, *n).await?;
+        let (words, meta) = result;
+        println!("n={}: Found {} words, total score {}", n, words.len(), meta.total_score);
     }
     
     Ok(())
