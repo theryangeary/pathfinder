@@ -1958,9 +1958,7 @@ mod tests {
                     );
                 }
             } else {
-                println!(
-                    "Constraint conflict test n={n}: No valid combination found"
-                );
+                println!("Constraint conflict test n={n}: No valid combination found");
             }
         }
     }
