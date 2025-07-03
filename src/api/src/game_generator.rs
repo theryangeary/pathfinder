@@ -86,7 +86,7 @@ impl GameGenerator {
                     .try_generate_valid_board(&mut rng, threshold_score)
                     .await
                 {
-                    Ok((board, valid_answers)) => {
+                    Ok((board, valid_answers, _)) => {
                         // Convert board to JSON for storage
                         let serializable_board =
                             crate::game::conversion::SerializableBoard::from(&board);

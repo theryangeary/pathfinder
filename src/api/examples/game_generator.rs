@@ -13,31 +13,22 @@ use pathfinder::game_generator::GameGenerator;
 async fn run_game_generation() -> Result<()> {
 
     // // Setup game engine
-    // info!("Initializing game engine");
     let game_engine = GameEngine::new(std::path::PathBuf::from("wordlist"));
 
-    // // Generate missing games
-    // info!("Generating missing games");
-    // match game_generator.generate_missing_games().await {
-    //     Ok(()) => {
-    //         info!("Game generation completed successfully");
-    //     }
-    //     Err(e) => {
-    //         error!("Game generation failed: {}", e);
-    //         return Err(e);
-    //     }
-    // }
 
     let date_str = "2025-06-30".to_string();
     let seed = Seeder::from(date_str).make_seed();
     let mut rng = rand::rngs::StdRng::from_seed(seed);
 
     match game_engine.try_generate_valid_board(&mut rng, 40).await {
-        Ok((board, answers)) => {
+        Ok((board, _, (optimal_words, metadata))) => {
             info!(
-                "Generated board: \n{}",
+                "Generated board: \n{}\n\nOptimal Answers:",
                 board,
             );
+            for (i, (word, score)) in optimal_words.iter().zip(metadata.individual_scores.iter()).enumerate() {
+                info!("{}. {} (score: {})", i + 1, word.word, score);
+            }
         }
         Err(e) => {
             error!("Failed to generate game: {}", e);

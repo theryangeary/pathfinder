@@ -401,7 +401,7 @@ impl GameEngine {
 
     pub async fn find_best_n_words(&self, board: &Board, n: usize) -> Result<(Vec<board::answer::Answer>, OptimizationMetadata)> {
         let all_answers = self.find_all_valid_words(board).await?;
-        let result = self.find_best_n_words_from_answers(all_answers, n)?;
+        let result = self.find_best_n_words_from_answers(&all_answers, n)?;
         Ok(result)
     }
 
@@ -413,27 +413,17 @@ impl GameEngine {
     ) -> Result<(
         crate::game::board::Board,
         Vec<crate::game::board::answer::Answer>,
+        (Vec<board::answer::Answer>, OptimizationMetadata),
     )> {
         let board_generator = BoardGenerator::new();
         let board = board_generator.generate_board(rng);
 
         // Find optimal set of 5 words instead of just checking top 5 individually
-        let (optimal_words, metadata) = self.find_best_n_words(&board, 5).await?;
-
-        // Print optimal solution set to console
-        println!("=== OPTIMAL SOLUTION SET ===");
-        println!("Total Score: {}", metadata.total_score);
-        println!("Word Count: {}", metadata.word_count);
-        println!("Words:");
-        for (i, (word, score)) in optimal_words.iter().zip(metadata.individual_scores.iter()).enumerate() {
-            println!("  {}. {} (score: {})", i + 1, word.word, score);
-        }
-        println!("=============================");
+        let all_valid_answers = self.find_all_valid_words(&board).await?;
+        let (optimal_words, metadata) = self.find_best_n_words_from_answers(&all_valid_answers, 5)?;
 
         if metadata.total_score >= threshold_score {
-            // Find all valid words for storage (the game still needs all words for validation)
-            let all_valid_answers = self.find_all_valid_words(&board).await?;
-            Ok((board, all_valid_answers))
+            Ok((board, all_valid_answers, (optimal_words, metadata)))
         } else {
             anyhow::bail!(
                 "Board quality insufficient: optimal 5 words sum to {} (threshold: {})",
@@ -445,7 +435,7 @@ impl GameEngine {
 
     pub fn find_best_n_words_from_answers(
         &self,
-        answers: Vec<board::answer::Answer>,
+        answers: &Vec<board::answer::Answer>,
         n: usize,
     ) -> Result<(Vec<board::answer::Answer>, OptimizationMetadata)> {
         if answers.is_empty() {
@@ -465,7 +455,7 @@ impl GameEngine {
         }
 
         // Phase 1: Sort answers by descending score
-        let mut sorted_answers = answers;
+        let mut sorted_answers = answers.clone();
         sorted_answers.sort_by(|a, b| b.score().cmp(&a.score()));
 
         // Phase 2: Try greedy approach first (fast path)
