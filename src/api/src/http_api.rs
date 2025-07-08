@@ -1376,6 +1376,8 @@ mod tests {
             threshold_score: 15,
             sequence_number: 1,
             created_at: chrono::Utc::now(),
+            completed: false,
+            completed_at: None,
         };
 
         // Test answers that require cumulative constraint validation

@@ -84,7 +84,7 @@ impl Repository {
     }
 
     pub async fn get_game_by_date(&self, date: &str) -> Result<Option<DbGame>> {
-        let row = sqlx::query("SELECT id, date, board_data, threshold_score, sequence_number, created_at FROM games WHERE date = $1")
+        let row = sqlx::query("SELECT id, date, board_data, threshold_score, sequence_number, completed, completed_at, created_at FROM games WHERE date = $1")
             .bind(date)
             .fetch_optional(&self.pool)
             .await?;
@@ -96,6 +96,8 @@ impl Repository {
                 board_data: row.get("board_data"),
                 threshold_score: row.get("threshold_score"),
                 sequence_number: row.get("sequence_number"),
+                completed: row.get("completed"),
+                completed_at: row.get("completed_at"),
                 created_at: row.get("created_at"),
             }))
         } else {
@@ -104,7 +106,7 @@ impl Repository {
     }
 
     pub async fn get_game_by_id(&self, game_id: &str) -> Result<Option<DbGame>> {
-        let row = sqlx::query("SELECT id, date, board_data, threshold_score, sequence_number, created_at FROM games WHERE id = $1")
+        let row = sqlx::query("SELECT id, date, board_data, threshold_score, sequence_number, completed, completed_at, created_at FROM games WHERE id = $1")
             .bind(game_id)
             .fetch_optional(&self.pool)
             .await?;
@@ -116,6 +118,8 @@ impl Repository {
                 board_data: row.get("board_data"),
                 threshold_score: row.get("threshold_score"),
                 sequence_number: row.get("sequence_number"),
+                completed: row.get("completed"),
+                completed_at: row.get("completed_at"),
                 created_at: row.get("created_at"),
             }))
         } else {
@@ -127,7 +131,7 @@ impl Repository {
         &self,
         sequence_number: i32,
     ) -> Result<Option<DbGame>> {
-        let row = sqlx::query("SELECT id, date, board_data, threshold_score, sequence_number, created_at FROM games WHERE sequence_number = $1")
+        let row = sqlx::query("SELECT id, date, board_data, threshold_score, sequence_number, completed, completed_at, created_at FROM games WHERE sequence_number = $1")
             .bind(sequence_number)
             .fetch_optional(&self.pool)
             .await?;
@@ -139,6 +143,8 @@ impl Repository {
                 board_data: row.get("board_data"),
                 threshold_score: row.get("threshold_score"),
                 sequence_number: row.get("sequence_number"),
+                completed: row.get("completed"),
+                completed_at: row.get("completed_at"),
                 created_at: row.get("created_at"),
             }))
         } else {
@@ -267,12 +273,14 @@ impl Repository {
             new_game.sequence_number,
         );
 
-        sqlx::query("INSERT INTO games (id, date, board_data, threshold_score, sequence_number, created_at) VALUES ($1, $2, $3, $4, $5, $6)")
+        sqlx::query("INSERT INTO games (id, date, board_data, threshold_score, sequence_number, completed, completed_at, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)")
             .bind(&game.id)
             .bind(&game.date)
             .bind(&game.board_data)
             .bind(game.threshold_score)
             .bind(game.sequence_number)
+            .bind(game.completed)
+            .bind(game.completed_at)
             .bind(game.created_at)
             .execute(&mut *tx)
             .await?;
@@ -372,6 +380,76 @@ impl Repository {
         } else {
             Ok(Vec::new())
         }
+    }
+
+    // Completion tracking operations
+    pub async fn mark_game_completed(&self, game_id: &str) -> Result<()> {
+        let now = Utc::now();
+        sqlx::query("UPDATE games SET completed = TRUE, completed_at = $1 WHERE id = $2")
+            .bind(now)
+            .bind(game_id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
+    pub async fn get_incomplete_games_for_date(&self, date: &str) -> Result<Vec<DbGame>> {
+        let rows = sqlx::query("SELECT id, date, board_data, threshold_score, sequence_number, completed, completed_at, created_at FROM games WHERE date = $1 AND completed = FALSE")
+            .bind(date)
+            .fetch_all(&self.pool)
+            .await?;
+
+        let games = rows
+            .into_iter()
+            .map(|row| DbGame {
+                id: row.get("id"),
+                date: row.get("date"),
+                board_data: row.get("board_data"),
+                threshold_score: row.get("threshold_score"),
+                sequence_number: row.get("sequence_number"),
+                completed: row.get("completed"),
+                completed_at: row.get("completed_at"),
+                created_at: row.get("created_at"),
+            })
+            .collect();
+
+        Ok(games)
+    }
+
+    pub async fn get_incomplete_game_entries_for_game(
+        &self,
+        game_id: &str,
+    ) -> Result<Vec<DbGameEntry>> {
+        let rows = sqlx::query("SELECT id, user_id, game_id, answers_data, total_score, completed, created_at, updated_at FROM game_entries WHERE game_id = $1 AND completed = FALSE")
+            .bind(game_id)
+            .fetch_all(&self.pool)
+            .await?;
+
+        let entries = rows
+            .into_iter()
+            .map(|row| DbGameEntry {
+                id: row.get("id"),
+                user_id: row.get("user_id"),
+                game_id: row.get("game_id"),
+                answers_data: row.get("answers_data"),
+                total_score: row.get("total_score"),
+                completed: row.get("completed"),
+                created_at: row.get("created_at"),
+                updated_at: row.get("updated_at"),
+            })
+            .collect();
+
+        Ok(entries)
+    }
+
+    pub async fn mark_game_entry_completed(&self, entry_id: &str) -> Result<()> {
+        let now = Utc::now();
+        sqlx::query("UPDATE game_entries SET completed = TRUE, updated_at = $1 WHERE id = $2")
+            .bind(now)
+            .bind(entry_id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
     }
 
     // Statistics operations

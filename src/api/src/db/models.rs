@@ -17,6 +17,8 @@ pub struct DbGame {
     pub board_data: String, // JSON serialized board
     pub threshold_score: i32,
     pub sequence_number: i32,
+    pub completed: bool,
+    pub completed_at: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
 }
 
@@ -110,6 +112,8 @@ impl DbGame {
             board_data,
             threshold_score,
             sequence_number,
+            completed: false,
+            completed_at: None,
             created_at: Utc::now(),
         }
     }

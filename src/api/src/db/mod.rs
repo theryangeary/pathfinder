@@ -55,6 +55,10 @@ async fn run_migrations(pool: &PgPool) -> Result<()> {
             "005_add_optimal_solutions.sql",
             include_str!("../../migrations/005_add_optimal_solutions.sql"),
         ),
+        (
+            "006_add_game_completion_fields.sql",
+            include_str!("../../migrations/006_add_game_completion_fields.sql"),
+        ),
     ];
 
     for (filename, migration_sql) in &migrations {
