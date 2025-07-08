@@ -11,7 +11,7 @@ RUN npm run build
 # Build stage for backend
 FROM rust:1.87-alpine AS backend-builder
 
-RUN apk add --no-cache musl-dev pkgconfig openssl-dev
+RUN apk add --no-cache musl-dev pkgconfig openssl-dev build-base g++ cmake freetype-dev freetype-static fontconfig-dev fontconfig-static
 
 WORKDIR /app
 COPY src/api/Cargo.toml Cargo.lock ./
