@@ -18,7 +18,7 @@ COPY src/api/Cargo.toml Cargo.lock ./
 COPY src/api/src ./src
 COPY src/api/migrations ./migrations
 COPY wordlist ./wordlist
-RUN cargo build --release --bin api-server --bin game-generator --bin stat-poster
+RUN cargo build --release
 
 # Runtime stage
 FROM alpine:latest
@@ -38,10 +38,11 @@ RUN curl -fsSLO "$SUPERCRONIC_URL" \
 
 WORKDIR /app
 
-# Copy both backend binaries
+# Copy all backend binaries
 COPY --from=backend-builder /app/target/release/api-server ./api-server
-COPY --from=backend-builder /app/target/release/game-generator ./game-generator
 COPY --from=backend-builder /app/target/release/stat-poster ./stat-poster
+COPY --from=backend-builder /app/target/release/game-ender ./game-ender
+COPY --from=backend-builder /app/target/release/game-generator ./game-generator
 
 # Copy frontend static files
 COPY --from=frontend-builder /app/src/web/dist ./static
