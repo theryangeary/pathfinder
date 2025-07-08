@@ -44,21 +44,21 @@ async fn main() -> Result<()> {
             info!("Found game for {}: {}", previous_day, game.id);
 
             // Get score distribution
-            let score_distribution = repository.get_score_distribution(&game.id).await?;
-            info!("Found {} score entries", score_distribution.len());
+            // let score_distribution = repository.get_score_distribution(&game.id).await?;
+            // info!("Found {} score entries", score_distribution.len());
 
-            // Get optimal solutions
-            let optimal_solutions = repository.get_optimal_solutions(&game.id).await?;
+            // // Get optimal solutions
+            // let optimal_solutions = repository.get_optimal_solutions(&game.id).await?;
 
-            // Generate graph
-            let image_path = generate_score_distribution_graph(&score_distribution, &previous_day)?;
+            // // Generate graph
+            // let image_path = generate_score_distribution_graph(&score_distribution, &previous_day)?;
 
-            // Output results
-            println!("Image saved to: {image_path}");
-            println!("Optimal answers for {previous_day}:");
-            for solution in optimal_solutions {
-                println!("  {} ({})", solution.word, solution.score);
-            }
+            // // Output results
+            // println!("Image saved to: {image_path}");
+            // println!("Optimal answers for {previous_day}:");
+            // for solution in optimal_solutions {
+            //     println!("  {} ({})", solution.word, solution.score);
+            // }
         }
         None => {
             println!("No game found for date: {previous_day}");
@@ -68,6 +68,8 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
+// this function will be useful if we ever have a critical mass user base
+#[allow(dead_code)]
 fn generate_score_distribution_graph(scores: &[i32], date: &str) -> Result<String> {
     let image_path = format!("/tmp/score_distribution_{date}.png");
 
@@ -96,7 +98,10 @@ fn generate_score_distribution_graph(scores: &[i32], date: &str) -> Result<Strin
     root.fill(&WHITE)?;
 
     let mut chart = ChartBuilder::on(&root)
-        .caption(format!("Score Distribution for {date}"), ("sans-serif", 30))
+        .caption(
+            format!("Score Distribution | {date}"),
+            ("Source Code Pro", 30),
+        )
         .margin(10)
         .x_label_area_size(40)
         .y_label_area_size(50)
@@ -104,14 +109,17 @@ fn generate_score_distribution_graph(scores: &[i32], date: &str) -> Result<Strin
 
     chart
         .configure_mesh()
-        .x_desc("Score")
-        .y_desc("Number of Players")
+        .disable_x_mesh()
+        .disable_y_mesh()
+        .bold_line_style(WHITE.mix(0.3))
+        .axis_desc_style(("sans-serif", 15))
         .draw()?;
 
-    chart
-        .draw_series(data.iter().map(|(score, count)| {
-            Rectangle::new([(*score, 0), (*score, *count)], BLUE.filled())
-        }))?;
+    chart.draw_series(
+        Histogram::vertical(&chart)
+            .style(RED.mix(0.5).filled())
+            .data(scores.iter().map(|x: &i32| (*x, 1))),
+    )?;
 
     root.present()?;
     info!("Score distribution graph saved to: {}", image_path);
