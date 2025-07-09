@@ -1,7 +1,7 @@
 use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
-    response::Json,
+    response::{Json, Redirect},
     routing::{get, post},
     Router,
 };
@@ -10,7 +10,7 @@ use chrono_tz::Tz;
 use moka::future::Cache;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use tower_http::{limit::RequestBodyLimitLayer, services::ServeDir, timeout::TimeoutLayer};
+use tower_http::{limit::RequestBodyLimitLayer, timeout::TimeoutLayer};
 
 use crate::db::{conversions::AnswerStorage, Repository};
 use crate::game::GameEngine;
@@ -182,6 +182,10 @@ impl ApiState {
 
 pub fn create_secure_router(state: ApiState, config: SecurityConfig) -> Router {
     Router::new()
+        .route(
+            "/",
+            get(|| async { Redirect::permanent("https://pathfinder.prof") }),
+        )
         .route("/api/game/date/:date", get(get_game_by_date))
         .route(
             "/api/game/sequence/:sequence_number",
@@ -196,7 +200,6 @@ pub fn create_secure_router(state: ApiState, config: SecurityConfig) -> Router {
         .route("/api/user", post(create_user))
         .route("/api/game-entry/:game_id", get(get_game_entry))
         .route("/health", get(health_check))
-        .nest_service("/", ServeDir::new("static"))
         .layer(RequestBodyLimitLayer::new(config.max_request_size))
         .layer(TimeoutLayer::new(config.request_timeout))
         .layer(RateLimitLayer::new(config.clone()))
