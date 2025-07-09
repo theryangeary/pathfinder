@@ -42,7 +42,6 @@ uuid = { version = "1.0", features = ["v4", "serde"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 anyhow = "1.0"
-thiserror = "1.0"
 
 # Environment and configuration
 dotenvy = "0.15"
@@ -54,18 +53,10 @@ rand_seeder = "0.3"
 
 # Caching for immutable game responses
 moka = { version = "0.12", features = ["future"] }
-
-# Security dependencies
-governor = "0.6"
 tower-cookies = "0.10"
 base64 = "0.22"
-sha2 = "0.10"
 ring = "0.17"
 url = "2.5"
-nonzero = "0.2"
-
-# Game logic dependencies (reuse from word-game)
-log = "0.4"
 phf = { version = "0.11", features = ["macros"] }
 
 # Memory profiling
@@ -74,9 +65,6 @@ sysinfo = "0.30"
 # BlueSky SDK for social media integration
 bsky-sdk = "0.1"
 atrium-api = "0.25.4"
-
-# Plotting dependencies for stat-poster
-plotters = "0.3"
 
 
 [features]
