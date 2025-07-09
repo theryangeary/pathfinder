@@ -1,8 +1,6 @@
 use anyhow::Result;
 use chrono::{Duration, Utc};
 use dotenvy::dotenv;
-use plotters::prelude::*;
-use std::collections::HashMap;
 use std::env;
 use tracing::info;
 
@@ -23,7 +21,6 @@ async fn main() -> Result<()> {
     // Get configuration from environment
     let database_url = env::var("DATABASE_URL")
         .unwrap_or_else(|_| "postgresql://localhost/pathfinder".to_string());
-    dbg!(&database_url);
 
     // Setup database
     info!("Setting up database connection");
@@ -39,90 +36,39 @@ async fn main() -> Result<()> {
     // Get the previous day's game
     let game = repository.get_game_by_date(&previous_day).await?;
 
-    match game {
+    let report = match game {
         Some(game) => {
             info!("Found game for {}: {}", previous_day, game.id);
 
-            // Get score distribution
-            // let score_distribution = repository.get_score_distribution(&game.id).await?;
-            // info!("Found {} score entries", score_distribution.len());
+            // Get optimal solutions (professor's answers)
+            let optimal_solutions = repository.get_optimal_solutions(&game.id).await?;
 
-            // // Get optimal solutions
-            // let optimal_solutions = repository.get_optimal_solutions(&game.id).await?;
-
-            // // Generate graph
-            // let image_path = generate_score_distribution_graph(&score_distribution, &previous_day)?;
-
-            // // Output results
-            // println!("Image saved to: {image_path}");
-            // println!("Optimal answers for {previous_day}:");
-            // for solution in optimal_solutions {
-            //     println!("  {} ({})", solution.word, solution.score);
-            // }
+            // Generate report
+            let mut report = String::new();
+            report.push_str(&format!("Game #{} {}\n", game.sequence_number, game.date));
+            report.push_str("\n");
+            report.push_str("Professor's Answers:\n");
+            
+            let mut total_score = 0;
+            for solution in optimal_solutions {
+                report.push_str(&format!("{}: {}\n", solution.word, solution.score));
+                total_score += solution.score;
+            }
+            
+            report.push_str("\n");
+            report.push_str(&format!("Total: {}\n", total_score));
+            
+            Some(report)
         }
         None => {
-            println!("No game found for date: {previous_day}");
+            info!("No game found for date: {}\n", previous_day);
+            None
         }
-    }
+    };
 
+    if let Some(report) = report {
+        print!("{}", report);
+    }
     Ok(())
 }
 
-// this function will be useful if we ever have a critical mass user base
-#[allow(dead_code)]
-fn generate_score_distribution_graph(scores: &[i32], date: &str) -> Result<String> {
-    let image_path = format!("/tmp/score_distribution_{date}.png");
-
-    // Create histogram data
-    let mut histogram: HashMap<i32, i32> = HashMap::new();
-    for &score in scores {
-        *histogram.entry(score).or_insert(0) += 1;
-    }
-
-    if histogram.is_empty() {
-        info!("No scores to plot");
-        anyhow::bail!("no scores to plot");
-    }
-
-    // Convert to sorted vector for plotting
-    let mut data: Vec<(i32, i32)> = histogram.into_iter().collect();
-    data.sort_by_key(|(score, _)| *score);
-
-    let min_score = data.first().map(|(s, _)| *s).unwrap_or(0);
-    let max_score = data.last().map(|(s, _)| *s).unwrap_or(0);
-    let max_count = data.iter().map(|(_, c)| *c).max().unwrap_or(0);
-
-    // Create the plot
-    let path_for_backend = image_path.clone();
-    let root = BitMapBackend::new(&path_for_backend, (800, 600)).into_drawing_area();
-    root.fill(&WHITE)?;
-
-    let mut chart = ChartBuilder::on(&root)
-        .caption(
-            format!("Score Distribution | {date}"),
-            ("Source Code Pro", 30),
-        )
-        .margin(10)
-        .x_label_area_size(40)
-        .y_label_area_size(50)
-        .build_cartesian_2d(min_score..max_score, 0..max_count)?;
-
-    chart
-        .configure_mesh()
-        .disable_x_mesh()
-        .disable_y_mesh()
-        .bold_line_style(WHITE.mix(0.3))
-        .axis_desc_style(("sans-serif", 15))
-        .draw()?;
-
-    chart.draw_series(
-        Histogram::vertical(&chart)
-            .style(RED.mix(0.5).filled())
-            .data(scores.iter().map(|x: &i32| (*x, 1))),
-    )?;
-
-    root.present()?;
-    info!("Score distribution graph saved to: {}", image_path);
-
-    Ok(image_path)
-}
