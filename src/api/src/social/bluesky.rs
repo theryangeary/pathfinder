@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Result};
-use bsky_sdk::BskyAgent;
 use atrium_api::types::string::Datetime;
+use bsky_sdk::BskyAgent;
 
 use super::Post;
 
@@ -38,7 +38,7 @@ impl BlueSkyPoster {
             .ok_or_else(|| anyhow!("No password provided"))?;
 
         let agent = BskyAgent::builder().build().await?;
-        
+
         agent
             .login(&self.handle, password)
             .await
@@ -56,19 +56,17 @@ impl BlueSkyPoster {
             .ok_or_else(|| anyhow!("Not authenticated. Call authenticate() first"))?;
 
         agent
-            .create_record(
-                atrium_api::app::bsky::feed::post::RecordData {
-                    text,
-                    created_at: Datetime::now(),
-                    embed: None,
-                    entities: None,
-                    facets: None,
-                    labels: None,
-                    langs: None,
-                    reply: None,
-                    tags: None,
-                }
-            )
+            .create_record(atrium_api::app::bsky::feed::post::RecordData {
+                text,
+                created_at: Datetime::now(),
+                embed: None,
+                entities: None,
+                facets: None,
+                labels: None,
+                langs: None,
+                reply: None,
+                tags: None,
+            })
             .await
             .map_err(|e| anyhow!("Failed to create post: {}", e))?;
 

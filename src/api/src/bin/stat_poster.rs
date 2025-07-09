@@ -2,9 +2,10 @@ use anyhow::Result;
 use chrono::{Duration, Utc};
 use dotenvy::dotenv;
 use std::env;
-use tracing::info;
+use tracing::{info, warn};
 
 use pathfinder::db::{setup_database, Repository};
+use pathfinder::social::{bluesky::BlueSkyPoster, Post};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -46,29 +47,47 @@ async fn main() -> Result<()> {
             // Generate report
             let mut report = String::new();
             report.push_str(&format!("Game #{} {}\n", game.sequence_number, game.date));
-            report.push_str("\n");
+            report.push('\n');
             report.push_str("Professor's Answers:\n");
-            
+
             let mut total_score = 0;
             for solution in optimal_solutions {
                 report.push_str(&format!("{}: {}\n", solution.word, solution.score));
                 total_score += solution.score;
             }
-            
-            report.push_str("\n");
-            report.push_str(&format!("Total: {}\n", total_score));
-            
+
+            report.push('\n');
+            report.push_str(&format!("Total: {total_score}\n"));
+
             Some(report)
         }
         None => {
-            info!("No game found for date: {}\n", previous_day);
+            info!("No game found for date: {previous_day}\n");
             None
         }
     };
 
     if let Some(report) = report {
-        print!("{}", report);
+        print!("{report}");
+
+        // Post to BlueSky if credentials are available
+        if let (Ok(handle), Ok(password)) =
+            (env::var("BLUESKY_HANDLE"), env::var("BLUESKY_PASSWORD"))
+        {
+            info!("Posting to BlueSky...");
+
+            let mut poster = BlueSkyPoster::new(handle).with_password(password);
+
+            match poster.authenticate().await {
+                Ok(()) => match poster.post(report).await {
+                    Ok(()) => info!("Successfully posted to BlueSky"),
+                    Err(e) => warn!("Failed to post to BlueSky: {}", e),
+                },
+                Err(e) => warn!("Failed to authenticate with BlueSky: {}", e),
+            }
+        } else {
+            info!("BlueSky credentials not found in environment, skipping post");
+        }
     }
     Ok(())
 }
-
