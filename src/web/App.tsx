@@ -131,7 +131,7 @@ function App() {
       setBoard(newBoard);
     } catch (error) {
       console.error('Failed to load daily game from API, falling back to local generation:', error);
-      setApiError('Failed to connect to server. Playing offline.');
+      setApiError('reload');
       // Fallback to local board generation
       const newBoard = generateBoard();
       setBoard(newBoard);
@@ -392,7 +392,11 @@ function App() {
             marginBottom: '20px',
             textAlign: 'center'
           }}>
-            {apiError}
+            {apiError === 'reload' ? (
+              <>Failed to connect to server. Please <a href=".">reload</a></>
+            ) : (
+              apiError
+            )}
           </div>
         )}
 
@@ -534,7 +538,6 @@ function App() {
         isSubmitting={isSubmitting}
         isWordListLoading={!isValidWordLoaded}
         isGameCompleted={isGameCompleted}
-        isOffline={!!apiError}
         shouldUseCompactLayout={shouldUseCompactLayout}
       />
       
