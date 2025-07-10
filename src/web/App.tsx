@@ -206,6 +206,7 @@ function App() {
           cookie_token: user.cookie_token,
           answers: apiAnswers,
           game_id: currentGame.id,
+          completed: false
         });
       }
     } catch (error) {
@@ -284,6 +285,7 @@ function App() {
         cookie_token: user?.cookie_token,
         answers: apiAnswers,
         game_id: currentGame.id,
+        completed: true,
       });
 
       // Mark game as completed after successful submission

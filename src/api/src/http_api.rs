@@ -125,16 +125,17 @@ pub struct UpdateGameEntryRequest {
     pub cookie_token: Option<String>,
     pub answers: Vec<ApiAnswer>,
     pub game_id: String,
+    pub completed: bool,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct SubmitResponse {
     pub user_id: String,
     pub total_score: i32,
     pub stats: ApiGameStats,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct ApiGameStats {
     pub total_players: i32,
     pub user_rank: i32,
@@ -195,7 +196,6 @@ pub fn create_secure_router(state: ApiState, config: SecurityConfig) -> Router {
         .route("/api/game/:game_id/paths", get(get_game_paths))
         .route("/api/game/:game_id/word/:word/paths", get(get_word_paths))
         .route("/api/validate", post(validate_answer))
-        .route("/api/submit", post(submit_answers))
         .route("/api/user", post(create_user))
         .route("/api/game-entry/:game_id", get(get_game_entry))
         .route("/api/game-entry/:game_id", post(update_game_entry))
@@ -520,9 +520,9 @@ async fn validate_answer(
     Ok(Json(response))
 }
 
-async fn submit_answers(
+async fn update_game_entry(
     State(state): State<ApiState>,
-    Json(request): Json<SubmitRequest>,
+    Json(request): Json<UpdateGameEntryRequest>,
 ) -> Result<Json<SubmitResponse>, StatusCode> {
     // Validate and get existing user or create new one
     let user = match (request.user_id.as_ref(), request.cookie_token.as_ref()) {
@@ -617,7 +617,7 @@ async fn submit_answers(
         game_id: game.id.clone(),
         answers_data: answers_json,
         total_score,
-        completed: true, // Assume completed when submitting all answers
+        completed: request.completed,
     };
 
     let _game_entry = match state
@@ -628,6 +628,10 @@ async fn submit_answers(
         Ok(entry) => entry,
         Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
     };
+
+    if !request.completed {
+        return Ok(Json(SubmitResponse::default()));
+    }
 
     // Get real stats
     let (total_players, user_rank, percentile, average_score, highest_score) =
@@ -654,116 +658,6 @@ async fn submit_answers(
     };
 
     Ok(Json(response))
-}
-
-async fn update_game_entry(
-    State(state): State<ApiState>,
-    Json(request): Json<SubmitRequest>,
-) -> Result<(), StatusCode> {
-    // Validate and get existing user or create new one
-    let user = match (request.user_id.as_ref(), request.cookie_token.as_ref()) {
-        (Some(user_id), Some(cookie_token)) => {
-            // Validate existing user by both ID and cookie token
-            match state.repository.get_user_by_id(user_id).await {
-                Ok(Some(existing_user)) if existing_user.cookie_token == *cookie_token => {
-                    // Valid user - update last seen
-                    let _ = state
-                        .repository
-                        .update_user_last_seen(&existing_user.id)
-                        .await;
-                    existing_user
-                }
-                _ => {
-                    // Invalid user_id or cookie_token mismatch - create new user
-                    create_new_user(&state).await?
-                }
-            }
-        }
-        (None, Some(cookie_token)) => {
-            // Try to find user by cookie token only
-            match state.repository.get_user_by_cookie(cookie_token).await {
-                Ok(Some(existing_user)) => {
-                    // Valid user - update last seen
-                    let _ = state
-                        .repository
-                        .update_user_last_seen(&existing_user.id)
-                        .await;
-                    existing_user
-                }
-                _ => {
-                    // Invalid cookie_token - create new user
-                    create_new_user(&state).await?
-                }
-            }
-        }
-        _ => {
-            // No user identification provided - create new user
-            create_new_user(&state).await?
-        }
-    };
-
-    // Get the specified game to store the entry against
-    let game = match state.repository.get_game_by_id(&request.game_id).await {
-        Ok(Some(game)) => game,
-        Ok(None) => return Err(StatusCode::NOT_FOUND), // Game not found
-        Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
-    };
-
-    // Check if user has already completed this game
-    match state
-        .repository
-        .get_game_entry(&user.id, &request.game_id)
-        .await
-    {
-        Ok(Some(existing_entry)) if existing_entry.completed => {
-            return Err(StatusCode::CONFLICT); // 409 Conflict - already submitted
-        }
-        Ok(_) => {
-            // No existing entry or entry is not completed - proceed
-        }
-        Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
-    }
-
-    // Validate that all submitted answers are valid for this game
-    if let Err(error_msg) = validate_submitted_answers(&state, &game, &request.answers).await {
-        println!("Answer validation failed: {error_msg}");
-        return Err(StatusCode::BAD_REQUEST);
-    }
-
-    // Score submitted answers
-    let score_sheet = match score_submitted_answers(&state, &game, &request.answers).await {
-        Ok(scoring) => scoring,
-        Err(error_msg) => {
-            println!("Answer scoring failed: {error_msg}");
-            return Err(StatusCode::BAD_REQUEST);
-        }
-    };
-
-    let total_score: i32 = score_sheet.total_score().try_into().unwrap();
-
-    // Serialize answers to JSON using stable database format
-    let answers_json = match AnswerStorage::serialize_api_answers(&request.answers) {
-        Ok(json) => json,
-        Err(_) => return Err(StatusCode::BAD_REQUEST),
-    };
-
-    // Create or update game entry
-    let new_entry = crate::db::models::NewGameEntry {
-        user_id: user.id.clone(),
-        game_id: game.id.clone(),
-        answers_data: answers_json,
-        total_score,
-        completed: false, // Assume not completed for now - TODO merge this method with submit method
-    };
-
-    match state
-        .repository
-        .create_or_update_game_entry(new_entry)
-        .await
-    {
-        Ok(_) => Ok(()),
-        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
-    }
 }
 
 async fn create_user(State(state): State<ApiState>) -> Result<Json<serde_json::Value>, StatusCode> {

@@ -48,18 +48,12 @@ export interface ValidateResponse {
   error_message: string;
 }
 
-export interface SubmitRequest {
-  user_id?: string;
-  cookie_token?: string;
-  answers: ApiAnswer[];
-  game_id: string;
-}
-
 export interface UpdateProgressRequest {
   user_id?: string;
   cookie_token?: string;
   answers: ApiAnswer[];
   game_id: string;
+  completed: boolean;
 }
 
 export interface SubmitResponse {
@@ -140,15 +134,13 @@ class GameApi {
     });
   }
 
-  async submitAnswers(request: SubmitRequest): Promise<SubmitResponse> {
-    return this.request<SubmitResponse>('/submit', {
-      method: 'POST',
-      body: JSON.stringify(request),
-    });
+  async submitAnswers(request: UpdateProgressRequest): Promise<SubmitResponse> {
+    request.completed = true;
+    return this.updateProgress(request);
   }
 
-  async updateProgress(request: UpdateProgressRequest): Promise<{ success: boolean }> {
-    return this.request<{ success: boolean }>('/game-entry/${gameId}', {
+  async updateProgress(request: UpdateProgressRequest): Promise<SubmitResponse> {
+    return this.request<SubmitResponse>('/game-entry/${gameId}', {
       method: 'POST',
       body: JSON.stringify(request),
     });
