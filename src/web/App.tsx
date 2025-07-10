@@ -119,6 +119,11 @@ function App() {
     }
   }, [userLoading, user, currentGame]);
 
+  // Save progress each time input changes
+  useEffect(() => {
+    saveProgress()
+  }, [currentInputIndex])
+
   const loadGame = async () => {
     try {
       setIsLoadingGame(true);
@@ -215,10 +220,6 @@ function App() {
   };
 
   const handleAnswerBlur = (_index: number): void => {
-    // Save progress when any answer input loses focus
-    if (user && currentGame && !isGameCompleted) {
-      saveProgress();
-    }
     setCurrentInputIndex(-1);
   };
 
