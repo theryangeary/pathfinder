@@ -140,11 +140,11 @@ jobs:
         run: ./target/release/api-server &
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/test_db
-          PORT: 3001
+          PORT: 8080
       
       - name: Wait for backend to start
         run: |
-          timeout 30 bash -c 'until curl -f http://localhost:3001/health; do sleep 1; done'
+          timeout 30 bash -c 'until curl -f http://localhost:8080/health; do sleep 1; done'
       
       - name: Run integration tests
         run: ./test_integration.sh
