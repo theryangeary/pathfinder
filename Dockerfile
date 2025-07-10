@@ -1,29 +1,31 @@
-# Build stage for frontend
-FROM node:18-alpine AS frontend-builder
-
+# use chef for faster rust builds/better caching
+FROM lukemathwalker/cargo-chef:latest-rust-1.87 AS chef
 WORKDIR /app
-COPY package*.json ./
-RUN npm ci
 
-COPY . .
-RUN npm run build
+# generate chef plan
+FROM chef AS planner
 
-# Build stage for backend
-FROM rust:1.87-alpine AS backend-builder
-
-RUN apk add --no-cache musl-dev pkgconfig openssl-dev build-base g++ cmake freetype-dev freetype-static fontconfig-dev fontconfig-static
-
-WORKDIR /app
 COPY src/api/Cargo.toml Cargo.lock ./
 COPY src/api/src ./src
 COPY src/api/migrations ./migrations
-COPY wordlist ./wordlist
+
+RUN cargo chef prepare --recipe-path recipe.json
+
+# build rust bins
+FROM chef AS builder 
+COPY --from=planner /app/recipe.json recipe.json
+
+RUN cargo chef cook --release --recipe-path recipe.json
+
+COPY src/api/Cargo.toml Cargo.lock ./
+COPY src/api/src ./src
+COPY src/api/migrations ./migrations
+
 RUN cargo build --release
 
-# Runtime stage
-FROM alpine:latest
+FROM debian:bookworm-slim AS runtime
 
-RUN apk add --no-cache ca-certificates dcron curl
+RUN apt-get update && apt-get install -y ca-certificates curl
 
 # Latest releases available at https://github.com/aptible/supercronic/releases
 ENV SUPERCRONIC_URL=https://github.com/aptible/supercronic/releases/download/v0.2.29/supercronic-linux-amd64 \
@@ -39,18 +41,14 @@ RUN curl -fsSLO "$SUPERCRONIC_URL" \
 WORKDIR /app
 
 # Copy all backend binaries
-COPY --from=backend-builder /app/target/release/api-server ./api-server
-COPY --from=backend-builder /app/target/release/stat-poster ./stat-poster
-COPY --from=backend-builder /app/target/release/game-ender ./game-ender
-COPY --from=backend-builder /app/target/release/game-generator ./game-generator
+COPY --from=builder /app/target/release/api-server ./api-server
+COPY --from=builder /app/target/release/stat-poster ./stat-poster
+COPY --from=builder /app/target/release/game-ender ./game-ender
+COPY --from=builder /app/target/release/game-generator ./game-generator
 
-# Copy frontend static files
-COPY --from=frontend-builder /app/src/web/dist ./static
-
-# Copy wordlist and migrations
-COPY --from=backend-builder /app/wordlist ./wordlist
-COPY --from=backend-builder /app/migrations ./migrations
-
+# Copy static resources
+COPY wordlist wordlist
+COPY --from=builder /app/migrations ./migrations
 COPY crontab crontab
 
 # Set environment variables for container deployment
