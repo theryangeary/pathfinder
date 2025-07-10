@@ -120,7 +120,7 @@ pub struct SubmitRequest {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct UpdateProgressRequest {
+pub struct UpdateGameEntryRequest {
     pub user_id: Option<String>,
     pub cookie_token: Option<String>,
     pub answers: Vec<ApiAnswer>,
@@ -196,9 +196,9 @@ pub fn create_secure_router(state: ApiState, config: SecurityConfig) -> Router {
         .route("/api/game/:game_id/word/:word/paths", get(get_word_paths))
         .route("/api/validate", post(validate_answer))
         .route("/api/submit", post(submit_answers))
-        .route("/api/update-progress", post(update_progress))
         .route("/api/user", post(create_user))
         .route("/api/game-entry/:game_id", get(get_game_entry))
+        .route("/api/game-entry/:game_id", post(update_game_entry))
         .route("/health", get(health_check))
         .layer(RequestBodyLimitLayer::new(config.max_request_size))
         .layer(TimeoutLayer::new(config.request_timeout))
@@ -656,11 +656,11 @@ async fn submit_answers(
     Ok(Json(response))
 }
 
-async fn update_progress(
+async fn update_game_entry(
     State(state): State<ApiState>,
-    Json(request): Json<UpdateProgressRequest>,
-) -> Result<Json<serde_json::Value>, StatusCode> {
-    // Validate and get existing user
+    Json(request): Json<SubmitRequest>,
+) -> Result<(), StatusCode> {
+    // Validate and get existing user or create new one
     let user = match (request.user_id.as_ref(), request.cookie_token.as_ref()) {
         (Some(user_id), Some(cookie_token)) => {
             // Validate existing user by both ID and cookie token
@@ -674,7 +674,8 @@ async fn update_progress(
                     existing_user
                 }
                 _ => {
-                    return Err(StatusCode::UNAUTHORIZED);
+                    // Invalid user_id or cookie_token mismatch - create new user
+                    create_new_user(&state).await?
                 }
             }
         }
@@ -690,16 +691,55 @@ async fn update_progress(
                     existing_user
                 }
                 _ => {
-                    return Err(StatusCode::UNAUTHORIZED);
+                    // Invalid cookie_token - create new user
+                    create_new_user(&state).await?
                 }
             }
         }
         _ => {
-            return Err(StatusCode::UNAUTHORIZED);
+            // No user identification provided - create new user
+            create_new_user(&state).await?
         }
     };
 
-    let total_score: i32 = request.answers.iter().map(|a| a.score).sum();
+    // Get the specified game to store the entry against
+    let game = match state.repository.get_game_by_id(&request.game_id).await {
+        Ok(Some(game)) => game,
+        Ok(None) => return Err(StatusCode::NOT_FOUND), // Game not found
+        Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
+    };
+
+    // Check if user has already completed this game
+    match state
+        .repository
+        .get_game_entry(&user.id, &request.game_id)
+        .await
+    {
+        Ok(Some(existing_entry)) if existing_entry.completed => {
+            return Err(StatusCode::CONFLICT); // 409 Conflict - already submitted
+        }
+        Ok(_) => {
+            // No existing entry or entry is not completed - proceed
+        }
+        Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
+    }
+
+    // Validate that all submitted answers are valid for this game
+    if let Err(error_msg) = validate_submitted_answers(&state, &game, &request.answers).await {
+        println!("Answer validation failed: {error_msg}");
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
+    // Score submitted answers
+    let score_sheet = match score_submitted_answers(&state, &game, &request.answers).await {
+        Ok(scoring) => scoring,
+        Err(error_msg) => {
+            println!("Answer scoring failed: {error_msg}");
+            return Err(StatusCode::BAD_REQUEST);
+        }
+    };
+
+    let total_score: i32 = score_sheet.total_score().try_into().unwrap();
 
     // Serialize answers to JSON using stable database format
     let answers_json = match AnswerStorage::serialize_api_answers(&request.answers) {
@@ -707,13 +747,13 @@ async fn update_progress(
         Err(_) => return Err(StatusCode::BAD_REQUEST),
     };
 
-    // Create or update game entry with completed=false for progress
+    // Create or update game entry
     let new_entry = crate::db::models::NewGameEntry {
         user_id: user.id.clone(),
-        game_id: request.game_id.clone(),
+        game_id: game.id.clone(),
         answers_data: answers_json,
         total_score,
-        completed: false, // Mark as incomplete for progress saving
+        completed: false, // Assume not completed for now - TODO merge this method with submit method
     };
 
     match state
@@ -721,7 +761,7 @@ async fn update_progress(
         .create_or_update_game_entry(new_entry)
         .await
     {
-        Ok(_) => Ok(Json(serde_json::json!({"success": true}))),
+        Ok(_) => Ok(()),
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
     }
 }

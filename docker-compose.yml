@@ -36,7 +36,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # Pathfinder Application (Frontend + Backend)
+  # Pathfinder api server
   app:
     build:
       context: .
@@ -48,7 +48,7 @@ services:
       SERVER_HOST: 0.0.0.0
       HTTP_PORT: 8080
       RUST_LOG: info
-      ALLOWED_ORIGINS: http://localhost:8080
+      ALLOWED_ORIGINS: http://localhost:5173
       RATE_LIMIT_SESSION: 10
       RATE_LIMIT_READ: 200
       RATE_LIMIT_WRITE: 50

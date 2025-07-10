@@ -8,7 +8,7 @@ FAILED_TESTS=0
 
 # Test backend health endpoint
 echo "1. Testing health endpoint..."
-health_response=$(curl -s -H "Referer: http://localhost:5173" http://localhost:3001/health)
+health_response=$(curl -s -H "Referer: http://localhost:5173" http://localhost:8080/health)
 if echo "$health_response" | grep -q '"status":"healthy"'; then
     echo "✓ Health endpoint working"
 else
@@ -21,7 +21,7 @@ echo
 
 # Test user creation endpoint
 echo "2. Testing user creation endpoint..."
-user_response=$(curl -s -X POST -H "Referer: http://localhost:5173" http://localhost:3001/api/user)
+user_response=$(curl -s -X POST -H "Referer: http://localhost:5173" http://localhost:8080/api/user)
 if echo "$user_response" | grep -q '"user_id"' && echo "$user_response" | grep -q '"cookie_token"'; then
     echo "✓ User creation API working"
     user_id=$(echo "$user_response" | grep -o '"user_id":"[^"]*"' | cut -d'"' -f4)
@@ -39,7 +39,7 @@ echo
 # Test game by date endpoint (today's date)
 echo "3. Testing daily game endpoint..."
 today=$(date +%Y-%m-%d)
-game_response=$(curl -s -H "Referer: http://localhost:5173" http://localhost:3001/api/game/date/$today)
+game_response=$(curl -s -H "Referer: http://localhost:5173" http://localhost:8080/api/game/date/$today)
 if echo "$game_response" | grep -q '"id"' && echo "$game_response" | grep -q '"board"'; then
     echo "✓ Daily game API working"
     game_id=$(echo "$game_response" | grep -o '"id":"[^"]*"' | cut -d'"' -f4)
@@ -56,7 +56,7 @@ echo
 # Test word validation endpoint
 echo "4. Testing word validation endpoint..."
 validation_payload='{"word":"test","previous_answers":[]}'
-validation_response=$(curl -s -X POST -H "Content-Type: application/json" -H "Referer: http://localhost:5173" -d "$validation_payload" http://localhost:3001/api/validate)
+validation_response=$(curl -s -X POST -H "Content-Type: application/json" -H "Referer: http://localhost:5173" -d "$validation_payload" http://localhost:8080/api/validate)
 if echo "$validation_response" | grep -q '"is_valid"'; then
     echo "✓ Word validation API working"
     is_valid=$(echo "$validation_response" | grep -o '"is_valid":[^,}]*' | cut -d':' -f2)
@@ -72,7 +72,7 @@ echo
 # Test game words endpoint (if we have a game ID)
 if [ -n "$game_id" ]; then
     echo "5. Testing game words endpoint..."
-    words_response=$(curl -s -H "Referer: http://localhost:5173" http://localhost:3001/api/game/$game_id/words)
+    words_response=$(curl -s -H "Referer: http://localhost:5173" http://localhost:8080/api/game/$game_id/words)
     if echo "$words_response" | grep -q '\['; then
         echo "✓ Game words API working"
         word_count=$(echo "$words_response" | grep -o '"[^"]*"' | wc -l)
@@ -86,7 +86,7 @@ if [ -n "$game_id" ]; then
     echo
     
     echo "6. Testing game paths endpoint..."
-    paths_response=$(curl -s -H "Referer: http://localhost:5173" http://localhost:3001/api/game/$game_id/paths)
+    paths_response=$(curl -s -H "Referer: http://localhost:5173" http://localhost:8080/api/game/$game_id/paths)
     if echo "$paths_response" | grep -q '"words"'; then
         echo "✓ Game paths API working"
         echo "  Paths response structure valid"
@@ -100,7 +100,7 @@ if [ -n "$game_id" ]; then
     
     echo "7. Testing game entry endpoint..."
     if [ -n "$user_id" ] && [ -n "$cookie_token" ]; then
-        entry_response=$(curl -s -H "Referer: http://localhost:5173" "http://localhost:3001/api/game-entry/$game_id?user_id=$user_id&cookie_token=$cookie_token")
+        entry_response=$(curl -s -H "Referer: http://localhost:5173" "http://localhost:8080/api/game-entry/$game_id?user_id=$user_id&cookie_token=$cookie_token")
         if echo "$entry_response" | grep -q 'null' || echo "$entry_response" | grep -q '"answers"'; then
             echo "✓ Game entry API working"
             echo "  Entry response valid (no existing entry or valid entry)"
