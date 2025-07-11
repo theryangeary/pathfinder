@@ -59,6 +59,10 @@ async fn run_migrations(pool: &PgPool) -> Result<()> {
             "006_add_game_completion_fields.sql",
             include_str!("../../migrations/006_add_game_completion_fields.sql"),
         ),
+        (
+            "007_change_completed_at_to_timestamp_tz.sql",
+            include_str!("../../migrations/007_change_completed_at_to_timestamp_tz.sql"),
+        ),
     ];
 
     for (filename, migration_sql) in &migrations {

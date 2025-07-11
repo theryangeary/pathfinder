@@ -58,15 +58,11 @@ async fn main() -> Result<()> {
             completed_entries += 1;
         }
 
-        if completed_entries > 0 {
-            println!("  Marked {completed_entries} entries as completed");
+        println!("  Marked {completed_entries} entries as completed");
 
-            // Mark the game itself as completed
-            println!("  Marking game {} as completed", game.id);
-            repo.mark_game_completed(&game.id).await?;
-        } else {
-            eprintln!("  No entries were marked as completed for game {}", game.id);
-        }
+        // Mark the game itself as completed
+        println!("  Marking game {} as completed", game.id);
+        repo.mark_game_completed(&game.id).await?;
     }
 
     println!("Completed processing games for date {date_str}");
