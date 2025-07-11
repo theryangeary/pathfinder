@@ -25,7 +25,7 @@ RUN cargo build --release
 
 FROM debian:bookworm-slim AS runtime
 
-RUN apt-get update && apt-get install -y ca-certificates curl
+RUN apt-get update && apt-get install -y ca-certificates curl postgresql-client unzip
 
 # Latest releases available at https://github.com/aptible/supercronic/releases
 ENV SUPERCRONIC_URL=https://github.com/aptible/supercronic/releases/download/v0.2.29/supercronic-linux-amd64 \
@@ -37,6 +37,9 @@ RUN curl -fsSLO "$SUPERCRONIC_URL" \
  && chmod +x "$SUPERCRONIC" \
  && mv "$SUPERCRONIC" "/usr/local/bin/${SUPERCRONIC}" \
  && ln -s "/usr/local/bin/${SUPERCRONIC}" /usr/local/bin/supercronic
+
+# Install rclone
+RUN curl -fsSL https://rclone.org/install.sh | bash
 
 WORKDIR /app
 
