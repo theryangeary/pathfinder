@@ -9,7 +9,7 @@ use chrono::{NaiveDate, Utc};
 use chrono_tz::Tz;
 use moka::future::Cache;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::{collections::HashMap, env};
 use tower_http::{limit::RequestBodyLimitLayer, timeout::TimeoutLayer};
 
 use crate::db::{conversions::AnswerStorage, Repository};
@@ -843,9 +843,11 @@ async fn score_submitted_answers(
 }
 
 async fn health_check() -> Result<Json<serde_json::Value>, StatusCode> {
+    let process = env::var("FLY_PROCESS_GROUP").unwrap_or_else(|_| "unknown".to_string());
     Ok(Json(serde_json::json!({
         "status": "healthy",
-        "timestamp": chrono::Utc::now().to_rfc3339()
+        "timestamp": chrono::Utc::now().to_rfc3339(),
+        "process": process,
     })))
 }
 

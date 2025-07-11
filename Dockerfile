@@ -50,6 +50,10 @@ COPY --from=builder /app/target/release/game-generator ./game-generator
 COPY wordlist wordlist
 COPY --from=builder /app/migrations ./migrations
 COPY crontab crontab
+COPY cron_entrypoint.sh cron_entrypoint.sh
+
+# verify crontab
+RUN supercronic -test crontab
 
 # Set environment variables for container deployment
 ENV HTTP_PORT=8080
