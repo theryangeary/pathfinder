@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Restore PostgreSQL backup from Tigris storage
-# Downloads backup using rclone and restores using psql
+# Downloads backup using rclone and restores using pg_restore
 
 set -euo pipefail
 
@@ -105,7 +105,7 @@ if [[ -z "$BACKUP_DATE" ]]; then
     
     # Get the most recent backup filename
     LATEST_BACKUP=$(echo "$REMOTE_BACKUPS" | head -n 1)
-    BACKUP_DATE=$(echo "$LATEST_BACKUP" | sed "s/^${BACKUP_FILE_PREFIX}//" | sed 's/\.sql$//')
+    BACKUP_DATE=$(echo "$LATEST_BACKUP" | sed "s/^${BACKUP_FILE_PREFIX}//" | sed 's/\.custom$//')
     
     echo "Most recent backup date: $BACKUP_DATE"
 fi
@@ -117,7 +117,7 @@ if [[ ! "$BACKUP_DATE" =~ ^[0-9]{8}$ ]]; then
 fi
 
 # Construct backup filename
-BACKUP_FILE="${BACKUP_FILE_PREFIX}${BACKUP_DATE}.sql"
+BACKUP_FILE="${BACKUP_FILE_PREFIX}${BACKUP_DATE}.custom"
 BACKUP_PATH="$BACKUP_DIR/$BACKUP_FILE"
 
 # Ensure rclone is configured
@@ -149,7 +149,7 @@ fi
 echo "Backup downloaded successfully: $BACKUP_PATH"
 echo "Backup size: $(du -h "$BACKUP_PATH" | cut -f1)"
 
-# Restore database using psql
+# Restore database using pg_restore
 echo "Restoring database..."
 echo "WARNING: This will drop and recreate the database!"
 read -p "Are you sure you want to continue? (y/N): " -n 1 -r
@@ -160,7 +160,7 @@ if [[ ! $REPLY =~ ^[Yy]$ ]]; then
     exit 0
 fi
 
-if ! psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -f "$BACKUP_PATH"; then
+if ! pg_restore --host="$DB_HOST" --port="$DB_PORT" --username="$DB_USER" --dbname="$DB_NAME" --no-password --clean --if-exists --create "$BACKUP_PATH"; then
     echo "Error: Failed to restore database"
     rm -f "$BACKUP_PATH"
     exit 1

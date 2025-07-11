@@ -26,7 +26,7 @@ mkdir -p "$BACKUP_DIR"
 # Generate backup filename with current date
 DATE=$(date +%Y%m%d)
 BACKUP_FILE_PREFIX=pathfinder_backup_
-BACKUP_FILE="${BACKUP_FILE_PREFIX}${DATE}.sql"
+BACKUP_FILE="${BACKUP_FILE_PREFIX}${DATE}.custom"
 BACKUP_PATH="$BACKUP_DIR/$BACKUP_FILE"
 
 # Ensure rclone is configured
@@ -41,7 +41,7 @@ echo "Backup file: $BACKUP_FILE"
 
 # Create database backup using pg_dump
 echo "Creating database backup..."
-if ! pg_dump --host="$DB_HOST" --username="$DB_USER" --dbname="$DB_NAME" --no-password --clean --if-exists --create > "$BACKUP_PATH"; then
+if ! pg_dump --host="$DB_HOST" --username="$DB_USER" --dbname="$DB_NAME" --no-password --clean --if-exists --create --format=custom --file="$BACKUP_PATH"; then
     echo "Error: Failed to create database backup"
     exit 1
 fi

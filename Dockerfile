@@ -51,6 +51,7 @@ COPY --from=builder /app/target/release/api-server ./api-server
 COPY --from=builder /app/target/release/stat-poster ./stat-poster
 COPY --from=builder /app/target/release/game-ender ./game-ender
 COPY --from=builder /app/target/release/game-generator ./game-generator
+COPY --from=builder /app/target/release/run-migrations ./run-migrations
 
 # Copy control scripts
 COPY scripts/setup_rclone.sh setup_rclone.sh
