@@ -10,9 +10,15 @@ DB_HOST="${DB_HOST:-postgres}"
 DB_USER="${DB_USER:-pathfinder}"
 DB_NAME="${DB_NAME:-pathfinder}"
 BACKUP_DIR="${BACKUP_DIR:-/tmp/backups}"
-RCLONE_REMOTE="tigris-pathfinder-db-backup"
+RCLONE_REMOTE="${PATHFINDER_TIGRIS_POSTGRES_BACKUP}"
 RCLONE_BUCKET="pathfinder-db-backup"
 MAX_BACKUPS=7
+
+# Check if required environment variables are set
+if [[ -z "${PATHFINDER_TIGRIS_POSTGRES_BACKUP:-}" ]]; then
+    echo "Error: PATHFINDER_TIGRIS_POSTGRES_BACKUP environment variable is not set"
+    exit 1
+fi
 
 # Create backup directory if it doesn't exist
 mkdir -p "$BACKUP_DIR"

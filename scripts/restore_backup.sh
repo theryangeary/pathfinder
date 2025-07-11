@@ -11,9 +11,15 @@ DB_PORT="${DB_PORT:-5432}"
 DB_USER="${DB_USER:-pathfinder}"
 DB_NAME="${DB_NAME:-pathfinder}"
 BACKUP_DIR="${BACKUP_DIR:-/tmp/backups}"
-RCLONE_REMOTE="tigris-pathfinder-db-backup"
+RCLONE_REMOTE="${PATHFINDER_TIGRIS_POSTGRES_BACKUP}"
 RCLONE_BUCKET="pathfinder-db-backup"
 BACKUP_FILE_PREFIX="pathfinder_backup_"
+
+# Check if required environment variables are set
+if [[ -z "${PATHFINDER_TIGRIS_POSTGRES_BACKUP:-}" ]]; then
+    echo "Error: PATHFINDER_TIGRIS_POSTGRES_BACKUP environment variable is not set"
+    exit 1
+fi
 
 # Function to show usage
 usage() {
