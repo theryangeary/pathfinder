@@ -46,11 +46,16 @@ COPY --from=builder /app/target/release/stat-poster ./stat-poster
 COPY --from=builder /app/target/release/game-ender ./game-ender
 COPY --from=builder /app/target/release/game-generator ./game-generator
 
+# Copy control scripts
+COPY scripts/store_backup.sh store_backup.sh
+COPY scripts/restore_backup.sh restore_backup.sh
+COPY scripts/cron_entrypoint.sh cron_entrypoint.sh
+
 # Copy static resources
 COPY wordlist wordlist
 COPY --from=builder /app/migrations ./migrations
 COPY crontab crontab
-COPY cron_entrypoint.sh cron_entrypoint.sh
+
 
 # verify crontab
 RUN supercronic -test crontab
