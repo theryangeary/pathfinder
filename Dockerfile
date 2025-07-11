@@ -25,7 +25,10 @@ RUN cargo build --release
 
 FROM debian:bookworm-slim AS runtime
 
-RUN apt-get update && apt-get install -y ca-certificates curl postgresql-client unzip
+RUN apt-get update && apt-get install -y ca-certificates curl gnupg unzip \
+ && curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor -o /usr/share/keyrings/postgresql-keyring.gpg \
+ && echo "deb [signed-by=/usr/share/keyrings/postgresql-keyring.gpg] https://apt.postgresql.org/pub/repos/apt bookworm-pgdg main" > /etc/apt/sources.list.d/postgresql.list \
+ && apt-get update && apt-get install -y postgresql-client-17
 
 # Latest releases available at https://github.com/aptible/supercronic/releases
 ENV SUPERCRONIC_URL=https://github.com/aptible/supercronic/releases/download/v0.2.29/supercronic-linux-amd64 \
