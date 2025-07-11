@@ -23,6 +23,12 @@ BACKUP_FILE_PREFIX=pathfinder_backup_
 BACKUP_FILE="${BACKUP_FILE_PREFIX}${DATE}.sql"
 BACKUP_PATH="$BACKUP_DIR/$BACKUP_FILE"
 
+# Ensure rclone is configured
+if ! ./setup_rclone.sh; then
+    echo "Error: Failed to setup rclone configuration"
+    exit 1
+fi
+
 echo "Starting backup process..."
 echo "Date: $(date)"
 echo "Backup file: $BACKUP_FILE"

@@ -50,6 +50,7 @@ COPY --from=builder /app/target/release/game-ender ./game-ender
 COPY --from=builder /app/target/release/game-generator ./game-generator
 
 # Copy control scripts
+COPY scripts/setup_rclone.sh setup_rclone.sh
 COPY scripts/store_backup.sh store_backup.sh
 COPY scripts/restore_backup.sh restore_backup.sh
 COPY scripts/cron_entrypoint.sh cron_entrypoint.sh
