@@ -8,8 +8,8 @@ set -euo pipefail
 # Configuration with defaults
 DB_HOST="${DB_HOST:-postgres}"
 DB_PORT="${DB_PORT:-5432}"
-DB_USER="${DB_USER:-pathfinder}"
-DB_NAME="${DB_NAME:-pathfinder}"
+DB_USER="${DB_USER:-pathfinder_game}"
+DB_NAME="${DB_NAME:-pathfinder_game}"
 BACKUP_DIR="${BACKUP_DIR:-/tmp/backups}"
 RCLONE_REMOTE="${PATHFINDER_TIGRIS_POSTGRES_BACKUP}"
 RCLONE_BUCKET="pathfinder-db-backup"
