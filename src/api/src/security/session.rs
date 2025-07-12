@@ -7,7 +7,7 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 use tower::{Layer, Service};
 use tower_cookies::{Cookie, CookieManagerLayer, Cookies};
-use tracing::{debug, info};
+use tracing::debug;
 
 use crate::security::SecurityConfig;
 

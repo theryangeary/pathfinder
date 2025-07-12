@@ -5,8 +5,7 @@ use crate::db::{
 use crate::game::GameEngine;
 use anyhow::Result;
 use chrono::{Duration, Utc};
-use rand::SeedableRng;
-use rand_seeder::Seeder;
+use rand::{Rng, SeedableRng};
 use tracing::{error, info, warn};
 
 #[derive(Clone)]
@@ -78,8 +77,8 @@ impl GameGenerator {
 
         for reduction_attempt in 0..=max_threshold_reductions {
             for generation_attempt in 1..=5 {
-                let seed = self.create_seed(date, reduction_attempt, generation_attempt);
-                let mut rng = rand::rngs::StdRng::from_seed(seed);
+                let seed = create_seed(date, reduction_attempt, generation_attempt);
+                let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
 
                 match self
                     .game_engine
@@ -167,12 +166,23 @@ impl GameGenerator {
         );
         anyhow::bail!("Could not generate valid game for date: {}", date);
     }
+}
 
-    /// Create a deterministic seed based on date and attempt numbers
-    fn create_seed(&self, date: &str, reduction_attempt: u32, generation_attempt: u32) -> [u8; 32] {
-        let seed_string = format!("{date}:{reduction_attempt}:{generation_attempt}");
-        Seeder::from(seed_string).make_seed()
-    }
+/// Create a deterministic seed based on date and attempt numbers
+fn create_seed(date: &str, reduction_attempt: u32, generation_attempt: u32) -> u64 {
+    // order so that lowest digits are first to avoid passing 2**32 - otherwise the game will break in the year 4000
+    // this assumes we will not make reduction attempt go beyond 3
+    let seed_string: String = format!("{reduction_attempt}{generation_attempt}{date}")
+        .chars()
+        .filter(|c| c.is_numeric())
+        .collect();
+    seed_string.parse::<u64>().unwrap_or_else(|_| {
+        warn!(
+            "falling back to random seed for game generation: could not parse {} to u64",
+            seed_string
+        );
+        rand::thread_rng().gen_range(0..u64::MAX)
+    })
 }
 
 #[cfg(test)]
@@ -180,6 +190,7 @@ mod tests {
     use super::*;
     use crate::game::GameEngine;
     use chrono::NaiveDate;
+    use rand_seeder::Seeder;
     use std::io::Write;
     use tempfile::NamedTempFile;
 
@@ -265,6 +276,26 @@ mod tests {
         let expected_string = "2023-12-01:1:5";
         let expected_seed: [u8; 32] = Seeder::from(expected_string).make_seed();
         assert_eq!(seed, expected_seed);
+    }
+
+    #[tokio::test]
+    async fn test_seed_deterministic() {
+        let seed = create_seed("2025-04-04", 0, 2);
+        let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
+        assert!(!rng.gen_bool(0.5));
+        assert!(!rng.gen_bool(0.5));
+        assert!(!rng.gen_bool(0.5));
+        assert!(!rng.gen_bool(0.5));
+        assert!(!rng.gen_bool(0.5));
+        assert!(!rng.gen_bool(0.5));
+        assert!(rng.gen_bool(0.5));
+        assert!(!rng.gen_bool(0.5));
+        assert!(!rng.gen_bool(0.5));
+        assert!(!rng.gen_bool(0.5));
+        assert!(rng.gen_bool(0.5));
+        assert!(!rng.gen_bool(0.5));
+        assert!(!rng.gen_bool(0.5));
+        assert!(!rng.gen_bool(0.5));
     }
 
     #[tokio::test]

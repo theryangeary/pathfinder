@@ -55,11 +55,10 @@ impl BoardGenerator {
 
     pub fn generate_board<R: rand::Rng>(&self, rng: &mut R) -> Board {
         // Create weighted distribution for letter selection
-        let letters: Vec<char> = self.letter_frequencies.keys().cloned().collect();
-        let weights: Vec<f64> = letters
-            .iter()
-            .map(|&c| self.letter_frequencies[&c])
-            .collect();
+        let mut letters: Vec<char> = self.letter_frequencies.keys().cloned().collect();
+        // because keys() order is not deterministic, this must be sorted to make board generation deterministic
+        letters.sort();
+        let weights: Vec<f64> = self.get_letter_weights(&letters);
 
         // Generate 4x4 board
         let mut board = Board::new();
@@ -74,9 +73,9 @@ impl BoardGenerator {
             }
         }
 
-        // N.B. for wildcard generation, deciding 'first' or 'second' wildcard is based on both indices being < 2. 
+        // N.B. for wildcard generation, deciding 'first' or 'second' wildcard is based on both indices being < 2.
         // see `fn is_first_wildcard`
-        
+
         // set one wildcard to be one of the center squares, and the other one to be either a diagonal center square OR one of the edge squares adjacent to that square.
         if rng.gen_bool(0.5) {
             board.set_tile(1, 1, '*', 0, true);
@@ -87,7 +86,7 @@ impl BoardGenerator {
                 if rng.gen_bool(0.5) {
                     board.set_tile(3, 2, '*', 0, true);
                 } else {
-                    board.set_tile(2,3, '*', 0, true);
+                    board.set_tile(2, 3, '*', 0, true);
                 }
             } else {
                 board.set_tile(2, 2, '*', 0, true);
@@ -101,7 +100,7 @@ impl BoardGenerator {
                 if rng.gen_bool(0.5) {
                     board.set_tile(1, 0, '*', 0, true);
                 } else {
-                    board.set_tile(0,1, '*', 0, true);
+                    board.set_tile(0, 1, '*', 0, true);
                 }
             } else {
                 board.set_tile(1, 1, '*', 0, true);
@@ -121,6 +120,13 @@ impl BoardGenerator {
 
         let dist = WeightedIndex::new(weights).unwrap();
         letters[dist.sample(rng)]
+    }
+
+    fn get_letter_weights(&self, letters: &[char]) -> Vec<f64> {
+        letters
+            .iter()
+            .map(|&c| self.letter_frequencies[&c])
+            .collect()
     }
 }
 
@@ -1991,5 +1997,12 @@ mod tests {
                 println!("Constraint conflict test n={n}: No valid combination found");
             }
         }
+    }
+
+    #[test]
+    fn test_letter_weights() {
+        let bg = BoardGenerator::default();
+        let weights = bg.get_letter_weights(&['a', 'b']);
+        assert_eq!(weights, vec![0.078, 0.02]);
     }
 }
