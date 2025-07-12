@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { gameApi } from '../api/gameApi';
 
 const USER_STORAGE_KEY = 'word-game-user';
+const TUTORIAL_STORAGE_KEY = 'word-game-tutorial-shown';
 
 interface UserSession {
   user_id: string;
@@ -11,8 +12,12 @@ interface UserSession {
 export function useUser() {
   const [user, setUser] = useState<UserSession | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [showTutorial, setShowTutorial] = useState(false);
 
   useEffect(() => {
+    // Check if tutorial has been shown before
+    const tutorialShown = localStorage.getItem(TUTORIAL_STORAGE_KEY);
+    
     // Try to get user from localStorage
     const storedUser = localStorage.getItem(USER_STORAGE_KEY);
     if (storedUser) {
@@ -20,6 +25,8 @@ export function useUser() {
         const parsedUser = JSON.parse(storedUser) as UserSession;
         setUser(parsedUser);
         setIsLoading(false);
+        // Show tutorial only if it hasn't been shown before
+        setShowTutorial(!tutorialShown);
         return;
       } catch (error) {
         console.error('Error parsing stored user:', error);
@@ -27,8 +34,9 @@ export function useUser() {
       }
     }
 
-    // Create new user if none exists
+    // Create new user if none exists (and show tutorial for new users)
     createNewUser();
+    setShowTutorial(!tutorialShown);
   }, []);
 
   const createNewUser = async () => {
@@ -61,10 +69,23 @@ export function useUser() {
     createNewUser();
   };
 
+  const completeTutorial = () => {
+    setShowTutorial(false);
+    localStorage.setItem(TUTORIAL_STORAGE_KEY, 'true');
+  };
+
+  const resetTutorial = () => {
+    setShowTutorial(true);
+    localStorage.removeItem(TUTORIAL_STORAGE_KEY);
+  };
+
   return {
     user,
     isLoading,
+    showTutorial,
     createNewUser,
     clearUser,
+    completeTutorial,
+    resetTutorial,
   };
 }

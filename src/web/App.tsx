@@ -6,6 +6,7 @@ import Board from './components/Board';
 import HeatmapModal from './components/HeatmapModal';
 // Lazy load word list to avoid blocking initial render
 import PathfinderLogo from './components/Logo';
+import Tutorial from './components/Tutorial';
 import { useMobileDetection } from './hooks/useMobileDetection';
 import { useUser } from './hooks/useUser';
 import { useVirtualKeyboard } from './hooks/useVirtualKeyboard';
@@ -18,7 +19,7 @@ import { validateAllAnswers } from './utils/validation';
 function App() {
   const { sequenceNumber } = useParams<{ sequenceNumber: string }>();
   const navigate = useNavigate();
-  const { user, isLoading: userLoading, clearUser } = useUser();
+  const { user, isLoading: userLoading, showTutorial, clearUser, completeTutorial } = useUser();
   const { isVisible: isVirtualKeyboardVisible } = useVirtualKeyboard();
   const isMobile = useMobileDetection();
 
@@ -552,6 +553,12 @@ function App() {
         totalScore={scores.reduce((sum, score) => sum + score, 0)}
         scores={scores}
         gameStats={gameStats}
+      />
+
+      <Tutorial
+        isOpen={showTutorial}
+        onClose={completeTutorial}
+        onSkip={completeTutorial}
       />
     </div>
   );
