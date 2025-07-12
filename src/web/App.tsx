@@ -397,7 +397,7 @@ function App() {
             textAlign: 'center'
           }}>
             {apiError === 'reload' ? (
-              <>Failed to connect to server. Please <a href=".">reload</a></>
+              <>Failed to connect to server. Please <a href="" onClick={() => window.location.reload()}>reload</a></>
             ) : (
               apiError
             )}
