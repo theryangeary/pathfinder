@@ -74,9 +74,39 @@ impl BoardGenerator {
             }
         }
 
-        // Set wildcard tiles at positions (1,1) and (2,2) - non-adjacent interior tiles
-        board.set_tile(1, 1, '*', 0, true);
-        board.set_tile(2, 2, '*', 0, true);
+        // N.B. for wildcard generation, deciding 'first' or 'second' wildcard is based on both indices being < 2. 
+        // see `fn is_first_wildcard`
+        
+        // set one wildcard to be one of the center squares, and the other one to be either a diagonal center square OR one of the edge squares adjacent to that square.
+        if rng.gen_bool(0.5) {
+            board.set_tile(1, 1, '*', 0, true);
+            if rng.gen_bool(0.5) {
+                // in here we will move the other wildcard to an edge
+
+                // decide which edge
+                if rng.gen_bool(0.5) {
+                    board.set_tile(3, 2, '*', 0, true);
+                } else {
+                    board.set_tile(2,3, '*', 0, true);
+                }
+            } else {
+                board.set_tile(2, 2, '*', 0, true);
+            }
+        } else {
+            board.set_tile(2, 2, '*', 0, true);
+            if rng.gen_bool(0.5) {
+                // in here we will move the other wildcard to an edge
+
+                // decide which edge
+                if rng.gen_bool(0.5) {
+                    board.set_tile(1, 0, '*', 0, true);
+                } else {
+                    board.set_tile(0,1, '*', 0, true);
+                }
+            } else {
+                board.set_tile(1, 1, '*', 0, true);
+            }
+        }
 
         board
     }
