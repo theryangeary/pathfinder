@@ -38,6 +38,7 @@ services:
 
   # Pathfinder api server
   app:
+    env_file: "./.env"
     build:
       context: .
       dockerfile: Dockerfile
@@ -47,8 +48,6 @@ services:
       DATABASE_URL: postgresql://pathfinder:pathfinder_pass@postgres:5432/pathfinder
       SERVER_HOST: 0.0.0.0
       HTTP_PORT: 8080
-      RUST_LOG: info
-      ALLOWED_ORIGINS: http://localhost:5173
       RATE_LIMIT_SESSION: 10
       RATE_LIMIT_READ: 200
       RATE_LIMIT_WRITE: 50
