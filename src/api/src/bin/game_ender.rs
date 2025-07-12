@@ -1,6 +1,8 @@
 use anyhow::Result;
 use chrono::{Duration, NaiveDate, Utc};
+use pathfinder::db::conversions::AnswerStorage;
 use pathfinder::db::repository_simple::Repository;
+use pathfinder::game::{conversion::SerializableBoard, GameEngine};
 use sqlx::PgPool;
 use std::env;
 
@@ -15,6 +17,9 @@ async fn main() -> Result<()> {
     // Create database connection
     let pool = PgPool::connect(&database_url).await?;
     let repo = Repository::new(pool);
+
+    // Initialize game engine for validation
+    let game_engine = GameEngine::new(std::path::PathBuf::from("wordlist"));
 
     // Find the most recent UTC date that has ended in all timezones (including Baker Island/Howland Island at UTC-12)
     let target_date = get_most_recent_completed_date();
@@ -50,9 +55,57 @@ async fn main() -> Result<()> {
 
         println!("  Found {} incomplete entries", incomplete_entries.len());
 
+        // Get the game data for validation
+        let game_data = match repo.get_game_by_id(&game.id).await? {
+            Some(game) => game,
+            None => {
+                println!("  Game data not found for game {}", game.id);
+                continue;
+            }
+        };
+
+        // Parse the board from game data
+        let serializable_board: SerializableBoard =
+            match serde_json::from_str(&game_data.board_data) {
+                Ok(board) => board,
+                Err(e) => {
+                    println!("  Failed to parse board data for game {}: {}", game.id, e);
+                    continue;
+                }
+            };
+        let board: pathfinder::game::Board = serializable_board.into();
+
         // Check each entry to see if it has valid and complete answers
         let mut completed_entries = 0;
         for entry in incomplete_entries {
+            // Parse answers from the entry
+            let answers = match AnswerStorage::deserialize_to_api_answers(&entry.answers_data) {
+                Ok(answers) => answers,
+                Err(e) => {
+                    println!("    Entry {} has invalid answer data: {}", entry.id, e);
+                    continue;
+                }
+            };
+
+            // Check if entry has exactly 5 answers
+            if answers.len() != 5 {
+                println!(
+                    "    Entry {} has {} answers (expected 5), skipping",
+                    entry.id,
+                    answers.len()
+                );
+                continue;
+            }
+
+            // Validate answers using GameEngine
+            if let Err(validation_error) = game_engine.validate_api_answer_group(&board, answers) {
+                println!(
+                    "    Entry {} has invalid answers: {}",
+                    entry.id, validation_error
+                );
+                continue;
+            }
+
             println!("    Marking entry {} as completed", entry.id);
             repo.mark_game_entry_completed(&entry.id).await?;
             completed_entries += 1;
