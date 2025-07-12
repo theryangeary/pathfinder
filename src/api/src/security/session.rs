@@ -93,7 +93,7 @@ where
             if should_create_session {
                 if let Some(cookies) = cookies {
                     set_session_cookie(&config, &cookies, &new_session_id);
-                    info!("Created new session: {}", mask_session_id(&new_session_id));
+                    debug!("Created new session: {}", mask_session_id(&new_session_id));
                 }
             }
 
