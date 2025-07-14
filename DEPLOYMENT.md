@@ -7,7 +7,7 @@ This document provides instructions for running the word game application in loc
 The application consists of:
 - **Frontend**: React/TypeScript application with Vite
 - **Backend**: Rust HTTP API server with Postgres database
-- **Game Generator**: Rust cron-like to generate games for missing days and store in database
+- **Game Generator and other cron-like bins**: Rust cron-like to generate games for missing days and store in database
 - **Database**: PostgreSQL
 
 ## Local Development
