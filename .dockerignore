@@ -1,4 +1,3 @@
-# This .dockerignore is for the frontend build context
 # Build outputs
 src/web/dist
 src/web/node_modules
