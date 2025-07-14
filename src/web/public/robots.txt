@@ -1,0 +1,42 @@
+# Robots.txt for Pathfinder Word Puzzle Game
+# Allow all well-behaved crawlers to access the site
+
+User-agent: *
+Allow: /
+
+# Specific rules for major search engines
+User-agent: Googlebot
+Allow: /
+Crawl-delay: 1
+
+User-agent: Bingbot
+Allow: /
+Crawl-delay: 1
+
+User-agent: Slurp
+Allow: /
+Crawl-delay: 2
+
+# Block access to sensitive areas (if any)
+Disallow: /api/
+Disallow: /_next/static/
+Disallow: /admin/
+Disallow: *.json$
+
+# Allow access to CSS and JS files for proper rendering
+Allow: *.css$
+Allow: *.js$
+Allow: *.png$
+Allow: *.jpg$
+Allow: *.jpeg$
+Allow: *.gif$
+Allow: *.svg$
+Allow: *.ico$
+Allow: *.webp$
+
+# Sitemap location
+Sitemap: https://pathfinder.prof/sitemap.xml
+
+# Additional sitemaps if needed
+# Sitemap: https://pathfinder.prof/sitemap-puzzles.xml
+# Sitemap: https://pathfinder.prof/sitemap-images.xml

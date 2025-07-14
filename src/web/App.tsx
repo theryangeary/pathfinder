@@ -6,6 +6,7 @@ import Board from './components/Board';
 import HeatmapModal from './components/HeatmapModal';
 // Lazy load word list to avoid blocking initial render
 import PathfinderLogo from './components/Logo';
+import SEOHead from './components/SEOHead';
 import Tutorial from './components/Tutorial';
 import { useMobileDetection } from './hooks/useMobileDetection';
 import { useUser } from './hooks/useUser';
@@ -370,16 +371,23 @@ function App() {
   }
 
   return (
-    <div style={{ 
-      fontFamily: 'Arial, sans-serif', 
-      maxWidth: '400px', 
-      height: '100vh',
-      margin: '0 auto', 
-      padding: shouldUseCompactLayout ? '5px' : '20px',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center'
-    }}>
+    <>
+      <SEOHead 
+        sequenceNumber={sequenceNumber}
+        gameDate={currentGame?.date}
+        isCompleted={isGameCompleted}
+        totalScore={scores.reduce((sum, score) => sum + score, 0)}
+      />
+      <div style={{ 
+        fontFamily: 'Arial, sans-serif', 
+        maxWidth: '400px', 
+        height: '100vh',
+        margin: '0 auto', 
+        padding: shouldUseCompactLayout ? '5px' : '20px',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center'
+      }}>
       { !shouldUseCompactLayout && 
       <div style={{
         display: 'block'
@@ -560,7 +568,8 @@ function App() {
         onClose={completeTutorial}
         onSkip={completeTutorial}
       />
-    </div>
+      </div>
+    </>
   );
 }
 
