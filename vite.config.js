@@ -10,13 +10,7 @@ export default defineConfig({
   build: {
     // Optimize for Core Web Vitals
     target: 'es2015',
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: true,
-        drop_debugger: true
-      }
-    },
+    minify: 'esbuild',
     rollupOptions: {
       output: {
         manualChunks: {
@@ -35,7 +29,7 @@ export default defineConfig({
   // Performance optimizations
   esbuild: {
     // Remove console logs in production
-    drop: ['console', 'debugger']
+    drop: process.env.NODE_ENV === 'production' ? ['console', 'debugger'] : []
   },
   test: {
     globals: true,
