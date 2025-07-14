@@ -20,7 +20,7 @@ This guide covers deploying the Pathfinder game to Fly.io with PostgreSQL.
 
 2. **Create a PostgreSQL database:**
    ```bash
-   flyctl postgres create --name pathfinder-db --region ord
+   flyctl postgres create --name pathfinder-db --region iad
    ```
 
 3. **Attach the database to your app:**
@@ -46,11 +46,6 @@ This guide covers deploying the Pathfinder game to Fly.io with PostgreSQL.
    ```bash
    flyctl deploy --build-only --push
    ```
-
-1. **Start the game-generator daily**
-   ```bash
-   fly machine run --schedule=hourly registry.fly.io/pathfinder-game game-generator
-   ```
    
 1. **Deploy the application:**
    ```bash
@@ -60,6 +55,13 @@ This guide covers deploying the Pathfinder game to Fly.io with PostgreSQL.
 2. **Open your deployed app:**
    ```bash
    flyctl open
+   ```
+
+## Admin
+
+- **Run a one-off command:**
+   ```bash
+   fly ssh console -C "game-generator"
    ```
 
 ## Monitoring
@@ -95,14 +97,12 @@ This guide covers deploying the Pathfinder game to Fly.io with PostgreSQL.
 
 To deploy updates:
 ```bash
-flyctl deploy --push
+flyctl deploy
 ```
 
 ## Configuration Notes
 
-- The app is configured to auto-scale from 0 to save costs
 - Health checks are configured on `/health` endpoint
-- Static files are served from `/app/static`
 - Database migrations run automatically on startup
 
 ## Troubleshooting
