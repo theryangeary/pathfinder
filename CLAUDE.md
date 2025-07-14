@@ -83,7 +83,7 @@ The project is fully implemented with:
 The project uses a **single source of truth** for word validation:
 
 ### Source Location
-- **Canonical wordlist**: `src/api/wordlist` (plain text, one word per line)
+- **Canonical wordlist**: `wordlist` (plain text, one word per line)
 
 ### Build Process
 - **Frontend generation**: `npm run generate-wordlist` creates `src/web/data/wordList.ts`
@@ -94,7 +94,7 @@ The project uses a **single source of truth** for word validation:
 - **Backend**: Final validation on submit using word trie to prevent cheating
 
 ### Updating Words
-1. Edit `src/api/wordlist` (the single source)
+1. Edit `wordlist` in the project root (the single source)
 2. Run `npm run generate-wordlist` to update frontend
 3. Restart backend to reload word trie
 
