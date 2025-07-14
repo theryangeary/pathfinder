@@ -2,14 +2,12 @@ import { useEffect } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 
 interface SEOHeadProps {
-  sequenceNumber?: string;
   gameDate?: string;
   isCompleted?: boolean;
   totalScore?: number;
 }
 
 const SEOHead: React.FC<SEOHeadProps> = ({ 
-  sequenceNumber, 
   gameDate, 
   isCompleted, 
   totalScore 

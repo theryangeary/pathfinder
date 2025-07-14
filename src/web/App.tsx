@@ -372,8 +372,7 @@ function App() {
 
   return (
     <>
-      <SEOHead 
-        sequenceNumber={sequenceNumber}
+      <SEOHead
         gameDate={currentGame?.date}
         isCompleted={isGameCompleted}
         totalScore={scores.reduce((sum, score) => sum + score, 0)}
