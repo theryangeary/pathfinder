@@ -9,41 +9,42 @@
   Permissions-Policy: geolocation=(), microphone=(), camera=()
 
 # Cache headers for static assets
-*.css
+/*.css
   Cache-Control: public, max-age=31536000, immutable
 
-*.png
+/*.png
   Cache-Control: public, max-age=31536000, immutable
 
-*.jpg
+/*.jpg
   Cache-Control: public, max-age=31536000, immutable
 
-*.jpeg
+/*.jpeg
   Cache-Control: public, max-age=31536000, immutable
 
-*.gif
+/*.gif
   Cache-Control: public, max-age=31536000, immutable
 
-*.ico
+/*.ico
   Cache-Control: public, max-age=31536000, immutable
 
-*.svg
+/*.svg
   Cache-Control: public, max-age=31536000, immutable
 
-*.webp
+/*.webp
   Cache-Control: public, max-age=31536000, immutable
 
-*.woff
+/*.woff
   Cache-Control: public, max-age=31536000, immutable
 
-*.woff2
+/*.woff2
   Cache-Control: public, max-age=31536000, immutable
 
-# HTML files - short cache for dynamic content
-*.html
+# JavaScript files - shorter cache for dynamic content
+/*.js
   Cache-Control: public, max-age=3600
 
-*.js
+# HTML files - short cache for dynamic content
+/*.html
   Cache-Control: public, max-age=3600
 
 # Manifest and service worker files
