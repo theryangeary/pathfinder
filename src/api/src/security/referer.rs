@@ -114,7 +114,8 @@ fn validate_referer(
                 } else {
                     referer_origin
                 };
-
+                dbg!(&referer_origin);
+                dbg!(&config.allowed_origins);
                 if is_origin_allowed(&referer_origin, &config.allowed_origins) {
                     debug!("Referer validation passed for: {}", referer_value);
                     Ok(())

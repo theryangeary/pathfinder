@@ -26,6 +26,8 @@ path = "src/bin/run_migrations.rs"
 [dependencies]
 # Web framework and async runtime
 axum = { version = "0.7", features = ["macros"] }
+mime_guess = "2.0.5"
+rust-embed = "8.7.2"
 tokio = { version = "1.0", features = ["full"] }
 tokio-cron-scheduler = "0.10"
 tower = { version = "0.4", features = ["util"] }

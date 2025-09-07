@@ -1,13 +1,14 @@
 use axum::{
     extract::{Path, Query, State},
-    http::StatusCode,
-    response::{Json, Redirect},
+    http::{header, StatusCode, Uri},
+    response::{Html, IntoResponse, Json, Response},
     routing::{get, post},
     Router,
 };
 use chrono::{NaiveDate, Utc};
 use chrono_tz::Tz;
 use moka::future::Cache;
+use rust_embed::Embed;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, env};
 use tower_http::{limit::RequestBodyLimitLayer, timeout::TimeoutLayer};
@@ -24,6 +25,12 @@ use crate::security::{
     session::{cookie_layer, SessionLayer},
     SecurityConfig,
 };
+
+static INDEX_HTML: &str = "index.html";
+
+#[derive(Embed)]
+#[folder = "../web/dist"]
+struct Assets;
 
 // HTTP API types (simpler than protobuf for frontend)
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -153,15 +160,15 @@ pub struct GameEntryResponse {
 }
 
 #[derive(Clone)]
-pub struct ApiState {
-    pub repository: Repository,
+pub struct ApiState<R: Repository> {
+    pub repository: R,
     pub game_engine: GameEngine,
-    pub game_generator: GameGenerator,
+    pub game_generator: GameGenerator<R>,
     pub game_cache: Cache<String, ApiGame>,
 }
 
-impl ApiState {
-    pub fn new(repository: Repository, game_engine: GameEngine) -> Self {
+impl<R: Repository + Clone> ApiState<R> {
+    pub fn new(repository: R, game_engine: GameEngine) -> Self {
         let game_generator = GameGenerator::new(repository.clone(), game_engine.clone());
 
         // Create cache with reasonable memory footprint
@@ -181,12 +188,12 @@ impl ApiState {
     }
 }
 
-pub fn create_secure_router(state: ApiState, config: SecurityConfig) -> Router {
+pub fn create_secure_router<R: Repository + Clone + Send + Sync + 'static>(
+    state: ApiState<R>,
+    config: SecurityConfig,
+) -> Router {
     Router::new()
-        .route(
-            "/",
-            get(|| async { Redirect::permanent("https://pathfinder.prof") }),
-        )
+        .fallback(static_handler)
         .route("/api/game/date/:date", get(get_game_by_date))
         .route(
             "/api/game/sequence/:sequence_number",
@@ -286,9 +293,9 @@ impl From<crate::game::board::answer::Answer> for ApiWordPaths {
 
 // Route handlers
 
-async fn get_game_words(
+async fn get_game_words<R: Repository>(
     Path(game_id): Path<String>,
-    State(state): State<ApiState>,
+    State(state): State<ApiState<R>>,
 ) -> Result<Json<Vec<String>>, StatusCode> {
     match state.repository.get_game_words(&game_id).await {
         Ok(words) => Ok(Json(words)),
@@ -296,9 +303,9 @@ async fn get_game_words(
     }
 }
 
-async fn get_game_paths(
+async fn get_game_paths<R: Repository>(
     Path(game_id): Path<String>,
-    State(state): State<ApiState>,
+    State(state): State<ApiState<R>>,
 ) -> Result<Json<ApiPathsResponse>, StatusCode> {
     // Get the game from the repository
     let game = match state.repository.get_game_by_id(&game_id).await {
@@ -334,9 +341,9 @@ async fn get_game_paths(
     Ok(Json(response))
 }
 
-async fn get_word_paths(
+async fn get_word_paths<R: Repository>(
     Path((game_id, word)): Path<(String, String)>,
-    State(state): State<ApiState>,
+    State(state): State<ApiState<R>>,
 ) -> Result<Json<ApiWordPaths>, StatusCode> {
     // Get the game from the repository
     let game = match state.repository.get_game_by_id(&game_id).await {
@@ -377,9 +384,9 @@ async fn get_word_paths(
     Ok(Json(word_paths))
 }
 
-async fn get_game_by_date(
+async fn get_game_by_date<R: Repository>(
     Path(date): Path<String>,
-    State(state): State<ApiState>,
+    State(state): State<ApiState<R>>,
 ) -> Result<Json<ApiGame>, StatusCode> {
     // Validate that the requested date is not in the future
     if is_date_in_future(&date) {
@@ -414,9 +421,9 @@ async fn get_game_by_date(
     Ok(Json(api_game))
 }
 
-async fn get_game_by_sequence(
+async fn get_game_by_sequence<R: Repository>(
     Path(sequence_number): Path<i32>,
-    State(state): State<ApiState>,
+    State(state): State<ApiState<R>>,
 ) -> Result<Json<ApiGame>, StatusCode> {
     let cache_key = format!("seq:{sequence_number}");
 
@@ -492,8 +499,8 @@ fn convert_db_game_to_api_game_direct(
     Ok(api_game)
 }
 
-async fn validate_answer(
-    State(state): State<ApiState>,
+async fn validate_answer<R: Repository>(
+    State(state): State<ApiState<R>>,
     Json(request): Json<ValidateRequest>,
 ) -> Result<Json<ValidateResponse>, StatusCode> {
     // Use the game engine to validate the word
@@ -520,8 +527,8 @@ async fn validate_answer(
     Ok(Json(response))
 }
 
-async fn update_game_entry(
-    State(state): State<ApiState>,
+async fn update_game_entry<R: Repository>(
+    State(state): State<ApiState<R>>,
     Json(request): Json<UpdateGameEntryRequest>,
 ) -> Result<Json<SubmitResponse>, StatusCode> {
     // Validate and get existing user or create new one
@@ -660,7 +667,9 @@ async fn update_game_entry(
     Ok(Json(response))
 }
 
-async fn create_user(State(state): State<ApiState>) -> Result<Json<serde_json::Value>, StatusCode> {
+async fn create_user<R: Repository>(
+    State(state): State<ApiState<R>>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
     let user = create_new_user(&state).await?;
     Ok(Json(serde_json::json!({
         "user_id": user.id,
@@ -668,10 +677,10 @@ async fn create_user(State(state): State<ApiState>) -> Result<Json<serde_json::V
     })))
 }
 
-async fn get_game_entry(
+async fn get_game_entry<R: Repository>(
     Path(game_id): Path<String>,
     Query(params): Query<HashMap<String, String>>,
-    State(state): State<ApiState>,
+    State(state): State<ApiState<R>>,
 ) -> Result<Json<Option<GameEntryResponse>>, StatusCode> {
     println!("get_game_entry called - game_id: {game_id}, params: {params:?}");
 
@@ -795,7 +804,9 @@ async fn get_game_entry(
     }
 }
 
-async fn create_new_user(state: &ApiState) -> Result<crate::db::models::DbUser, StatusCode> {
+async fn create_new_user<R: Repository>(
+    state: &ApiState<R>,
+) -> Result<crate::db::models::DbUser, StatusCode> {
     let new_user = crate::db::models::NewUser {
         cookie_token: uuid::Uuid::new_v4().to_string(),
     };
@@ -807,8 +818,8 @@ async fn create_new_user(state: &ApiState) -> Result<crate::db::models::DbUser, 
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }
 
-async fn validate_submitted_answers(
-    state: &ApiState,
+async fn validate_submitted_answers<R: Repository>(
+    state: &ApiState<R>,
     game: &crate::db::models::DbGame,
     submitted_answers: &[ApiAnswer],
 ) -> Result<(), String> {
@@ -823,8 +834,8 @@ async fn validate_submitted_answers(
         .validate_api_answer_group(&board, Vec::from(submitted_answers))
 }
 
-async fn score_submitted_answers(
-    state: &ApiState,
+async fn score_submitted_answers<R: Repository>(
+    state: &ApiState<R>,
     game: &crate::db::models::DbGame,
     submitted_answers: &[ApiAnswer],
 ) -> Result<ScoreSheet, String> {
@@ -851,6 +862,40 @@ async fn health_check() -> Result<Json<serde_json::Value>, StatusCode> {
     })))
 }
 
+async fn static_handler(uri: Uri) -> impl IntoResponse {
+    let path = uri.path().trim_start_matches('/');
+
+    if path.is_empty() || path == INDEX_HTML {
+        return index_html().await;
+    }
+
+    match Assets::get(path) {
+        Some(content) => {
+            let mime = mime_guess::from_path(path).first_or_octet_stream();
+
+            ([(header::CONTENT_TYPE, mime.as_ref())], content.data).into_response()
+        }
+        None => {
+            if path.contains('.') {
+                return not_found().await;
+            }
+
+            index_html().await
+        }
+    }
+}
+
+async fn index_html() -> Response {
+    match Assets::get(INDEX_HTML) {
+        Some(content) => Html(content.data).into_response(),
+        None => not_found().await,
+    }
+}
+
+async fn not_found() -> Response {
+    (StatusCode::NOT_FOUND, "404").into_response()
+}
+
 #[cfg(all(test, feature = "database-tests"))]
 mod tests {
     use super::*;
@@ -859,7 +904,7 @@ mod tests {
 
     use crate::{db::models::NewGameAnswer, test_utils::*};
 
-    #[sqlx::test]
+    #[sqlx::test(migrations = "migrations/postgres")]
     async fn test_get_game_by_sequence_exists(pool: sqlx::Pool<sqlx::Postgres>) {
         let (state, app) = setup_app(pool).await;
 
@@ -892,7 +937,7 @@ mod tests {
         assert_eq!(game.board.tiles.len(), 4); // 4x4 board
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrations = "migrations/postgres")]
     async fn test_get_game_by_sequence_not_found(pool: sqlx::Pool<sqlx::Postgres>) {
         let (_state, app) = setup_app(pool).await;
 
@@ -903,7 +948,7 @@ mod tests {
         assert_eq!(response.status(), StatusCode::NOT_FOUND);
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrations = "migrations/postgres")]
     async fn test_get_game_by_sequence_multiple_games(pool: sqlx::Pool<sqlx::Postgres>) {
         let (state, app) = setup_app(pool).await;
 
@@ -979,7 +1024,7 @@ mod tests {
         assert_eq!(response.status(), StatusCode::NOT_FOUND);
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrations = "migrations/postgres")]
     async fn test_get_game_by_date_endpoint(pool: sqlx::Pool<sqlx::Postgres>) {
         let (state, app) = setup_app(pool).await;
 
@@ -1011,7 +1056,7 @@ mod tests {
         assert_eq!(game.sequence_number, 1);
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrations = "migrations/postgres")]
     async fn test_validate_word_endpoint(pool: sqlx::Pool<sqlx::Postgres>) {
         let (_state, app) = setup_app(pool).await;
 
@@ -1036,7 +1081,7 @@ mod tests {
         assert_eq!(validate_response.error_message, "");
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrations = "migrations/postgres")]
     async fn test_validate_invalid_word_endpoint(pool: sqlx::Pool<sqlx::Postgres>) {
         let (_state, app) = setup_app(pool).await;
 
@@ -1061,13 +1106,14 @@ mod tests {
         assert!(validate_response.error_message.contains("invalidword"));
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrations = "migrations/postgres")]
     async fn test_create_user_endpoint(pool: sqlx::Pool<sqlx::Postgres>) {
         let (_state, app) = setup_app(pool).await;
 
         let request = create_test_request(axum::http::Method::POST, "/api/user", None);
         let response = app.oneshot(request).await.unwrap();
 
+        println!("{:?}", response);
         assert_eq!(response.status(), StatusCode::OK);
 
         let body = axum::body::to_bytes(response.into_body(), usize::MAX)
@@ -1081,7 +1127,7 @@ mod tests {
         assert!(!user_response["cookie_token"].as_str().unwrap().is_empty());
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrations = "migrations/postgres")]
     async fn test_game_caching_works(pool: sqlx::Pool<sqlx::Postgres>) {
         // TODO this doens't really effectively test caching
         let (state, app) = setup_app(pool).await;
@@ -1124,7 +1170,7 @@ mod tests {
         assert_eq!(body1, body2);
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrations = "migrations/postgres")]
     async fn test_get_game_paths_endpoint(pool: sqlx::Pool<sqlx::Postgres>) {
         let (state, app) = setup_app(pool).await;
 
@@ -1185,7 +1231,7 @@ mod tests {
         }
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrations = "migrations/postgres")]
     async fn test_get_word_paths_endpoint(pool: sqlx::Pool<sqlx::Postgres>) {
         let (state, app) = setup_app(pool).await;
 
@@ -1245,7 +1291,7 @@ mod tests {
         assert_eq!(response.status(), StatusCode::NOT_FOUND);
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrations = "migrations/postgres")]
     async fn test_get_game_words_endpoint(pool: sqlx::Pool<sqlx::Postgres>) {
         let (state, app) = setup_app(pool).await;
 
@@ -1299,7 +1345,7 @@ mod tests {
         assert!(words.contains(&"game".to_string()));
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrations = "migrations/postgres")]
     async fn test_validate_submitted_answers_with_cumulative_constraints(
         pool: sqlx::Pool<sqlx::Postgres>,
     ) {

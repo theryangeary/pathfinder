@@ -1,14 +1,18 @@
 pub mod conversions;
 pub mod models;
-pub mod repository_simple;
+pub mod repository;
+pub mod repository_postgres;
+pub mod repository_sqlite;
 pub mod storage_types;
 
 pub use models::OptimalAnswer;
-pub use repository_simple::Repository;
+pub use repository::Repository;
+pub use repository_postgres::PgRepository;
+pub use repository_sqlite::SqliteRepository;
 
 use anyhow::Result;
 use sqlx::postgres::PgPool;
-use sqlx::{Sqlite,sqlite::SqlitePool,migrate::MigrateDatabase};
+use sqlx::{migrate::MigrateDatabase, sqlite::SqlitePool, Sqlite};
 
 pub async fn setup_database(
     postgres_database_url: &str,
@@ -120,7 +124,6 @@ async fn run_migrations_postgres(pool: &PgPool) -> Result<()> {
     Ok(())
 }
 
-
 async fn run_migrations_sqlite(pool: &SqlitePool) -> Result<()> {
     // Create migrations table if it doesn't exist
     sqlx::query(
@@ -136,12 +139,10 @@ async fn run_migrations_sqlite(pool: &SqlitePool) -> Result<()> {
     .await?;
 
     // List of migrations in order
-    let migrations = [
-        (
-            "001_migrate_from_postgres.sql",
-            include_str!("../../migrations/sqlite/001_migrate_from_postgres.sql"),
-        ),
-    ];
+    let migrations = [(
+        "001_migrate_from_postgres.sql",
+        include_str!("../../migrations/sqlite/001_migrate_from_postgres.sql"),
+    )];
 
     for (filename, migration_sql) in &migrations {
         // Check if this migration has already been applied

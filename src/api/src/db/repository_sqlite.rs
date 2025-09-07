@@ -1,6 +1,9 @@
 use anyhow::Result;
+use axum::async_trait;
 use chrono::Utc;
-use sqlx::{PgPool, Row};
+use sqlx::{Row, SqlitePool};
+
+use crate::db::Repository;
 
 use super::models::{
     DbGame, DbGameAnswer, DbGameEntry, DbOptimalSolution, DbUser, NewGame, NewGameAnswer,
@@ -8,35 +11,38 @@ use super::models::{
 };
 
 #[derive(Clone)]
-pub struct Repository {
-    pool: PgPool,
+pub struct SqliteRepository {
+    pool: SqlitePool,
 }
 
-impl Repository {
-    pub fn new(pool: PgPool) -> Self {
+impl SqliteRepository {
+    pub fn new(pool: SqlitePool) -> Self {
         Self { pool }
     }
+}
 
+#[async_trait]
+impl Repository for SqliteRepository {
     // User operations
-    pub async fn create_user(&self, new_user: NewUser) -> Result<DbUser> {
+    async fn create_user(&self, new_user: NewUser) -> Result<DbUser> {
         let user = DbUser::new(new_user.cookie_token);
 
         sqlx::query(
-            "INSERT INTO users (id, cookie_token, created_at, last_seen) VALUES ($1, $2, $3, $4)",
+            "INSERT INTO users (id, cookie_token, created_at, last_seen) VALUES (?1, ?2, ?3, ?4)",
         )
         .bind(&user.id)
         .bind(&user.cookie_token)
-        .bind(user.created_at)
-        .bind(user.last_seen)
+        .bind(user.created_at.to_rfc3339())
+        .bind(user.last_seen.to_rfc3339())
         .execute(&self.pool)
         .await?;
 
         Ok(user)
     }
 
-    pub async fn get_user_by_cookie(&self, cookie_token: &str) -> Result<Option<DbUser>> {
+    async fn get_user_by_cookie(&self, cookie_token: &str) -> Result<Option<DbUser>> {
         let row = sqlx::query(
-            "SELECT id, cookie_token, created_at, last_seen FROM users WHERE cookie_token = $1",
+            "SELECT id, cookie_token, created_at, last_seen FROM users WHERE cookie_token = ?1",
         )
         .bind(cookie_token)
         .fetch_optional(&self.pool)
@@ -46,17 +52,23 @@ impl Repository {
             Ok(Some(DbUser {
                 id: row.get("id"),
                 cookie_token: row.get("cookie_token"),
-                created_at: row.get("created_at"),
-                last_seen: row.get("last_seen"),
+                created_at: chrono::DateTime::parse_from_rfc3339(
+                    &row.get::<String, _>("created_at"),
+                )?
+                .with_timezone(&Utc),
+                last_seen: chrono::DateTime::parse_from_rfc3339(
+                    &row.get::<String, _>("last_seen"),
+                )?
+                .with_timezone(&Utc),
             }))
         } else {
             Ok(None)
         }
     }
 
-    pub async fn get_user_by_id(&self, user_id: &str) -> Result<Option<DbUser>> {
+    async fn get_user_by_id(&self, user_id: &str) -> Result<Option<DbUser>> {
         let row =
-            sqlx::query("SELECT id, cookie_token, created_at, last_seen FROM users WHERE id = $1")
+            sqlx::query("SELECT id, cookie_token, created_at, last_seen FROM users WHERE id = ?1")
                 .bind(user_id)
                 .fetch_optional(&self.pool)
                 .await?;
@@ -65,26 +77,32 @@ impl Repository {
             Ok(Some(DbUser {
                 id: row.get("id"),
                 cookie_token: row.get("cookie_token"),
-                created_at: row.get("created_at"),
-                last_seen: row.get("last_seen"),
+                created_at: chrono::DateTime::parse_from_rfc3339(
+                    &row.get::<String, _>("created_at"),
+                )?
+                .with_timezone(&Utc),
+                last_seen: chrono::DateTime::parse_from_rfc3339(
+                    &row.get::<String, _>("last_seen"),
+                )?
+                .with_timezone(&Utc),
             }))
         } else {
             Ok(None)
         }
     }
 
-    pub async fn update_user_last_seen(&self, user_id: &str) -> Result<()> {
+    async fn update_user_last_seen(&self, user_id: &str) -> Result<()> {
         let now = Utc::now();
-        sqlx::query("UPDATE users SET last_seen = $1 WHERE id = $2")
-            .bind(now)
+        sqlx::query("UPDATE users SET last_seen = ?1 WHERE id = ?2")
+            .bind(now.to_rfc3339())
             .bind(user_id)
             .execute(&self.pool)
             .await?;
         Ok(())
     }
 
-    pub async fn get_game_by_date(&self, date: &str) -> Result<Option<DbGame>> {
-        let row = sqlx::query("SELECT id, date, board_data, threshold_score, sequence_number, completed, completed_at, created_at FROM games WHERE date = $1")
+    async fn get_game_by_date(&self, date: &str) -> Result<Option<DbGame>> {
+        let row = sqlx::query("SELECT id, date, board_data, threshold_score, sequence_number, completed, completed_at, created_at FROM games WHERE date = ?1")
             .bind(date)
             .fetch_optional(&self.pool)
             .await?;
@@ -96,17 +114,25 @@ impl Repository {
                 board_data: row.get("board_data"),
                 threshold_score: row.get("threshold_score"),
                 sequence_number: row.get("sequence_number"),
-                completed: row.get("completed"),
-                completed_at: row.get("completed_at"),
-                created_at: row.get("created_at"),
+                completed: row.get::<i32, _>("completed") != 0,
+                completed_at: row
+                    .get::<Option<String>, _>("completed_at")
+                    .map(|s| {
+                        chrono::DateTime::parse_from_rfc3339(&s).map(|dt| dt.with_timezone(&Utc))
+                    })
+                    .transpose()?,
+                created_at: chrono::DateTime::parse_from_rfc3339(
+                    &row.get::<String, _>("created_at"),
+                )?
+                .with_timezone(&Utc),
             }))
         } else {
             Ok(None)
         }
     }
 
-    pub async fn get_game_by_id(&self, game_id: &str) -> Result<Option<DbGame>> {
-        let row = sqlx::query("SELECT id, date, board_data, threshold_score, sequence_number, completed, completed_at, created_at FROM games WHERE id = $1")
+    async fn get_game_by_id(&self, game_id: &str) -> Result<Option<DbGame>> {
+        let row = sqlx::query("SELECT id, date, board_data, threshold_score, sequence_number, completed, completed_at, created_at FROM games WHERE id = ?1")
             .bind(game_id)
             .fetch_optional(&self.pool)
             .await?;
@@ -118,20 +144,25 @@ impl Repository {
                 board_data: row.get("board_data"),
                 threshold_score: row.get("threshold_score"),
                 sequence_number: row.get("sequence_number"),
-                completed: row.get("completed"),
-                completed_at: row.get("completed_at"),
-                created_at: row.get("created_at"),
+                completed: row.get::<i32, _>("completed") != 0,
+                completed_at: row
+                    .get::<Option<String>, _>("completed_at")
+                    .map(|s| {
+                        chrono::DateTime::parse_from_rfc3339(&s).map(|dt| dt.with_timezone(&Utc))
+                    })
+                    .transpose()?,
+                created_at: chrono::DateTime::parse_from_rfc3339(
+                    &row.get::<String, _>("created_at"),
+                )?
+                .with_timezone(&Utc),
             }))
         } else {
             Ok(None)
         }
     }
 
-    pub async fn get_game_by_sequence_number(
-        &self,
-        sequence_number: i32,
-    ) -> Result<Option<DbGame>> {
-        let row = sqlx::query("SELECT id, date, board_data, threshold_score, sequence_number, completed, completed_at, created_at FROM games WHERE sequence_number = $1")
+    async fn get_game_by_sequence_number(&self, sequence_number: i32) -> Result<Option<DbGame>> {
+        let row = sqlx::query("SELECT id, date, board_data, threshold_score, sequence_number, completed, completed_at, created_at FROM games WHERE sequence_number = ?1")
             .bind(sequence_number)
             .fetch_optional(&self.pool)
             .await?;
@@ -143,26 +174,34 @@ impl Repository {
                 board_data: row.get("board_data"),
                 threshold_score: row.get("threshold_score"),
                 sequence_number: row.get("sequence_number"),
-                completed: row.get("completed"),
-                completed_at: row.get("completed_at"),
-                created_at: row.get("created_at"),
+                completed: row.get::<i32, _>("completed") != 0,
+                completed_at: row
+                    .get::<Option<String>, _>("completed_at")
+                    .map(|s| {
+                        chrono::DateTime::parse_from_rfc3339(&s).map(|dt| dt.with_timezone(&Utc))
+                    })
+                    .transpose()?,
+                created_at: chrono::DateTime::parse_from_rfc3339(
+                    &row.get::<String, _>("created_at"),
+                )?
+                .with_timezone(&Utc),
             }))
         } else {
             Ok(None)
         }
     }
 
-    pub async fn game_exists_for_date(&self, date: &str) -> Result<bool> {
-        let row = sqlx::query("SELECT COUNT(*) as count FROM games WHERE date = $1")
+    async fn game_exists_for_date(&self, date: &str) -> Result<bool> {
+        let row = sqlx::query("SELECT COUNT(*) as count FROM games WHERE date = ?1")
             .bind(date)
             .fetch_one(&self.pool)
             .await?;
 
-        let count: i64 = row.get("count");
+        let count: i32 = row.get("count");
         Ok(count > 0)
     }
 
-    pub async fn get_next_sequence_number(&self) -> Result<i32> {
+    async fn get_next_sequence_number(&self) -> Result<i32> {
         let row = sqlx::query("SELECT MAX(sequence_number) as max_seq FROM games")
             .fetch_one(&self.pool)
             .await?;
@@ -172,10 +211,7 @@ impl Repository {
     }
 
     // Game entry operations
-    pub async fn create_or_update_game_entry(
-        &self,
-        new_entry: NewGameEntry,
-    ) -> Result<DbGameEntry> {
+    async fn create_or_update_game_entry(&self, new_entry: NewGameEntry) -> Result<DbGameEntry> {
         // Check if entry already exists
         let existing = self
             .get_game_entry(&new_entry.user_id, &new_entry.game_id)
@@ -184,11 +220,11 @@ impl Repository {
         if let Some(existing_entry) = existing {
             // Update existing entry
             let now = Utc::now();
-            sqlx::query("UPDATE game_entries SET answers_data = $1, total_score = $2, completed = $3, updated_at = $4 WHERE id = $5")
+            sqlx::query("UPDATE game_entries SET answers_data = ?1, total_score = ?2, completed = ?3, updated_at = ?4 WHERE id = ?5")
                 .bind(&new_entry.answers_data)
                 .bind(new_entry.total_score)
-                .bind(new_entry.completed)
-                .bind(now)
+                .bind(if new_entry.completed { 1 } else { 0 })
+                .bind(now.to_rfc3339())
                 .bind(&existing_entry.id)
                 .execute(&self.pool)
                 .await?;
@@ -213,15 +249,15 @@ impl Repository {
                 new_entry.completed,
             );
 
-            sqlx::query("INSERT INTO game_entries (id, user_id, game_id, answers_data, total_score, completed, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)")
+            sqlx::query("INSERT INTO game_entries (id, user_id, game_id, answers_data, total_score, completed, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)")
                 .bind(&entry.id)
                 .bind(&entry.user_id)
                 .bind(&entry.game_id)
                 .bind(&entry.answers_data)
                 .bind(entry.total_score)
-                .bind(entry.completed)
-                .bind(entry.created_at)
-                .bind(entry.updated_at)
+                .bind(if entry.completed { 1 } else { 0 })
+                .bind(entry.created_at.to_rfc3339())
+                .bind(entry.updated_at.to_rfc3339())
                 .execute(&self.pool)
                 .await?;
 
@@ -229,12 +265,8 @@ impl Repository {
         }
     }
 
-    pub async fn get_game_entry(
-        &self,
-        user_id: &str,
-        game_id: &str,
-    ) -> Result<Option<DbGameEntry>> {
-        let row = sqlx::query("SELECT id, user_id, game_id, answers_data, total_score, completed, created_at, updated_at FROM game_entries WHERE user_id = $1 AND game_id = $2")
+    async fn get_game_entry(&self, user_id: &str, game_id: &str) -> Result<Option<DbGameEntry>> {
+        let row = sqlx::query("SELECT id, user_id, game_id, answers_data, total_score, completed, created_at, updated_at FROM game_entries WHERE user_id = ?1 AND game_id = ?2")
             .bind(user_id)
             .bind(game_id)
             .fetch_optional(&self.pool)
@@ -247,9 +279,15 @@ impl Repository {
                 game_id: row.get("game_id"),
                 answers_data: row.get("answers_data"),
                 total_score: row.get("total_score"),
-                completed: row.get("completed"),
-                created_at: row.get("created_at"),
-                updated_at: row.get("updated_at"),
+                completed: row.get::<i32, _>("completed") != 0,
+                created_at: chrono::DateTime::parse_from_rfc3339(
+                    &row.get::<String, _>("created_at"),
+                )?
+                .with_timezone(&Utc),
+                updated_at: chrono::DateTime::parse_from_rfc3339(
+                    &row.get::<String, _>("updated_at"),
+                )?
+                .with_timezone(&Utc),
             }))
         } else {
             Ok(None)
@@ -257,7 +295,7 @@ impl Repository {
     }
 
     // Create game and answers atomically
-    pub async fn create_game_with_answers(
+    async fn create_game_with_answers(
         &self,
         new_game: NewGame,
         mut game_answers: Vec<NewGameAnswer>,
@@ -273,15 +311,15 @@ impl Repository {
             new_game.sequence_number,
         );
 
-        sqlx::query("INSERT INTO games (id, date, board_data, threshold_score, sequence_number, completed, completed_at, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)")
+        sqlx::query("INSERT INTO games (id, date, board_data, threshold_score, sequence_number, completed, completed_at, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)")
             .bind(&game.id)
             .bind(&game.date)
             .bind(&game.board_data)
             .bind(game.threshold_score)
             .bind(game.sequence_number)
-            .bind(game.completed)
-            .bind(game.completed_at)
-            .bind(game.created_at)
+            .bind(if game.completed { 1 } else { 0 })
+            .bind(game.completed_at.map(|dt| dt.to_rfc3339()))
+            .bind(game.created_at.to_rfc3339())
             .execute(&mut *tx)
             .await?;
 
@@ -296,12 +334,12 @@ impl Repository {
             let answer = DbGameAnswer::new(new_answer.game_id, new_answer.word);
 
             sqlx::query(
-                "INSERT INTO game_answers (id, game_id, word, created_at) VALUES ($1, $2, $3, $4)",
+                "INSERT INTO game_answers (id, game_id, word, created_at) VALUES (?1, ?2, ?3, ?4)",
             )
             .bind(&answer.id)
             .bind(&answer.game_id)
             .bind(&answer.word)
-            .bind(answer.created_at)
+            .bind(answer.created_at.to_rfc3339())
             .execute(&mut *tx)
             .await?;
 
@@ -318,13 +356,13 @@ impl Repository {
             );
 
             sqlx::query(
-                "INSERT INTO optimal_solutions (id, game_id, words_and_scores, total_score, created_at) VALUES ($1, $2, $3, $4, $5)",
+                "INSERT INTO optimal_solutions (id, game_id, words_and_scores, total_score, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",
             )
             .bind(&solution.id)
             .bind(&solution.game_id)
             .bind(&solution.words_and_scores)
             .bind(solution.total_score)
-            .bind(solution.created_at)
+            .bind(solution.created_at.to_rfc3339())
             .execute(&mut *tx)
             .await?;
         }
@@ -333,8 +371,8 @@ impl Repository {
         Ok((game, created_answers))
     }
 
-    pub async fn get_game_words(&self, game_id: &str) -> Result<Vec<String>> {
-        let rows = sqlx::query("SELECT DISTINCT word FROM game_answers WHERE game_id = $1")
+    async fn get_game_words(&self, game_id: &str) -> Result<Vec<String>> {
+        let rows = sqlx::query("SELECT DISTINCT word FROM game_answers WHERE game_id = ?1")
             .bind(game_id)
             .fetch_all(&self.pool)
             .await?;
@@ -348,15 +386,14 @@ impl Repository {
     }
 
     // Get score distribution for a specific game
-    pub async fn get_score_distribution(&self, game_id: &str) -> Result<Vec<i32>> {
+    async fn get_score_distribution(&self, game_id: &str) -> Result<Vec<i32>> {
         dbg!(game_id);
         let rows = sqlx::query(
-            "SELECT total_score FROM game_entries WHERE game_id = $1 AND completed = TRUE",
+            "SELECT total_score FROM game_entries WHERE game_id = ?1 AND completed = 1",
         )
         .bind(game_id)
         .fetch_all(&self.pool)
         .await?;
-        dbg!(&rows);
 
         let scores = rows
             .into_iter()
@@ -367,8 +404,8 @@ impl Repository {
     }
 
     // Get optimal solutions for a specific game
-    pub async fn get_optimal_solutions(&self, game_id: &str) -> Result<Vec<OptimalAnswer>> {
-        let row = sqlx::query("SELECT words_and_scores FROM optimal_solutions WHERE game_id = $1")
+    async fn get_optimal_solutions(&self, game_id: &str) -> Result<Vec<OptimalAnswer>> {
+        let row = sqlx::query("SELECT words_and_scores FROM optimal_solutions WHERE game_id = ?1")
             .bind(game_id)
             .fetch_optional(&self.pool)
             .await?;
@@ -383,69 +420,83 @@ impl Repository {
     }
 
     // Completion tracking operations
-    pub async fn mark_game_completed(&self, game_id: &str) -> Result<()> {
+    async fn mark_game_completed(&self, game_id: &str) -> Result<()> {
         let now = Utc::now();
-        sqlx::query("UPDATE games SET completed = TRUE, completed_at = $1 WHERE id = $2")
-            .bind(now)
+        sqlx::query("UPDATE games SET completed = 1, completed_at = ?1 WHERE id = ?2")
+            .bind(now.to_rfc3339())
             .bind(game_id)
             .execute(&self.pool)
             .await?;
         Ok(())
     }
 
-    pub async fn get_incomplete_games_for_date(&self, date: &str) -> Result<Vec<DbGame>> {
-        let rows = sqlx::query("SELECT id, date, board_data, threshold_score, sequence_number, completed, completed_at, created_at FROM games WHERE date = $1 AND completed = FALSE")
+    async fn get_incomplete_games_for_date(&self, date: &str) -> Result<Vec<DbGame>> {
+        let rows = sqlx::query("SELECT id, date, board_data, threshold_score, sequence_number, completed, completed_at, created_at FROM games WHERE date = ?1 AND completed = 0")
             .bind(date)
             .fetch_all(&self.pool)
             .await?;
 
-        let games = rows
-            .into_iter()
-            .map(|row| DbGame {
+        let mut games = Vec::new();
+        for row in rows {
+            games.push(DbGame {
                 id: row.get("id"),
                 date: row.get("date"),
                 board_data: row.get("board_data"),
                 threshold_score: row.get("threshold_score"),
                 sequence_number: row.get("sequence_number"),
-                completed: row.get("completed"),
-                completed_at: row.get("completed_at"),
-                created_at: row.get("created_at"),
-            })
-            .collect();
+                completed: row.get::<i32, _>("completed") != 0,
+                completed_at: row
+                    .get::<Option<String>, _>("completed_at")
+                    .map(|s| {
+                        chrono::DateTime::parse_from_rfc3339(&s).map(|dt| dt.with_timezone(&Utc))
+                    })
+                    .transpose()?,
+                created_at: chrono::DateTime::parse_from_rfc3339(
+                    &row.get::<String, _>("created_at"),
+                )?
+                .with_timezone(&Utc),
+            });
+        }
 
         Ok(games)
     }
 
-    pub async fn get_incomplete_game_entries_for_game(
+    async fn get_incomplete_game_entries_for_game(
         &self,
         game_id: &str,
     ) -> Result<Vec<DbGameEntry>> {
-        let rows = sqlx::query("SELECT id, user_id, game_id, answers_data, total_score, completed, created_at, updated_at FROM game_entries WHERE game_id = $1 AND completed = FALSE")
+        let rows = sqlx::query("SELECT id, user_id, game_id, answers_data, total_score, completed, created_at, updated_at FROM game_entries WHERE game_id = ?1 AND completed = 0")
             .bind(game_id)
             .fetch_all(&self.pool)
             .await?;
 
-        let entries = rows
-            .into_iter()
-            .map(|row| DbGameEntry {
+        let mut entries = Vec::new();
+        for row in rows {
+            entries.push(DbGameEntry {
                 id: row.get("id"),
                 user_id: row.get("user_id"),
                 game_id: row.get("game_id"),
                 answers_data: row.get("answers_data"),
                 total_score: row.get("total_score"),
-                completed: row.get("completed"),
-                created_at: row.get("created_at"),
-                updated_at: row.get("updated_at"),
-            })
-            .collect();
+                completed: row.get::<i32, _>("completed") != 0,
+                created_at: chrono::DateTime::parse_from_rfc3339(
+                    &row.get::<String, _>("created_at"),
+                )?
+                .with_timezone(&Utc),
+                updated_at: chrono::DateTime::parse_from_rfc3339(
+                    &row.get::<String, _>("updated_at"),
+                )?
+                .with_timezone(&Utc),
+            });
+        }
 
         Ok(entries)
     }
 
-    pub async fn mark_game_entry_completed(&self, entry_id: &str) -> Result<()> {
+    async fn mark_game_entry_completed(&self, entry_id: &str) -> Result<()> {
         let now = Utc::now();
-        sqlx::query("UPDATE game_entries SET completed = TRUE, updated_at = $1 WHERE id = $2")
-            .bind(now)
+        sqlx::query("UPDATE game_entries SET completed = 1, updated_at = ?1 WHERE id = ?2")
+            .bind(now.to_rfc3339())
             .bind(entry_id)
             .execute(&self.pool)
             .await?;
@@ -453,30 +504,30 @@ impl Repository {
     }
 
     // Statistics operations
-    pub async fn get_game_stats(
+    async fn get_game_stats(
         &self,
         game_id: &str,
         user_score: i32,
     ) -> Result<(i32, i32, f64, i32, i32)> {
         // Get total players for this game
         let total_row = sqlx::query(
-            "SELECT COUNT(*) as count FROM game_entries WHERE game_id = $1 AND completed = TRUE",
+            "SELECT COUNT(*) as count FROM game_entries WHERE game_id = ?1 AND completed = 1",
         )
         .bind(game_id)
         .fetch_one(&self.pool)
         .await?;
-        let total_players: i64 = total_row.get("count");
+        let total_players: i32 = total_row.get("count");
 
         // Get number of players with score <= user_score (for ranking)
-        let rank_row = sqlx::query("SELECT COUNT(*) as count FROM game_entries WHERE game_id = $1 AND completed = TRUE AND total_score <= $2")
+        let rank_row = sqlx::query("SELECT COUNT(*) as count FROM game_entries WHERE game_id = ?1 AND completed = 1 AND total_score <= ?2")
             .bind(game_id)
             .bind(user_score)
             .fetch_one(&self.pool)
             .await?;
-        let players_at_or_below: i64 = rank_row.get("count");
+        let players_at_or_below: i32 = rank_row.get("count");
 
         // Calculate rank and percentile
-        let user_rank = (total_players - players_at_or_below + 1) as i32;
+        let user_rank = total_players - players_at_or_below + 1;
         let percentile = if total_players > 0 {
             (players_at_or_below as f64 / total_players as f64) * 100.0
         } else {
@@ -484,21 +535,21 @@ impl Repository {
         };
 
         // Get average score
-        let avg_row = sqlx::query("SELECT AVG(total_score::float) as avg_score FROM game_entries WHERE game_id = $1 AND completed = TRUE")
+        let avg_row = sqlx::query("SELECT AVG(CAST(total_score AS REAL)) as avg_score FROM game_entries WHERE game_id = ?1 AND completed = 1")
             .bind(game_id)
             .fetch_one(&self.pool)
             .await?;
         let avg_score: Option<f64> = avg_row.get("avg_score");
 
         // Get highest score
-        let max_row = sqlx::query("SELECT MAX(total_score) as max_score FROM game_entries WHERE game_id = $1 AND completed = TRUE")
+        let max_row = sqlx::query("SELECT MAX(total_score) as max_score FROM game_entries WHERE game_id = ?1 AND completed = 1")
             .bind(game_id)
             .fetch_one(&self.pool)
             .await?;
         let highest_score: Option<i32> = max_row.get("max_score");
 
         Ok((
-            total_players as i32,
+            total_players,
             user_rank,
             percentile,
             avg_score.unwrap_or(0.0) as i32,
@@ -509,7 +560,7 @@ impl Repository {
 
 #[cfg(all(test, feature = "database-tests"))]
 mod tests {
-    use sqlx::{Pool, Postgres};
+    use sqlx::{Pool, Sqlite};
 
     use super::*;
 
@@ -517,10 +568,9 @@ mod tests {
         r#"{"rows":[{"tiles":[{"letter":"t","points":1,"is_wildcard":false,"row":0,"col":0},{"letter":"e","points":1,"is_wildcard":false,"row":0,"col":1},{"letter":"s","points":1,"is_wildcard":false,"row":0,"col":2},{"letter":"t","points":1,"is_wildcard":false,"row":0,"col":3}]}]}"#.to_string()
     }
 
-    // Commented out tests for PostgreSQL migration - tests depend on SQLite setup
-    #[sqlx::test]
-    async fn test_get_game_by_sequence_number_exists(pool: Pool<Postgres>) {
-        let repo = Repository::new(pool);
+    #[sqlx::test(migrations = "migrations/sqlite")]
+    async fn test_get_game_by_sequence_number_exists(pool: Pool<Sqlite>) {
+        let repo = SqliteRepository::new(pool);
 
         // Create a test game
         let new_game = NewGame {
@@ -546,18 +596,18 @@ mod tests {
         assert_eq!(game.threshold_score, 40);
     }
 
-    #[sqlx::test]
-    async fn test_get_game_by_sequence_number_not_exists(pool: Pool<Postgres>) {
-        let repo = Repository::new(pool);
+    #[sqlx::test(migrations = "migrations/sqlite")]
+    async fn test_get_game_by_sequence_number_not_exists(pool: Pool<Sqlite>) {
+        let repo = SqliteRepository::new(pool);
 
         // Test getting a non-existent sequence number
         let result = repo.get_game_by_sequence_number(999).await.unwrap();
         assert!(result.is_none());
     }
 
-    #[sqlx::test]
-    async fn test_get_game_by_sequence_number_multiple_games(pool: Pool<Postgres>) {
-        let repo = Repository::new(pool);
+    #[sqlx::test(migrations = "migrations/sqlite")]
+    async fn test_get_game_by_sequence_number_multiple_games(pool: Pool<Sqlite>) {
+        let repo = SqliteRepository::new(pool);
 
         // Create multiple test games with different sequence numbers
         let games = vec![
@@ -612,9 +662,9 @@ mod tests {
         assert!(repo.get_game_by_sequence_number(6).await.unwrap().is_none());
     }
 
-    #[sqlx::test]
-    async fn test_get_next_sequence_number(pool: Pool<Postgres>) {
-        let repo = Repository::new(pool);
+    #[sqlx::test(migrations = "migrations/sqlite")]
+    async fn test_get_next_sequence_number(pool: Pool<Sqlite>) {
+        let repo = SqliteRepository::new(pool);
 
         // Test getting next sequence number when no games exist
         let next_seq = repo.get_next_sequence_number().await.unwrap();
@@ -651,9 +701,9 @@ mod tests {
         assert_eq!(next_seq, 6);
     }
 
-    #[sqlx::test]
-    async fn test_game_exists_for_date(pool: Pool<Postgres>) {
-        let repo = Repository::new(pool);
+    #[sqlx::test(migrations = "migrations/sqlite")]
+    async fn test_game_exists_for_date(pool: Pool<Sqlite>) {
+        let repo = SqliteRepository::new(pool);
 
         // Test when no game exists for date
         let exists = repo.game_exists_for_date("2025-06-08").await.unwrap();
@@ -679,9 +729,9 @@ mod tests {
         assert!(!exists);
     }
 
-    #[sqlx::test]
-    async fn test_get_game_by_date(pool: Pool<Postgres>) {
-        let repo = Repository::new(pool);
+    #[sqlx::test(migrations = "migrations/sqlite")]
+    async fn test_get_game_by_date(pool: Pool<Sqlite>) {
+        let repo = SqliteRepository::new(pool);
 
         // Test getting non-existent game by date
         let result = repo.get_game_by_date("2025-06-08").await.unwrap();

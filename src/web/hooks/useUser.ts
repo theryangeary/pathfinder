@@ -52,12 +52,12 @@ export function useUser() {
       localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(userSession));
     } catch (error) {
       console.error('Error creating user:', error);
-      // Create a temporary local user for offline play
-      const tempUser: UserSession = {
-        user_id: `temp-${Date.now()}`,
-        cookie_token: `temp-${Date.now()}`,
-      };
-      setUser(tempUser);
+      // // Create a temporary local user for offline play
+      // const tempUser: UserSession = {
+      //   user_id: `temp-${Date.now()}`,
+      //   cookie_token: `temp-${Date.now()}`,
+      // };
+      // setUser(tempUser);
     } finally {
       setIsLoading(false);
     }

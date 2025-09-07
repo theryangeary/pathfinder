@@ -9,13 +9,13 @@ use rand::{Rng, SeedableRng};
 use tracing::{error, info, warn};
 
 #[derive(Clone)]
-pub struct GameGenerator {
-    repository: Repository,
+pub struct GameGenerator<R: Repository> {
+    repository: R,
     game_engine: GameEngine,
 }
 
-impl GameGenerator {
-    pub fn new(repository: Repository, game_engine: GameEngine) -> Self {
+impl<R: Repository> GameGenerator<R> {
+    pub fn new(repository: R, game_engine: GameEngine) -> Self {
         Self {
             repository,
             game_engine,

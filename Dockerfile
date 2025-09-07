@@ -1,3 +1,10 @@
+# build frontend
+FROM node:24 as frontend
+WORKDIR /app
+COPY . .
+RUN npm install
+RUN npm run build
+
 # use chef for faster rust builds/better caching
 FROM lukemathwalker/cargo-chef:latest-rust-1.87 AS chef
 WORKDIR /app
@@ -17,9 +24,13 @@ COPY --from=planner /app/recipe.json recipe.json
 
 RUN cargo chef cook --release --recipe-path recipe.json
 
-COPY src/api/Cargo.toml Cargo.lock ./
-COPY src/api/src ./src
-COPY src/api/migrations ./migrations
+RUN mkdir -p /app/src/api
+COPY src/api/Cargo.toml /app/src/api
+COPY Cargo.lock Cargo.toml .
+COPY src/api/src /app/src/api/src
+COPY src/api/migrations /app/src/api/migrations
+
+COPY --from=frontend /app/src/web/dist /app/src/web/dist
 
 RUN cargo build --release
 
@@ -61,7 +72,7 @@ COPY scripts/cron_entrypoint.sh cron_entrypoint.sh
 
 # Copy static resources
 COPY wordlist wordlist
-COPY --from=builder /app/migrations ./migrations
+# COPY --from=builder /app/migrations ./migrations
 COPY crontab crontab
 
 

@@ -1,4 +1,6 @@
 use crate::db::models::NewGame;
+#[cfg(feature = "database-tests")]
+use crate::db::{PgRepository, SqliteRepository};
 use crate::game::{conversion::SerializableBoard, Board, GameEngine};
 #[cfg(feature = "database-tests")]
 use crate::http_api::ApiState;
@@ -65,10 +67,25 @@ pub fn create_default_test_board() -> Board {
 }
 
 #[cfg(feature = "database-tests")]
-pub async fn setup_app(pool: sqlx::Pool<sqlx::Postgres>) -> (ApiState, Router) {
-    use crate::{db::Repository, http_api::create_secure_router, security::SecurityConfig};
+pub async fn setup_app(pool: sqlx::Pool<sqlx::Postgres>) -> (ApiState<PgRepository>, Router) {
+    use crate::{db::PgRepository, http_api::create_secure_router, security::SecurityConfig};
 
-    let repository = Repository::new(pool);
+    let repository = PgRepository::new(pool);
+
+    // Create a test game engine using test_utils
+    let (game_engine, _temp_file) = create_test_game_engine();
+
+    let state = ApiState::new(repository, game_engine);
+    let app = create_secure_router(state.clone(), SecurityConfig::default());
+
+    (state, app)
+}
+
+#[cfg(feature = "database-tests")]
+pub async fn setup_app_sqlite(pool: sqlx::Pool<sqlx::Sqlite>) -> (ApiState<SqliteRepository>, Router) {
+    use crate::{db::SqliteRepository, http_api::create_secure_router, security::SecurityConfig};
+
+    let repository = SqliteRepository::new(pool);
 
     // Create a test game engine using test_utils
     let (game_engine, _temp_file) = create_test_game_engine();

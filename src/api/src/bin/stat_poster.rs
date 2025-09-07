@@ -4,7 +4,7 @@ use dotenvy::dotenv;
 use std::env;
 use tracing::{info, warn};
 
-use pathfinder::db::{setup_database, Repository};
+use pathfinder::db::{setup_database, PgRepository, Repository, SqliteRepository};
 use pathfinder::social::{bluesky::BlueSkyPoster, Post};
 
 #[tokio::main]
@@ -20,13 +20,17 @@ async fn main() -> Result<()> {
     info!("Starting stat-poster for previous day's puzzle");
 
     // Get configuration from environment
-    let database_url = env::var("DATABASE_URL")
+    let postgres_database_url = env::var("DATABASE_URL")
         .unwrap_or_else(|_| "postgresql://localhost/pathfinder".to_string());
+
+    let sqlite_database_url =
+        env::var("SQLITE_DATABASE_URL").unwrap_or_else(|_| "sqlite://pathfinder.db".to_string());
 
     // Setup database
     info!("Setting up database connection");
-    let pool = setup_database(&database_url).await?;
-    let repository = Repository::new(pool);
+    let pool = setup_database(&postgres_database_url, &sqlite_database_url).await?;
+    let postgres_repository = PgRepository::new(pool.0);
+    let _sqlite_repository = SqliteRepository::new(pool.1);
 
     // Calculate previous day's date
     let previous_day = (Utc::now() - Duration::days(1))
@@ -35,14 +39,14 @@ async fn main() -> Result<()> {
     info!("Fetching stats for date: {}", previous_day);
 
     // Get the previous day's game
-    let game = repository.get_game_by_date(&previous_day).await?;
+    let game = postgres_repository.get_game_by_date(&previous_day).await?;
 
     let report = match game {
         Some(game) => {
             info!("Found game for {}: {}", previous_day, game.id);
 
             // Get optimal solutions (professor's answers)
-            let optimal_solutions = repository.get_optimal_solutions(&game.id).await?;
+            let optimal_solutions = postgres_repository.get_optimal_solutions(&game.id).await?;
 
             // Generate report
             let mut report = String::new();
