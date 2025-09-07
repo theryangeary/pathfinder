@@ -52,6 +52,6 @@ timeout = "2s"
 tls_skip_verify = false
 
 [machine]
-memory = "256mb"
+memory = "128mb"
 cpu_kind = "shared"
 cpus = 1
