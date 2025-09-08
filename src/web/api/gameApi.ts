@@ -138,7 +138,7 @@ class GameApi {
   }
 
   async updateProgress(request: UpdateProgressRequest): Promise<SubmitResponse> {
-    return this.request<SubmitResponse>('/game-entry/${gameId}', {
+    return this.request<SubmitResponse>(`/game-entry/${request.game_id}`, {
       method: 'POST',
       body: JSON.stringify(request),
     });

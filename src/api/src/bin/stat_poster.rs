@@ -30,7 +30,7 @@ async fn main() -> Result<()> {
     info!("Setting up database connection");
     let pool = setup_database(&postgres_database_url, &sqlite_database_url).await?;
     let postgres_repository = PgRepository::new(pool.0);
-    let _sqlite_repository = SqliteRepository::new(pool.1);
+    let sqlite_repository = SqliteRepository::new(pool.1);
 
     // Calculate previous day's date
     let previous_day = (Utc::now() - Duration::days(1))
@@ -39,14 +39,14 @@ async fn main() -> Result<()> {
     info!("Fetching stats for date: {}", previous_day);
 
     // Get the previous day's game
-    let game = postgres_repository.get_game_by_date(&previous_day).await?;
+    let game = sqlite_repository.get_game_by_date(&previous_day).await?;
 
     let report = match game {
         Some(game) => {
             info!("Found game for {}: {}", previous_day, game.id);
 
             // Get optimal solutions (professor's answers)
-            let optimal_solutions = postgres_repository.get_optimal_solutions(&game.id).await?;
+            let optimal_solutions = sqlite_repository.get_optimal_solutions(&game.id).await?;
 
             // Generate report
             let mut report = String::new();

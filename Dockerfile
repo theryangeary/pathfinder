@@ -39,7 +39,7 @@ FROM debian:bookworm-slim AS runtime
 RUN apt-get update && apt-get install -y ca-certificates curl gnupg unzip \
  && curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor -o /usr/share/keyrings/postgresql-keyring.gpg \
  && echo "deb [signed-by=/usr/share/keyrings/postgresql-keyring.gpg] https://apt.postgresql.org/pub/repos/apt bookworm-pgdg main" > /etc/apt/sources.list.d/postgresql.list \
- && apt-get update && apt-get install -y postgresql-client-17
+ && apt-get update && apt-get install -y postgresql-client-17 sqlite3
 
 # Latest releases available at https://github.com/aptible/supercronic/releases
 ENV SUPERCRONIC_URL=https://github.com/aptible/supercronic/releases/download/v0.2.29/supercronic-linux-amd64 \
@@ -63,6 +63,7 @@ COPY --from=builder /app/target/release/stat-poster ./stat-poster
 COPY --from=builder /app/target/release/game-ender ./game-ender
 COPY --from=builder /app/target/release/game-generator ./game-generator
 COPY --from=builder /app/target/release/run-migrations ./run-migrations
+COPY --from=builder /app/target/release/sqlite-migrator ./sqlite-migrator
 
 # Copy control scripts
 COPY scripts/setup_rclone.sh setup_rclone.sh
