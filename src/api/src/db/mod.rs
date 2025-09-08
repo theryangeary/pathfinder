@@ -19,10 +19,10 @@ pub async fn setup_database(
     sqlite_database_url: &str,
 ) -> Result<(PgPool, SqlitePool)> {
     // Connect to PostgreSQL database
-    let pg_pool = PgPool::connect(postgres_database_url).await?;
+    let pg_pool = PgPool::connect_lazy(postgres_database_url)?;
 
-    // Run migrations
-    run_migrations_postgres(&pg_pool).await?;
+    // // Run migrations
+    // run_migrations_postgres(&pg_pool).await?;
 
     if !Sqlite::database_exists(sqlite_database_url)
         .await

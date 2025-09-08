@@ -40,8 +40,8 @@ async fn main() -> Result<()> {
     // Setup database
     info!("Setting up database connection");
     let pool = setup_database(&postgres_database_url, &sqlite_database_url).await?;
-    let postgres_repository = PgRepository::new(pool.0);
-    let _sqlite_repository = SqliteRepository::new(pool.1);
+    // let _postgres_repository = PgRepository::new(pool.0);
+    let sqlite_repository = SqliteRepository::new(pool.1);
     memory_profiler.log_memory("after_database_setup");
 
     // Setup game engine
@@ -57,7 +57,7 @@ async fn main() -> Result<()> {
     // Setup HTTP API
     info!("Creating API state");
     let api_state =
-        pathfinder::http_api::ApiState::new(postgres_repository.clone(), game_engine.clone());
+        pathfinder::http_api::ApiState::new(sqlite_repository.clone(), game_engine.clone());
     memory_profiler.log_memory("after_api_state");
 
     info!("Creating secure router");

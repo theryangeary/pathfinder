@@ -904,8 +904,8 @@ mod tests {
 
     use crate::{db::models::NewGameAnswer, test_utils::*};
 
-    #[sqlx::test(migrations = "migrations/postgres")]
-    async fn test_get_game_by_sequence_exists(pool: sqlx::Pool<sqlx::Postgres>) {
+    #[sqlx::test(migrations = "migrations/sqlite")]
+    async fn test_get_game_by_sequence_exists(pool: sqlx::Pool<sqlx::Sqlite>) {
         let (state, app) = setup_app(pool).await;
 
         // Create a test game using test_utils
@@ -937,8 +937,8 @@ mod tests {
         assert_eq!(game.board.tiles.len(), 4); // 4x4 board
     }
 
-    #[sqlx::test(migrations = "migrations/postgres")]
-    async fn test_get_game_by_sequence_not_found(pool: sqlx::Pool<sqlx::Postgres>) {
+    #[sqlx::test(migrations = "migrations/sqlite")]
+    async fn test_get_game_by_sequence_not_found(pool: sqlx::Pool<sqlx::Sqlite>) {
         let (_state, app) = setup_app(pool).await;
 
         // Test getting a non-existent sequence number
@@ -948,8 +948,8 @@ mod tests {
         assert_eq!(response.status(), StatusCode::NOT_FOUND);
     }
 
-    #[sqlx::test(migrations = "migrations/postgres")]
-    async fn test_get_game_by_sequence_multiple_games(pool: sqlx::Pool<sqlx::Postgres>) {
+    #[sqlx::test(migrations = "migrations/sqlite")]
+    async fn test_get_game_by_sequence_multiple_games(pool: sqlx::Pool<sqlx::Sqlite>) {
         let (state, app) = setup_app(pool).await;
 
         // Create multiple test games using test_utils
@@ -1024,8 +1024,8 @@ mod tests {
         assert_eq!(response.status(), StatusCode::NOT_FOUND);
     }
 
-    #[sqlx::test(migrations = "migrations/postgres")]
-    async fn test_get_game_by_date_endpoint(pool: sqlx::Pool<sqlx::Postgres>) {
+    #[sqlx::test(migrations = "migrations/sqlite")]
+    async fn test_get_game_by_date_endpoint(pool: sqlx::Pool<sqlx::Sqlite>) {
         let (state, app) = setup_app(pool).await;
 
         // Create a test game using test_utils
@@ -1056,8 +1056,8 @@ mod tests {
         assert_eq!(game.sequence_number, 1);
     }
 
-    #[sqlx::test(migrations = "migrations/postgres")]
-    async fn test_validate_word_endpoint(pool: sqlx::Pool<sqlx::Postgres>) {
+    #[sqlx::test(migrations = "migrations/sqlite")]
+    async fn test_validate_word_endpoint(pool: sqlx::Pool<sqlx::Sqlite>) {
         let (_state, app) = setup_app(pool).await;
 
         let request_body = ValidateRequest {
@@ -1081,8 +1081,8 @@ mod tests {
         assert_eq!(validate_response.error_message, "");
     }
 
-    #[sqlx::test(migrations = "migrations/postgres")]
-    async fn test_validate_invalid_word_endpoint(pool: sqlx::Pool<sqlx::Postgres>) {
+    #[sqlx::test(migrations = "migrations/sqlite")]
+    async fn test_validate_invalid_word_endpoint(pool: sqlx::Pool<sqlx::Sqlite>) {
         let (_state, app) = setup_app(pool).await;
 
         let request_body = ValidateRequest {
@@ -1106,14 +1106,13 @@ mod tests {
         assert!(validate_response.error_message.contains("invalidword"));
     }
 
-    #[sqlx::test(migrations = "migrations/postgres")]
-    async fn test_create_user_endpoint(pool: sqlx::Pool<sqlx::Postgres>) {
+    #[sqlx::test(migrations = "migrations/sqlite")]
+    async fn test_create_user_endpoint(pool: sqlx::Pool<sqlx::Sqlite>) {
         let (_state, app) = setup_app(pool).await;
 
         let request = create_test_request(axum::http::Method::POST, "/api/user", None);
         let response = app.oneshot(request).await.unwrap();
 
-        println!("{:?}", response);
         assert_eq!(response.status(), StatusCode::OK);
 
         let body = axum::body::to_bytes(response.into_body(), usize::MAX)
@@ -1127,8 +1126,8 @@ mod tests {
         assert!(!user_response["cookie_token"].as_str().unwrap().is_empty());
     }
 
-    #[sqlx::test(migrations = "migrations/postgres")]
-    async fn test_game_caching_works(pool: sqlx::Pool<sqlx::Postgres>) {
+    #[sqlx::test(migrations = "migrations/sqlite")]
+    async fn test_game_caching_works(pool: sqlx::Pool<sqlx::Sqlite>) {
         // TODO this doens't really effectively test caching
         let (state, app) = setup_app(pool).await;
 
@@ -1170,8 +1169,8 @@ mod tests {
         assert_eq!(body1, body2);
     }
 
-    #[sqlx::test(migrations = "migrations/postgres")]
-    async fn test_get_game_paths_endpoint(pool: sqlx::Pool<sqlx::Postgres>) {
+    #[sqlx::test(migrations = "migrations/sqlite")]
+    async fn test_get_game_paths_endpoint(pool: sqlx::Pool<sqlx::Sqlite>) {
         let (state, app) = setup_app(pool).await;
 
         // Create a test game
@@ -1231,8 +1230,8 @@ mod tests {
         }
     }
 
-    #[sqlx::test(migrations = "migrations/postgres")]
-    async fn test_get_word_paths_endpoint(pool: sqlx::Pool<sqlx::Postgres>) {
+    #[sqlx::test(migrations = "migrations/sqlite")]
+    async fn test_get_word_paths_endpoint(pool: sqlx::Pool<sqlx::Sqlite>) {
         let (state, app) = setup_app(pool).await;
 
         // Create a test game
@@ -1291,8 +1290,8 @@ mod tests {
         assert_eq!(response.status(), StatusCode::NOT_FOUND);
     }
 
-    #[sqlx::test(migrations = "migrations/postgres")]
-    async fn test_get_game_words_endpoint(pool: sqlx::Pool<sqlx::Postgres>) {
+    #[sqlx::test(migrations = "migrations/sqlite")]
+    async fn test_get_game_words_endpoint(pool: sqlx::Pool<sqlx::Sqlite>) {
         let (state, app) = setup_app(pool).await;
 
         // Create a test game
@@ -1345,9 +1344,9 @@ mod tests {
         assert!(words.contains(&"game".to_string()));
     }
 
-    #[sqlx::test(migrations = "migrations/postgres")]
+    #[sqlx::test(migrations = "migrations/sqlite")]
     async fn test_validate_submitted_answers_with_cumulative_constraints(
-        pool: sqlx::Pool<sqlx::Postgres>,
+        pool: sqlx::Pool<sqlx::Sqlite>,
     ) {
         // Integration test for the validate_submitted_answers function fix
         let (state, _app) = setup_app(pool).await;

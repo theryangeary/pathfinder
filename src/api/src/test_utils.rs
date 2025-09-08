@@ -67,7 +67,9 @@ pub fn create_default_test_board() -> Board {
 }
 
 #[cfg(feature = "database-tests")]
-pub async fn setup_app(pool: sqlx::Pool<sqlx::Postgres>) -> (ApiState<PgRepository>, Router) {
+pub async fn _setup_app_postgres(
+    pool: sqlx::Pool<sqlx::Postgres>,
+) -> (ApiState<PgRepository>, Router) {
     use crate::{db::PgRepository, http_api::create_secure_router, security::SecurityConfig};
 
     let repository = PgRepository::new(pool);
@@ -82,7 +84,7 @@ pub async fn setup_app(pool: sqlx::Pool<sqlx::Postgres>) -> (ApiState<PgReposito
 }
 
 #[cfg(feature = "database-tests")]
-pub async fn setup_app_sqlite(pool: sqlx::Pool<sqlx::Sqlite>) -> (ApiState<SqliteRepository>, Router) {
+pub async fn setup_app(pool: sqlx::Pool<sqlx::Sqlite>) -> (ApiState<SqliteRepository>, Router) {
     use crate::{db::SqliteRepository, http_api::create_secure_router, security::SecurityConfig};
 
     let repository = SqliteRepository::new(pool);
