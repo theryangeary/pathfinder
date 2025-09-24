@@ -597,7 +597,7 @@ async fn update_game_entry<R: Repository>(
 
     // Validate that all submitted answers are valid for this game
     if let Err(error_msg) = validate_submitted_answers(&state, &game, &request.answers).await {
-        println!("Answer validation failed: {error_msg}");
+        tracing::info!("Answer validation failed: {error_msg}");
         return Err(StatusCode::BAD_REQUEST);
     }
 
@@ -605,7 +605,7 @@ async fn update_game_entry<R: Repository>(
     let score_sheet = match score_submitted_answers(&state, &game, &request.answers).await {
         Ok(scoring) => scoring,
         Err(error_msg) => {
-            println!("Answer scoring failed: {error_msg}");
+            tracing::info!("Answer scoring failed: {error_msg}");
             return Err(StatusCode::BAD_REQUEST);
         }
     };
@@ -682,78 +682,80 @@ async fn get_game_entry<R: Repository>(
     Query(params): Query<HashMap<String, String>>,
     State(state): State<ApiState<R>>,
 ) -> Result<Json<Option<GameEntryResponse>>, StatusCode> {
-    println!("get_game_entry called - game_id: {game_id}, params: {params:?}");
+    tracing::info!("get_game_entry called - game_id: {game_id}, params: {params:?}");
 
     // Get user identification from query parameters
     let user = match (params.get("user_id"), params.get("cookie_token")) {
         (Some(user_id), Some(cookie_token)) => {
-            println!("Validating user by ID: {user_id} and cookie: {cookie_token}");
+            tracing::info!("Validating user by ID: {user_id} and cookie: {cookie_token}");
             // Validate existing user by both ID and cookie token
             match state.repository.get_user_by_id(user_id).await {
                 Ok(Some(existing_user)) => {
-                    println!(
+                    tracing::info!(
                         "Found user: {}, stored cookie: {}",
-                        existing_user.id, existing_user.cookie_token
+                        existing_user.id,
+                        existing_user.cookie_token
                     );
                     if existing_user.cookie_token == *cookie_token {
-                        println!("Cookie tokens match!");
+                        tracing::info!("Cookie tokens match!");
                         existing_user
                     } else {
-                        println!(
+                        tracing::info!(
                             "Cookie tokens don't match! Provided: {}, Stored: {}",
-                            cookie_token, existing_user.cookie_token
+                            cookie_token,
+                            existing_user.cookie_token
                         );
                         return Ok(Json(None)); // Invalid user credentials
                     }
                 }
                 Ok(None) => {
-                    println!("No user found with ID: {user_id}");
+                    tracing::info!("No user found with ID: {user_id}");
                     return Err(StatusCode::UNAUTHORIZED); // Invalid user credentials
                 }
                 Err(e) => {
-                    println!("Database error getting user by ID: {e}");
+                    tracing::info!("Database error getting user by ID: {e}");
                     return Ok(Json(None)); // Invalid user credentials
                 }
             }
         }
         (None, Some(cookie_token)) => {
-            println!("Validating user by cookie token only: {cookie_token}");
+            tracing::info!("Validating user by cookie token only: {cookie_token}");
             // Try to find user by cookie token only
             match state.repository.get_user_by_cookie(cookie_token).await {
                 Ok(Some(existing_user)) => {
-                    println!("Found user by cookie: {}", existing_user.id);
+                    tracing::info!("Found user by cookie: {}", existing_user.id);
                     existing_user
                 }
                 Ok(None) => {
-                    println!("No user found with cookie: {cookie_token}");
+                    tracing::info!("No user found with cookie: {cookie_token}");
                     return Err(StatusCode::UNAUTHORIZED); // Invalid cookie_token
                 }
                 Err(e) => {
-                    println!("Database error getting user by cookie: {e}");
+                    tracing::info!("Database error getting user by cookie: {e}");
                     return Ok(Json(None)); // Invalid cookie_token
                 }
             }
         }
         _ => {
-            println!("No user identification provided");
+            tracing::info!("No user identification provided");
             return Ok(Json(None)); // No user identification provided
         }
     };
 
-    println!("User found: {}", user.id);
+    tracing::info!("User found: {}", user.id);
 
     // Get the game entry for this user and game
     match state.repository.get_game_entry(&user.id, &game_id).await {
         Ok(Some(entry)) => {
-            println!("Found game entry: {:?}", entry.answers_data);
+            tracing::info!("Found game entry: {:?}", entry.answers_data);
             // Parse the answers from JSON using stable database format
             let answers = match AnswerStorage::deserialize_to_api_answers(&entry.answers_data) {
                 Ok(answers) => {
-                    println!("Parsed answers: {answers:?}");
+                    tracing::info!("Parsed answers: {answers:?}");
                     answers
                 }
                 Err(e) => {
-                    println!("Failed to parse answers JSON: {e}");
+                    tracing::info!("Failed to parse answers JSON: {e}");
                     return Err(StatusCode::INTERNAL_SERVER_ERROR);
                 }
             };
@@ -775,7 +777,7 @@ async fn get_game_entry<R: Repository>(
                         })
                     }
                     Err(e) => {
-                        println!("Failed to get game stats: {e}");
+                        tracing::info!("Failed to get game stats: {e}");
                         None
                     }
                 }
@@ -791,14 +793,15 @@ async fn get_game_entry<R: Repository>(
             })))
         }
         Ok(None) => {
-            println!(
+            tracing::info!(
                 "No game entry found for user {} and game {}",
-                user.id, game_id
+                user.id,
+                game_id
             );
             Ok(Json(None)) // No entry found
         }
         Err(e) => {
-            println!("Error getting game entry: {e}");
+            tracing::info!("Error getting game entry: {e}");
             Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
     }
