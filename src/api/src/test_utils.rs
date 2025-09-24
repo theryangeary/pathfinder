@@ -1,6 +1,6 @@
 use crate::db::models::NewGame;
 #[cfg(feature = "database-tests")]
-use crate::db::{PgRepository, SqliteRepository};
+use crate::db::SqliteRepository;
 use crate::game::{conversion::SerializableBoard, Board, GameEngine};
 #[cfg(feature = "database-tests")]
 use crate::http_api::ApiState;
@@ -64,23 +64,6 @@ pub fn create_test_board(letters: &str) -> Board {
 /// Creates a simple 4x4 test board with known letters
 pub fn create_default_test_board() -> Board {
     create_test_board("testh*ngar*astop")
-}
-
-#[cfg(feature = "database-tests")]
-pub async fn _setup_app_postgres(
-    pool: sqlx::Pool<sqlx::Postgres>,
-) -> (ApiState<PgRepository>, Router) {
-    use crate::{db::PgRepository, http_api::create_secure_router, security::SecurityConfig};
-
-    let repository = PgRepository::new(pool);
-
-    // Create a test game engine using test_utils
-    let (game_engine, _temp_file) = create_test_game_engine();
-
-    let state = ApiState::new(repository, game_engine);
-    let app = create_secure_router(state.clone(), SecurityConfig::default());
-
-    (state, app)
 }
 
 #[cfg(feature = "database-tests")]

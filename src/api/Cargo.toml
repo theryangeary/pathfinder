@@ -23,10 +23,6 @@ path = "src/bin/game_ender.rs"
 name = "run-migrations"
 path = "src/bin/run_migrations.rs"
 
-[[bin]]
-name = "sqlite-migrator"
-path = "src/bin/sqlite_migrator.rs"
-
 [dependencies]
 # Web framework and async runtime
 axum = { version = "0.7", features = ["macros"] }
