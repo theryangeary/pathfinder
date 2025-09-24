@@ -334,9 +334,8 @@ impl Repository for SqliteRepository {
             let answer = DbGameAnswer::new(new_answer.game_id, new_answer.word);
 
             sqlx::query(
-                "INSERT INTO game_answers (id, game_id, word, created_at) VALUES (?1, ?2, ?3, ?4)",
+                "INSERT INTO game_answers2 (game_id, word, created_at) VALUES (?1, ?2, ?3)",
             )
-            .bind(&answer.id)
             .bind(&answer.game_id)
             .bind(&answer.word)
             .bind(answer.created_at.to_rfc3339())
@@ -372,7 +371,7 @@ impl Repository for SqliteRepository {
     }
 
     async fn get_game_words(&self, game_id: &str) -> Result<Vec<String>> {
-        let rows = sqlx::query("SELECT DISTINCT word FROM game_answers WHERE game_id = ?1")
+        let rows = sqlx::query("SELECT DISTINCT word FROM game_answers2 WHERE game_id = ?1")
             .bind(game_id)
             .fetch_all(&self.pool)
             .await?;

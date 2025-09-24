@@ -129,10 +129,16 @@ async fn run_migrations_sqlite(pool: &SqlitePool) -> Result<()> {
     .await?;
 
     // List of migrations in order
-    let migrations = [(
-        "001_migrate_from_postgres.sql",
-        include_str!("../../migrations/sqlite/001_migrate_from_postgres.sql"),
-    )];
+    let migrations = [
+        (
+            "001_migrate_from_postgres.sql",
+            include_str!("../../migrations/sqlite/001_migrate_from_postgres.sql"),
+        ),
+        (
+            "20250924213229_remove_idx_game_answers_word",
+            include_str!("../../migrations/sqlite/20250924213229_remove_idx_game_answers_word.sql"),
+        ),
+    ];
 
     for (filename, migration_sql) in &migrations {
         // Check if this migration has already been applied

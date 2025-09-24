@@ -299,7 +299,10 @@ async fn get_game_words<R: Repository>(
 ) -> Result<Json<Vec<String>>, StatusCode> {
     match state.repository.get_game_words(&game_id).await {
         Ok(words) => Ok(Json(words)),
-        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+        Err(e) => {
+            tracing::info!("failed to get_game_words: {e}");
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
     }
 }
 

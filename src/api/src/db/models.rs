@@ -36,7 +36,6 @@ pub struct DbGameEntry {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DbGameAnswer {
-    pub id: String,
     pub game_id: String,
     pub word: String,
     pub created_at: DateTime<Utc>,
@@ -144,7 +143,6 @@ impl DbGameEntry {
 impl DbGameAnswer {
     pub fn new(game_id: String, word: String) -> Self {
         Self {
-            id: Uuid::new_v4().to_string(),
             game_id,
             word,
             created_at: Utc::now(),
