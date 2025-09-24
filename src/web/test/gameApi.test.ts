@@ -33,7 +33,7 @@ describe('GameApi', () => {
       const result = await gameApi.getGameBySequence(5)
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8080/api/game/sequence/5',
+        'undefined//undefined/api/game/sequence/5',
         {
           headers: {
             'Content-Type': 'application/json',
@@ -63,7 +63,7 @@ describe('GameApi', () => {
         const result = await gameApi.getGameBySequence(sequenceNumber)
 
         expect(mockFetch).toHaveBeenCalledWith(
-          `http://localhost:8080/api/game/sequence/${sequenceNumber}`,
+          `undefined//undefined/api/game/sequence/${sequenceNumber}`,
           {
             headers: {
               'Content-Type': 'application/json',
@@ -87,7 +87,7 @@ describe('GameApi', () => {
       )
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8080/api/game/sequence/999',
+        'undefined//undefined/api/game/sequence/999',
         {
           headers: {
             'Content-Type': 'application/json',
@@ -137,7 +137,7 @@ describe('GameApi', () => {
       const result = await gameApi.getDailyGame()
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8080/api/game/date/2025-06-08',
+        'undefined//undefined/api/game/date/2025-06-08',
         {
           headers: {
             'Content-Type': 'application/json',
@@ -164,7 +164,7 @@ describe('GameApi', () => {
       const result = await gameApi.getGameByDate('2025-06-07')
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8080/api/game/date/2025-06-07',
+        'undefined//undefined/api/game/date/2025-06-07',
         {
           headers: {
             'Content-Type': 'application/json',

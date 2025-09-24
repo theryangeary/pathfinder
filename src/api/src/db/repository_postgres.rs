@@ -345,14 +345,12 @@ impl Repository for PgRepository {
 
     // Get score distribution for a specific game
     async fn get_score_distribution(&self, game_id: &str) -> Result<Vec<i32>> {
-        dbg!(game_id);
         let rows = sqlx::query(
             "SELECT total_score FROM game_entries WHERE game_id = $1 AND completed = TRUE",
         )
         .bind(game_id)
         .fetch_all(&self.pool)
         .await?;
-        dbg!(&rows);
 
         let scores = rows
             .into_iter()

@@ -38,6 +38,7 @@ pub async fn setup_database(
     Ok((pg_pool, sqlite_pool))
 }
 
+#[allow(unused)]
 async fn run_migrations_postgres(pool: &PgPool) -> Result<()> {
     // Create migrations table if it doesn't exist
     sqlx::query(

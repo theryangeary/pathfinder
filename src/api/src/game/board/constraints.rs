@@ -114,10 +114,7 @@ impl TryFrom<&Vec<Answer>> for AnswerGroupConstraintSet {
         // Find all constraint sets that can satisfy all answers together
         let constraint_sets: Vec<_> = answer_objects
             .iter()
-            .map(|answer| {
-                dbg!(&answer.word, &answer.constraints_set);
-                answer.constraints_set.clone()
-            })
+            .map(|answer| answer.constraints_set.clone())
             .collect();
 
         match AnswerGroupConstraintSet::merge_all(constraint_sets) {

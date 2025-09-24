@@ -1,12 +1,12 @@
 use anyhow::Result;
 use chrono::{DateTime, Utc};
-use pathfinder::db::{setup_database, PgRepository, SqliteRepository};
-use sqlx::{PgPool, SqlitePool, Row};
+use pathfinder::db::setup_database;
+use sqlx::{PgPool, Row, SqlitePool};
+use std::env;
 use tracing::info;
-use std::{collections::HashMap, env};
 
 #[derive(Debug)]
-struct MigrationStats {
+pub struct MigrationStats {
     users: usize,
     games: usize,
     game_entries: usize,
@@ -21,7 +21,10 @@ pub struct DataMigrator {
 
 impl DataMigrator {
     pub fn new(pg_pool: PgPool, sqlite_pool: SqlitePool) -> Self {
-        Self { pg_pool, sqlite_pool }
+        Self {
+            pg_pool,
+            sqlite_pool,
+        }
     }
 
     pub async fn migrate_all_data(&self) -> Result<MigrationStats> {
@@ -48,7 +51,7 @@ impl DataMigrator {
         stats.game_entries = self.migrate_game_entries().await?;
 
         println!("Migration completed successfully!");
-        println!("Stats: {:#?}", stats);
+        println!("Stats: {stats:#?}");
 
         Ok(stats)
     }
@@ -56,9 +59,11 @@ impl DataMigrator {
     async fn migrate_users(&self) -> Result<usize> {
         println!("Migrating users...");
 
-        let rows = sqlx::query("SELECT id, cookie_token, created_at, last_seen FROM users ORDER BY created_at")
-            .fetch_all(&self.pg_pool)
-            .await?;
+        let rows = sqlx::query(
+            "SELECT id, cookie_token, created_at, last_seen FROM users ORDER BY created_at",
+        )
+        .fetch_all(&self.pg_pool)
+        .await?;
 
         let mut count = 0;
         for row in rows {
@@ -78,7 +83,7 @@ impl DataMigrator {
             count += 1;
         }
 
-        println!("Migrated {} users", count);
+        println!("Migrated {count} users");
         Ok(count)
     }
 
@@ -115,16 +120,18 @@ impl DataMigrator {
             count += 1;
         }
 
-        println!("Migrated {} games", count);
+        println!("Migrated {count} games");
         Ok(count)
     }
 
     async fn migrate_game_answers(&self) -> Result<usize> {
         println!("Migrating game answers...");
 
-        let rows = sqlx::query("SELECT id, game_id, word, created_at FROM game_answers ORDER BY game_id, word")
-            .fetch_all(&self.pg_pool)
-            .await?;
+        let rows = sqlx::query(
+            "SELECT id, game_id, word, created_at FROM game_answers ORDER BY game_id, word",
+        )
+        .fetch_all(&self.pg_pool)
+        .await?;
 
         let mut count = 0;
         for row in rows {
@@ -133,18 +140,20 @@ impl DataMigrator {
             let word: String = row.get("word");
             let created_at: DateTime<Utc> = row.get("created_at");
 
-            sqlx::query("INSERT INTO game_answers (id, game_id, word, created_at) VALUES (?1, ?2, ?3, ?4)")
-                .bind(&id)
-                .bind(&game_id)
-                .bind(&word)
-                .bind(created_at.to_rfc3339())
-                .execute(&self.sqlite_pool)
-                .await?;
+            sqlx::query(
+                "INSERT INTO game_answers (id, game_id, word, created_at) VALUES (?1, ?2, ?3, ?4)",
+            )
+            .bind(&id)
+            .bind(&game_id)
+            .bind(&word)
+            .bind(created_at.to_rfc3339())
+            .execute(&self.sqlite_pool)
+            .await?;
 
             count += 1;
         }
 
-        println!("Migrated {} game answers", count);
+        println!("Migrated {count} game answers");
         Ok(count)
     }
 
@@ -175,7 +184,7 @@ impl DataMigrator {
             count += 1;
         }
 
-        println!("Migrated {} optimal solutions", count);
+        println!("Migrated {count} optimal solutions");
         Ok(count)
     }
 
@@ -212,7 +221,7 @@ impl DataMigrator {
             count += 1;
         }
 
-        println!("Migrated {} game entries", count);
+        println!("Migrated {count} game entries");
         Ok(count)
     }
 
@@ -220,24 +229,35 @@ impl DataMigrator {
         println!("Verifying migration...");
 
         // Compare row counts
-        let tables = vec!["users", "games", "game_entries", "game_answers", "optimal_solutions"];
+        let tables = vec![
+            "users",
+            "games",
+            "game_entries",
+            "game_answers",
+            "optimal_solutions",
+        ];
 
         for table in tables {
-            let pg_count: i64 = sqlx::query(&format!("SELECT COUNT(*) as count FROM {}", table))
+            let pg_count: i64 = sqlx::query(&format!("SELECT COUNT(*) as count FROM {table}"))
                 .fetch_one(&self.pg_pool)
                 .await?
                 .get("count");
 
-            let sqlite_count: i32 = sqlx::query(&format!("SELECT COUNT(*) as count FROM {}", table))
+            let sqlite_count: i32 = sqlx::query(&format!("SELECT COUNT(*) as count FROM {table}"))
                 .fetch_one(&self.sqlite_pool)
                 .await?
                 .get("count");
 
             if pg_count != sqlite_count as i64 {
-                anyhow::bail!("Row count mismatch for table {}: PostgreSQL={}, SQLite={}", table, pg_count, sqlite_count);
+                anyhow::bail!(
+                    "Row count mismatch for table {}: PostgreSQL={}, SQLite={}",
+                    table,
+                    pg_count,
+                    sqlite_count
+                );
             }
 
-            println!("✓ {}: {} rows", table, pg_count);
+            println!("✓ {table}: {pg_count} rows");
         }
 
         // Verify some sample data integrity
@@ -305,14 +325,14 @@ pub async fn run_migration() -> Result<()> {
     let pool = setup_database(&postgres_database_url, &sqlite_database_url).await?;
 
     let migrator = DataMigrator::new(pool.0, pool.1);
-    
+
     // Run the migration
     let stats = migrator.migrate_all_data().await?;
-    
+
     // Verify the migration
     migrator.verify_migration().await?;
-    
-    println!("Migration completed successfully with stats: {:#?}", stats);
+
+    println!("Migration completed successfully with stats: {stats:#?}");
     Ok(())
 }
 
@@ -323,7 +343,6 @@ async fn main() -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     #[tokio::test]
     async fn test_migration() {

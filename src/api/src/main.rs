@@ -3,7 +3,7 @@ use dotenvy::dotenv;
 use std::{env, time::Duration};
 use tracing::info;
 
-use pathfinder::db::{setup_database, PgRepository, SqliteRepository};
+use pathfinder::db::{setup_database, SqliteRepository};
 use pathfinder::game::GameEngine;
 use pathfinder::memory_profiler::MemoryProfiler;
 use pathfinder::security::SecurityConfig;

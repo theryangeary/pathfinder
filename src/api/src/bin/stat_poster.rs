@@ -4,7 +4,7 @@ use dotenvy::dotenv;
 use std::env;
 use tracing::{info, warn};
 
-use pathfinder::db::{setup_database, PgRepository, Repository, SqliteRepository};
+use pathfinder::db::{setup_database, Repository, SqliteRepository};
 use pathfinder::social::{bluesky::BlueSkyPoster, Post};
 
 #[tokio::main]
@@ -29,7 +29,6 @@ async fn main() -> Result<()> {
     // Setup database
     info!("Setting up database connection");
     let pool = setup_database(&postgres_database_url, &sqlite_database_url).await?;
-    let postgres_repository = PgRepository::new(pool.0);
     let sqlite_repository = SqliteRepository::new(pool.1);
 
     // Calculate previous day's date
