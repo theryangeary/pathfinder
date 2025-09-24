@@ -17,16 +17,12 @@ async fn main() -> Result<()> {
 
     info!("Starting stat-poster for previous day's puzzle");
 
-    // Get configuration from environment
-    let postgres_database_url = env::var("DATABASE_URL")
-        .unwrap_or_else(|_| "postgresql://localhost/pathfinder".to_string());
-
     let sqlite_database_url =
         env::var("SQLITE_DATABASE_URL").unwrap_or_else(|_| "sqlite://pathfinder.db".to_string());
 
     // Setup database
     info!("Setting up database connection");
-    let _ = setup_database(&postgres_database_url, &sqlite_database_url).await?;
+    let _ = setup_database(&sqlite_database_url).await?;
 
     Ok(())
 }

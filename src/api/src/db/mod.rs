@@ -1,29 +1,18 @@
 pub mod conversions;
 pub mod models;
 pub mod repository;
-pub mod repository_postgres;
 pub mod repository_sqlite;
 pub mod storage_types;
 
 pub use models::OptimalAnswer;
 pub use repository::Repository;
-pub use repository_postgres::PgRepository;
 pub use repository_sqlite::SqliteRepository;
 
 use anyhow::Result;
 use sqlx::postgres::PgPool;
 use sqlx::{migrate::MigrateDatabase, sqlite::SqlitePool, Sqlite};
 
-pub async fn setup_database(
-    postgres_database_url: &str,
-    sqlite_database_url: &str,
-) -> Result<(PgPool, SqlitePool)> {
-    // Connect to PostgreSQL database
-    let pg_pool = PgPool::connect_lazy(postgres_database_url)?;
-
-    // // Run migrations
-    // run_migrations_postgres(&pg_pool).await?;
-
+pub async fn setup_database(sqlite_database_url: &str) -> Result<SqlitePool> {
     if !Sqlite::database_exists(sqlite_database_url)
         .await
         .unwrap_or(false)
@@ -35,7 +24,7 @@ pub async fn setup_database(
 
     run_migrations_sqlite(&sqlite_pool).await?;
 
-    Ok((pg_pool, sqlite_pool))
+    Ok(sqlite_pool)
 }
 
 #[allow(unused)]

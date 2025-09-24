@@ -4,30 +4,25 @@ use std::env;
 use tokio_cron_scheduler::{Job, JobScheduler};
 use tracing::{error, info};
 
-use pathfinder::db::{setup_database, PgRepository, SqliteRepository};
+use pathfinder::db::{setup_database, SqliteRepository};
 use pathfinder::game::GameEngine;
 use pathfinder::game_generator::GameGenerator;
 
 async fn run_game_generation() -> Result<()> {
-    // Get configuration from environment
-    let postgres_database_url = env::var("DATABASE_URL")
-        .unwrap_or_else(|_| "postgresql://localhost/pathfinder".to_string());
-
     let sqlite_database_url =
         env::var("SQLITE_DATABASE_URL").unwrap_or_else(|_| "sqlite://pathfinder.db".to_string());
 
     // Setup database
     info!("Setting up database connection");
-    let pool = setup_database(&postgres_database_url, &sqlite_database_url).await?;
-    let postgres_repository = PgRepository::new(pool.0);
-    let _sqlite_repository = SqliteRepository::new(pool.1);
+    let pool = setup_database(&sqlite_database_url).await?;
+    let sqlite_repository = SqliteRepository::new(pool);
 
     // Setup game engine
     info!("Initializing game engine");
     let game_engine = GameEngine::new(std::path::PathBuf::from("wordlist"));
 
     // Setup game generator
-    let game_generator = GameGenerator::new(postgres_repository, game_engine);
+    let game_generator = GameGenerator::new(sqlite_repository, game_engine);
 
     // Generate missing games
     info!("Generating missing games");

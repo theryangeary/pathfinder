@@ -2,9 +2,9 @@ use anyhow::Result;
 use chrono::{Duration, NaiveDate, Utc};
 use pathfinder::db::conversions::AnswerStorage;
 use pathfinder::db::repository::Repository;
-use pathfinder::db::repository_postgres::PgRepository;
+use pathfinder::db::SqliteRepository;
 use pathfinder::game::{conversion::SerializableBoard, GameEngine};
-use sqlx::PgPool;
+use sqlx::SqlitePool;
 use std::env;
 
 #[tokio::main]
@@ -12,15 +12,12 @@ async fn main() -> Result<()> {
     // Initialize tracing
     tracing_subscriber::fmt::init();
 
-    // Get database URL from environment
-    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-
-    let _sqlite_database_url =
+    let sqlite_database_url =
         env::var("SQLITE_DATABASE_URL").unwrap_or_else(|_| "sqlite://pathfinder.db".to_string());
 
     // Create database connection
-    let pool = PgPool::connect(&database_url).await?;
-    let repo = PgRepository::new(pool);
+    let pool = SqlitePool::connect(&sqlite_database_url).await?;
+    let repo = SqliteRepository::new(pool);
 
     // Initialize game engine for validation
     let game_engine = GameEngine::new(std::path::PathBuf::from("wordlist"));

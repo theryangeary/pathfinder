@@ -24,10 +24,6 @@ async fn main() -> Result<()> {
     let mut memory_profiler = MemoryProfiler::new();
     memory_profiler.log_memory("startup");
 
-    // Get configuration from environment
-    let postgres_database_url = env::var("DATABASE_URL")
-        .unwrap_or_else(|_| "postgresql://localhost/pathfinder".to_string());
-
     let sqlite_database_url =
         env::var("SQLITE_DATABASE_URL").unwrap_or_else(|_| "sqlite://pathfinder.db".to_string());
 
@@ -39,9 +35,9 @@ async fn main() -> Result<()> {
 
     // Setup database
     info!("Setting up database connection");
-    let pool = setup_database(&postgres_database_url, &sqlite_database_url).await?;
+    let pool = setup_database(&sqlite_database_url).await?;
     // let _postgres_repository = PgRepository::new(pool.0);
-    let sqlite_repository = SqliteRepository::new(pool.1);
+    let sqlite_repository = SqliteRepository::new(pool);
     memory_profiler.log_memory("after_database_setup");
 
     // Setup game engine
