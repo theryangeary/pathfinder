@@ -135,7 +135,7 @@ async fn run_migrations_sqlite(pool: &SqlitePool) -> Result<()> {
             include_str!("../../migrations/sqlite/001_migrate_from_postgres.sql"),
         ),
         (
-            "20250924213229_remove_idx_game_answers_word",
+            "20250924213229_remove_idx_game_answers_word.sql",
             include_str!("../../migrations/sqlite/20250924213229_remove_idx_game_answers_word.sql"),
         ),
     ];
