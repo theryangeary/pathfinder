@@ -9,7 +9,7 @@ const PathfinderLogo = () => {
     <div className="logo-container">
         <h1 className="logo-text">
             <span className="pathfinder">PATHFINDER</span>
-            {/* <span className="dot">.</span><span className="prof">prof</span> */}
+            <span className="dot">.</span><span className="prof">prof</span>
         </h1>
     </div>
     </a>
