@@ -69,23 +69,39 @@ async fn main() -> Result<()> {
     if let Some(report) = report {
         print!("{report}");
 
-        // Post to BlueSky if credentials are available
-        if let (Ok(handle), Ok(password)) =
-            (env::var("BLUESKY_HANDLE"), env::var("BLUESKY_PASSWORD"))
-        {
-            info!("Posting to BlueSky...");
-
-            let mut poster = BlueSkyPoster::new(handle).with_password(password);
-
-            match poster.authenticate().await {
-                Ok(()) => match poster.post(report).await {
-                    Ok(()) => info!("Successfully posted to BlueSky"),
-                    Err(e) => warn!("Failed to post to BlueSky: {}", e),
+        // Post to BlueSky if credentials are available. Prefer a password
+        // provided via `BLUESKY_PASSWORD_FILE`. Only fall back to
+        // `BLUESKY_PASSWORD` when `BLUESKY_PASSWORD_FILE` is not set.
+        if let Ok(handle) = env::var("BLUESKY_HANDLE") {
+            // Try password file first
+            let password_result: Result<String, ()> = match env::var("BLUESKY_PASSWORD_FILE") {
+                Ok(path) => match std::fs::read_to_string(&path) {
+                    Ok(s) => Ok(s.trim().to_string()),
+                    Err(e) => {
+                        warn!("Failed to read BLUESKY_PASSWORD_FILE '{}': {}", path, e);
+                        Err(())
+                    }
                 },
-                Err(e) => warn!("Failed to authenticate with BlueSky: {}", e),
+                Err(_) => env::var("BLUESKY_PASSWORD").map_err(|_| ()),
+            };
+
+            if let Ok(password) = password_result {
+                info!("Posting to BlueSky...");
+
+                let mut poster = BlueSkyPoster::new(handle).with_password(password);
+
+                match poster.authenticate().await {
+                    Ok(()) => match poster.post(report).await {
+                        Ok(()) => info!("Successfully posted to BlueSky"),
+                        Err(e) => warn!("Failed to post to BlueSky: {}", e),
+                    },
+                    Err(e) => warn!("Failed to authenticate with BlueSky: {}", e),
+                }
+            } else {
+                info!("BlueSky password not found, skipping post");
             }
         } else {
-            info!("BlueSky credentials not found in environment, skipping post");
+            info!("BlueSky handle not found in environment, skipping post");
         }
     }
     Ok(())
