@@ -52,25 +52,34 @@ RUN curl -fsSLO "$SUPERCRONIC_URL" \
 # Install rclone
 RUN curl -fsSL https://rclone.org/install.sh | bash
 
+RUN groupadd --gid 1001 appgroup && \
+    useradd \
+      --uid 1001 \
+      --gid appgroup \
+      --shell /bin/bash \
+      --no-create-home \
+      --no-log-init \
+      appuser
+
 WORKDIR /app
 
 # Copy all backend binaries
-COPY --from=builder /app/target/release/api-server ./api-server
-COPY --from=builder /app/target/release/stat-poster ./stat-poster
-COPY --from=builder /app/target/release/game-ender ./game-ender
-COPY --from=builder /app/target/release/game-generator ./game-generator
-COPY --from=builder /app/target/release/run-migrations ./run-migrations
+COPY --chown=appuser:appgroup --from=builder /app/target/release/api-server ./api-server
+COPY --chown=appuser:appgroup --from=builder /app/target/release/stat-poster ./stat-poster
+COPY --chown=appuser:appgroup --from=builder /app/target/release/game-ender ./game-ender
+COPY --chown=appuser:appgroup --from=builder /app/target/release/game-generator ./game-generator
+COPY --chown=appuser:appgroup --from=builder /app/target/release/run-migrations ./run-migrations
 
 # Copy control scripts
-COPY scripts/setup_rclone.sh setup_rclone.sh
-COPY scripts/store_backup.sh store_backup.sh
-COPY scripts/restore_backup.sh restore_backup.sh
-COPY scripts/cron_entrypoint.sh cron_entrypoint.sh
+COPY --chown=appuser:appgroup scripts/setup_rclone.sh setup_rclone.sh
+COPY --chown=appuser:appgroup scripts/store_backup.sh store_backup.sh
+COPY --chown=appuser:appgroup scripts/restore_backup.sh restore_backup.sh
+COPY --chown=appuser:appgroup scripts/cron_entrypoint.sh cron_entrypoint.sh
 
 # Copy static resources
-COPY wordlist wordlist
+COPY --chown=appuser:appgroup wordlist wordlist
 # COPY --from=builder /app/migrations ./migrations
-COPY crontab crontab
+COPY --chown=appuser:appgroup crontab crontab
 
 
 # verify crontab
